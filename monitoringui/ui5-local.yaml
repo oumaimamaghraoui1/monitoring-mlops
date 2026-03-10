@@ -1,0 +1,43 @@
+# yaml-language-server: $schema=https://sap.github.io/ui5-tooling/schema/ui5.yaml.json
+specVersion: "4.0"
+metadata:
+  name: pwc.monitoring.monitoringui
+type: application
+
+framework:
+  name: SAPUI5
+  version: "1.144.1"
+
+server:
+  customMiddleware:
+    # 1) PROXY FIRST!!
+    - name: fiori-tools-proxy
+      afterMiddleware: compression
+      configuration:
+        ignoreCertErrors: true  # REQUIRED for BAS!
+        backend:
+          - path: /backend
+            url: https://port8090-workspaces-ws-dl8fm.eu10.applicationstudio.cloud.sap/  # your BAS backend port
+            pathReplace: /
+        ui5:
+          - path: /resources
+            url: https://ui5.sap.com
+            version: "1.144.1"
+          - path: /test-resources
+            url: https://ui5.sap.com
+            version: "1.144.1"
+
+    # 2) APP RELOAD
+    - name: fiori-tools-appreload
+      afterMiddleware: fiori-tools-proxy
+      configuration:
+        port: 35729
+        path: webapp
+        delay: 300
+
+    # 3) PREVIEW (optional)
+    - name: fiori-tools-preview
+      afterMiddleware: fiori-tools-appreload
+      configuration:
+        flp:
+          theme: sap_horizon

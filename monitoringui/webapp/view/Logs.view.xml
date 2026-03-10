@@ -1,0 +1,176 @@
+<mvc:View
+  controllerName="pwc.monitoring.monitoringui.controller.Logs"
+  xmlns:mvc="sap.ui.core.mvc"
+  xmlns="sap.m">
+
+  <Page id="logsPage" title="Configuration Audit Logs">
+
+    <headerContent>
+      <Button id="btnRefresh" text="Refresh" press=".onRefresh"/>
+      <Button id="btnGoSecurity" text="Security Events" press=".onGoSecurity"/>
+      <Button id="btnGoDataChanges" text="Data Changes" press=".onGoDataChanges"/>
+      <Button text="System Health" press=".onGoSystemHealth" />
+      <Button text="Security Anomalies" press=".onGoAnomalies"/>
+
+    </headerContent>
+
+    <content>
+
+      <IconTabBar id="tabBarMain" expandable="false" class="largeTabSpacing">
+        <items>
+
+          <!-- ====================== HUMAN TAB ====================== -->
+<IconTabFilter
+    id="tabHuman"
+    key="HUMAN"
+    text="Human Changes"
+    icon="sap-icon://employee-approvals"
+    class="sapUiLargeMarginEnd sapUiExtraLargeMarginEnd" >   <!-- ADDED SPACING -->
+
+            <VBox id="vbHumanWrapper" class="sapUiContentPadding sapUiMediumMarginTop">
+
+              <!-- Filters row -->
+              <HBox id="hbHumanFilters" class="sapUiSmallMarginBottom" justifyContent="SpaceBetween" alignItems="Center">
+
+                <HBox id="hbHumanTypes" alignItems="Center" class="sapUiSmallMarginEnd">
+
+                  <!-- Segmented Button with spacing -->
+                  <SegmentedButton id="sbHumanFilter" selectedKey="ALL" selectionChange=".onHumanFilterChange">
+                    <items>
+                      <SegmentedButtonItem id="sbHumanAll"    key="ALL"                  text="All"                width="5rem"/>
+                      <SegmentedButtonItem id="sbHumanRoles"  key="Role Assignment"      text="Role Assignments"   width="9rem"/>
+                      <SegmentedButtonItem id="sbHumanScim"   key="User Profile Update"  text="User Updates"       width="8rem"/>
+                      <SegmentedButtonItem id="sbHumanOther"  key="Configuration Change" text="Other"              width="5rem"/>
+                    </items>
+                  </SegmentedButton>
+
+                  <!-- Add spacing between label and SearchField -->
+                  <Label id="lblHumanEmail" text="Email" class="sapUiSmallMarginBegin sapUiSmallMarginEnd"/>
+                  <SearchField id="sfHumanEmail" width="18rem" liveChange=".onHumanEmailChange" placeholder="Filter by actor or target email"/>
+
+                </HBox>
+
+                <HBox id="hbUnknownToggle" alignItems="Center">
+                  <Text id="txtUnknown" text="Hide Unknown"/>
+                  <Switch id="swUnknown" state="{logs>/hideUnknown}" change=".onToggleUnknown" class="sapUiSmallMarginBegin"/>
+                </HBox>
+
+              </HBox>
+
+              <Table id="tblHuman" growing="true" items="{ path:'logs>/human' }">
+
+                <headerToolbar>
+                  <Toolbar id="tbHumanHeader">
+                    <Title id="ttlHuman" text="Human Changes" level="H2"/>
+                    <ToolbarSpacer id="spHuman"/>
+                    <Text id="txtHumanCount" text="{= (${logs>/human}.length || 0) + ' items'}"/>
+                  </Toolbar>
+                </headerToolbar>
+
+                <columns>
+                  <Column id="colHTime"   width="12rem"><Text text="Time"/></Column>
+                  <Column id="colHType"   width="12rem"><Text text="Type"/></Column>
+                  <Column id="colHAction" width="10rem"><Text text="Action"/></Column>
+                  <Column id="colHDetail" width="20rem"><Text text="Details"/></Column>
+                  <Column id="colHActor"  width="16rem"><Text text="Actor"/></Column>
+                  <Column id="colHTarget" width="16rem"><Text text="Target"/></Column>
+                </columns>
+
+                <items>
+                  <ColumnListItem>
+                    <cells>
+                      <Text text="{logs>time}"/>
+                      <Text text="{logs>objectType}"/>
+                      <ObjectStatus
+                        text="{logs>action}"
+                        state="{= ${logs>action}==='CREATE' ? 'Success' :
+                                 ${logs>action}==='UPDATE' ? 'Warning' :
+                                 ${logs>action}==='DELETE' ? 'Error' : 'None'}"/>
+                      <Text text="{logs>details}" wrapping="true" maxLines="3"/>
+                      <Text text="{logs>actor}"   wrapping="true"/>
+                      <Text text="{logs>target}"  wrapping="true"/>
+                    </cells>
+                  </ColumnListItem>
+                </items>
+
+              </Table>
+
+            </VBox>
+          </IconTabFilter>
+
+          <!-- =================== SYSTEM / TECH TAB =================== -->
+<IconTabFilter
+    id="tabSystem"
+    key="SYSTEM"
+    text="System / Technical"
+    icon="sap-icon://sys-monitor"
+    class="sapUiLargeMarginBegin sapUiExtraLargeMarginEnd"> <!-- ADDED SPACING -->
+
+            <VBox id="vbSystemWrapper" class="sapUiContentPadding sapUiMediumMarginTop">
+
+              <!-- Filters -->
+              <HBox id="hbSystemFilters" class="sapUiSmallMarginBottom" alignItems="Center">
+
+                <SegmentedButton id="sbSystemFilter" selectedKey="ALL" selectionChange=".onSystemFilterChange" class="sapUiSmallMarginEnd">
+                  <items>
+                    <SegmentedButtonItem id="sbSystemAll"   key="ALL"                  text="All"          width="5rem"/>
+                    <SegmentedButtonItem id="sbSystemDep"   key="Deployment"           text="Deployments"   width="9rem"/>
+                    <SegmentedButtonItem id="sbSystemOther" key="Configuration Change" text="Other"         width="5rem"/>
+                  </items>
+                </SegmentedButton>
+
+                <!-- Add spacing between label and input -->
+                <Label id="lblSystemEmail" text="Email" class="sapUiSmallMarginEnd"/>
+                <SearchField id="sfSystemEmail" width="18rem" liveChange=".onSystemEmailChange" placeholder="Filter by actor or target email"/>
+
+              </HBox>
+
+              <Table id="tblSystem" growing="true" items="{ path:'logs>/system' }">
+
+                <headerToolbar>
+                  <Toolbar id="tbSystemHeader">
+                    <Title text="System / Technical Events" level="H2"/>
+                    <ToolbarSpacer/>
+                    <Text id="txtSystemCount" text="{= (${logs>/system}.length || 0) + ' items'}"/>
+                  </Toolbar>
+                </headerToolbar>
+
+                <columns>
+                  <Column width="12rem"><Text text="Time"/></Column>
+                  <Column width="12rem"><Text text="Type"/></Column>
+                  <Column width="10rem"><Text text="Action"/></Column>
+                  <Column width="24rem"><Text text="Details"/></Column>
+                  <Column width="16rem"><Text text="Actor"/></Column>
+                  <Column width="16rem"><Text text="Target"/></Column>
+                </columns>
+
+                <items>
+                  <ColumnListItem>
+                    <cells>
+                      <Text text="{logs>time}"/>
+                      <Text text="{logs>objectType}"/>
+                      <ObjectStatus
+                        text="{logs>action}"
+                        state="{= ${logs>action}==='CREATE' ? 'Success' :
+                                 ${logs>action}==='UPDATE' ? 'Warning' :
+                                 ${logs>action}==='DELETE' ? 'Error' : 'None'}"/>
+                      <Text text="{logs>details}" wrapping="true" maxLines="3"/>
+                      <Text text="{logs>actor}"   wrapping="true"/>
+                      <Text text="{logs>target}"  wrapping="true"/>
+                    </cells>
+                  </ColumnListItem>
+                </items>
+
+              </Table>
+
+            </VBox>
+          </IconTabFilter>
+
+        </items>
+      </IconTabBar>
+
+    </content>
+
+  </Page>
+
+</mvc:View>

@@ -1,0 +1,6 @@
+**/node_modules/
+**/.env
+monitoring-backend/data/*.json
+monitoring-backend/src/utils/role_alert_state.json
+.vscode/
+workspace.code-workspace

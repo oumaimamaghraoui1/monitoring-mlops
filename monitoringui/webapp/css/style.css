@@ -1,0 +1,13 @@
+/* Enter your custom styles here */
+/* Make IconTabFilter items have more space */
+.largeTabSpacing .sapMITBFilter {
+    margin-right: 1rem !important;  /* space between tabs */
+    margin-left: 1rem !important;   /* optional symmetrical spacing */
+}
+
+/* Ensure the text isn't squeezed */
+.largeTabSpacing .sapMITBText {
+    max-width: none !important;
+    width: auto !important;
+    padding: 0 1rem !important;     /* extra internal padding */
+}

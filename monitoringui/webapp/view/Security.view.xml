@@ -1,0 +1,116 @@
+<mvc:View
+  controllerName="pwc.monitoring.monitoringui.controller.Security"
+  xmlns:mvc="sap.ui.core.mvc"
+  xmlns="sap.m">
+
+  <Page
+    id="securityPage"
+    title="Security Events (audit.security-events)"
+    showNavButton="true"
+    navButtonPress=".onBack">
+
+    <!-- Header -->
+    <headerContent>
+      <Button id="btnSecRefresh" text="Refresh" press=".onRefresh"/>
+      <Button id="btnGoDataChangess" text="Data Changes" press=".onGoDataChanges"/>
+      <Button id="btnGoLogsDataa" text="Configuration Logs" press=".onGoLogs"/>
+
+    </headerContent>
+
+    <content>
+
+      <!-- Filters wrapper -->
+      <VBox id="vbFilters" class="sapUiContentPadding sapUiMediumMarginTop">
+
+        <!-- One filter row; adds comfortable spacing and alignment -->
+        <HBox id="hbFilterRow"
+              class="sapUiSmallMarginBottom"
+              alignItems="Center"
+              justifyContent="SpaceBetween">
+
+          <!-- Left group: segmented button + inputs with spacing -->
+          <HBox id="hbTypeGroup" alignItems="Center">
+
+            <!-- Segmented buttons with widths so text doesn't clip -->
+            <SegmentedButton id="sbSecType"
+                             class="sapUiSmallMarginEnd"
+                             selectedKey="ALL"
+                             selectionChange=".onTypeChange">
+              <items>
+                <SegmentedButtonItem id="sbSecAll"    key="ALL"    text="All"         width="5rem"/>
+                <SegmentedButtonItem id="sbSecLogin"  key="LOGIN"  text="Logins"      width="6rem"/>
+                <SegmentedButtonItem id="sbSecToken"  key="TOKEN"  text="Tokens"      width="6rem"/>
+                <SegmentedButtonItem id="sbSecClient" key="CLIENT" text="Client Auth" width="8rem"/>
+                <SegmentedButtonItem id="sbSecOther"  key="OTHER"  text="Other"       width="5rem"/>
+              </items>
+            </SegmentedButton>
+
+            <!-- Label has a little space to the right before the input -->
+            <Label id="lblEmail"
+                   text="Email / Client"
+                   class="sapUiSmallMarginEnd"/>
+
+            <SearchField id="sfEmail"
+                         width="16rem"
+                         class="sapUiSmallMarginEnd"
+                         liveChange=".onEmailChange"/>
+
+            <!-- Small space before IP label; label also has space before input -->
+            <Label id="lblIp"
+                   text="IP"
+                   class="sapUiSmallMarginBegin sapUiSmallMarginEnd"/>
+
+            <SearchField id="sfIp"
+                         width="12rem"
+                         liveChange=".onIpChange"/>
+
+          </HBox>
+
+        </HBox>
+
+      </VBox>
+
+      <!-- Data table -->
+      <Table id="tblSecurity"
+             growing="true"
+             items="{ path: 'security>/rows' }">
+
+        <headerToolbar>
+          <Toolbar id="tbHeader">
+            <Title id="ttlSec" text="Security Events" level="H2"/>
+            <ToolbarSpacer id="spHeader"/>
+            <Text id="txtCount" text="{= (${security>/rows}.length || 0) + ' items'}"/>
+          </Toolbar>
+        </headerToolbar>
+
+        <columns>
+          <Column id="colTime"   width="12rem"><Text id="txtTime" text="Time"/></Column>
+          <Column id="colUser"   width="14rem"><Text id="txtUser" text="User"/></Column>
+          <Column id="colType"   width="14rem"><Text id="txtType" text="Event Type"/></Column>
+          <Column id="colIp"     width="10rem"><Text id="txtIp" text="IP"/></Column>
+          <Column id="colOrigin" width="18rem"><Text id="txtOrigin" text="Origin"/></Column>
+          <Column id="colClient" width="18rem"><Text id="txtClient" text="Client"/></Column>
+          <Column id="colMsg"    width="28rem"><Text id="txtMsg" text="Message"/></Column>
+        </columns>
+
+        <items>
+          <ColumnListItem id="itemSec">
+            <cells>
+              <Text id="cellTime"    text="{security>time}"/>
+              <Text id="cellUser"    text="{security>user}"    wrapping="true"/>
+              <Text id="cellType"    text="{security>eventType}"/>
+              <Text id="cellIp"      text="{security>ip}"/>
+              <Text id="cellOrigin"  text="{security>origin}"  wrapping="true"/>
+              <Text id="cellClient"  text="{security>client}"  wrapping="true"/>
+              <Text id="cellMsg"     text="{security>message}" wrapping="true" maxLines="3"/>
+            </cells>
+          </ColumnListItem>
+        </items>
+
+      </Table>
+
+    </content>
+
+  </Page>
+
+</mvc:View>

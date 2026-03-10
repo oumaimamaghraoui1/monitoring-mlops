@@ -1,0 +1,98 @@
+{
+  "sap.app": {
+    "id": "pwc.monitoring.monitoringui",
+    "type": "application",
+    "i18n": "i18n/i18n.properties",
+    "applicationVersion": {
+      "version": "1.0.0"
+    }
+  },
+  "sap.ui": {
+    "technology": "UI5",
+    "icons": {},
+    "deviceTypes": {
+      "desktop": true,
+      "tablet": true,
+      "phone": true
+    }
+  },
+  "sap.ui5": {
+    "rootView": {
+      "viewName": "pwc.monitoring.monitoringui.view.App",
+      "type": "XML",
+      "async": true,
+      "id": "app"
+    },
+    "dependencies": {
+      "libs": {
+        "sap.m": {},
+        "sap.ui.core": {}
+      }
+    },
+    "routing": {
+      "config": {
+        "routerClass": "sap.m.routing.Router",
+        "viewType": "XML",
+        "viewPath": "pwc.monitoring.monitoringui.view",
+        "controlId": "mainApp",
+        "controlAggregation": "pages",
+        "async": true,
+        "transition": "slide"
+      },
+      "routes": [
+        {
+          "pattern": "logs",
+          "name": "logs",
+          "target": "logs"
+        },
+        {
+          "pattern": "security",
+          "name": "security",
+          "target": "security"
+        },
+        {
+          "pattern": "datachanges",
+          "name": "datachanges",
+          "target": "datachanges"
+        },
+        {
+          "pattern": "system",
+          "name": "system",
+          "target": "SystemHealth"
+        },
+        {
+          "pattern": "anomalies",
+          "name": "anomalies",
+          "target": "anomalies"
+        },
+        {
+          "pattern": "",
+          "name": "default",
+          "target": "logs"
+        }
+      ],
+      "targets": {
+        "logs": {
+          "viewName": "Logs",
+          "viewLevel": 1
+        },
+        "security": {
+          "viewName": "Security",
+          "viewLevel": 2
+        },
+        "datachanges": {
+          "viewName": "DataChanges",
+          "viewLevel": 3
+        },
+        "SystemHealth": {
+          "viewName": "SystemHealth",
+          "viewLevel": 1
+        },
+        "anomalies": {
+          "viewName": "Anomalies",
+          "viewLevel": 2
+        }
+      }
+    }
+  }
+}

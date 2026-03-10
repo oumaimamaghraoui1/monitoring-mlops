@@ -1,0 +1,91 @@
+import express from "express";
+import cors from "cors";
+
+import auditRoutes from "./src/api/audit.routes.js";
+import securityRoutes from "./src/api/security.routes.js";
+import dataRoutes from "./src/api/data.routes.js";
+import anomalyRoutes from "./src/api/anomaly.routes.js";
+import metricsRoutes from "./src/api/metrics.routes.js";
+import {
+  startSampling,
+  startHeartbeatWatchdog,
+  installCrashHooks
+} from "./src/services/healthMonitor.js";
+
+const app = express();
+
+/* --------------------------------------------
+ * BAS ORIGIN (Workspace aware)
+ * -------------------------------------------- */
+const BAS_ORIGIN_REGEX =
+  /^https:\/\/port\d+-workspaces-[a-zA-Z0-9-]+\.eu10\.applicationstudio\.cloud\.sap$/;
+
+app.enable("trust proxy");
+
+/* --------------------------------------------
+ * FULL EXPRESS v5 SAFE CORS HANDLER
+ * (Replaces app.options("*"), which causes crash)
+ * -------------------------------------------- */
+app.use((req, res, next) => {
+  const origin = req.headers.origin || "";
+
+  // Allow UI5 app origin
+  if (BAS_ORIGIN_REGEX.test(origin)) {
+    res.header("Access-Control-Allow-Origin", origin);
+  }
+
+  res.header("Access-Control-Allow-Credentials", "true");
+  res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  res.header("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
+
+  // Preflight response
+  if (req.method === "OPTIONS") {
+    return res.sendStatus(200);
+  }
+
+  next();
+});
+
+/* --------------------------------------------
+ * JSON Body Parser
+ * -------------------------------------------- */
+app.use(express.json());
+
+/* --------------------------------------------
+ * Monitoring Engine Activation
+ * -------------------------------------------- */
+installCrashHooks();
+startSampling();
+startHeartbeatWatchdog();
+
+/* --------------------------------------------
+ * Monitoring API
+ * -------------------------------------------- */
+app.use("/metrics", metricsRoutes);
+
+/* --------------------------------------------
+ * Business Routes
+ * -------------------------------------------- */
+app.get("/", (_req, res) => res.send("Monitoring Backend is running"));
+
+app.use("/audit", auditRoutes);
+app.use("/security", securityRoutes);
+app.use("/data", dataRoutes);
+
+/* --------------------------------------------
+ * Global Error Handler
+ * -------------------------------------------- */
+app.use((err, _req, res, _next) => {
+  console.error("Unhandled error:", err);
+  res.status(err.status || 500).json({ error: err.message || "Internal Server Error" });
+});
+app.use("/anomaly", anomalyRoutes);
+/* --------------------------------------------
+ * Start Server
+ * -------------------------------------------- */
+const port = process.env.PORT || 8090;
+const host = "0.0.0.0";
+
+app.listen(port, host, () =>
+  console.log(`Server running on http://${host}:${port}`)
+);

@@ -1,0 +1,73 @@
+<mvc:View
+  controllerName="pwc.monitoring.monitoringui.controller.DataChanges"
+  xmlns:mvc="sap.ui.core.mvc"
+  xmlns="sap.m">
+
+  <Page id="dataChangesPage" title="Data Changes (Audit)">
+    <headerContent>
+      <Button id="btnRefreshData" text="Refresh" type="Emphasized" press=".onRefresh"/>
+      <Button id="btnGoLogsData" text="Configuration Logs" press=".onGoLogs"/>
+      <Button id="btnGoSecurityData" text="Security Events" press=".onGoSecurity"/>
+    </headerContent>
+
+    <content>
+
+      <BusyIndicator visible="{datachg>/loading}" />
+
+      <IconTabBar id="tabDataChanges" expandable="false">
+        <items>
+
+          <!-- ======================================================= -->
+          <!-- TAB: WORKSPACE EVENTS                                  -->
+          <!-- ======================================================= -->
+          <IconTabFilter
+            id="tabWorkspace"
+            key="WS"
+            text="Workspace Events"
+            icon="sap-icon://work-history">
+
+            <VBox class="sapUiContentPadding sapUiSmallMarginTop">
+
+              <Toolbar>
+                <Title text="Workspace Events (audit.data-modification)" level="H2"/>
+                <ToolbarSpacer/>
+                <SearchField width="18rem"
+                  liveChange=".onFilterWorkspace"
+                  placeholder="Filter by workspace / action / started by"/>
+              </Toolbar>
+
+              <Table id="tblWorkspace"
+                growing="true"
+                items="{ path:'datachg>/workspace/all' }">
+
+                <columns>
+                  <Column width="12rem"><Text text="Time"/></Column>
+                  <Column width="10rem"><Text text="Workspace"/></Column>
+                  <Column width="8rem"><Text text="Action"/></Column>
+                  <Column width="18rem"><Text text="Started By"/></Column>
+                  <Column><Text text="Message"/></Column>
+                </columns>
+
+                <items>
+                  <ColumnListItem>
+                    <cells>
+                      <Text text="{datachg>timeFmt}"/>
+                      <Text text="{datachg>workspace}"/>
+                      <ObjectStatus text="{datachg>action}" state="{datachg>actionState}"/>
+                      <Text text="{datachg>started_by}" wrapping="true"/>
+                      <Text text="{datachg>message}" wrapping="true" maxLines="2"/>
+                    </cells>
+                  </ColumnListItem>
+                </items>
+              </Table>
+
+            </VBox>
+          </IconTabFilter>
+
+        </items>
+      </IconTabBar>
+
+    </content>
+  </Page>
+
+</mvc:View>

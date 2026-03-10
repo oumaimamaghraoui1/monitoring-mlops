@@ -1,0 +1,9 @@
+applications:
+  - name: monitoring-backend
+    memory: 128M
+    buildpacks:
+      - nodejs_buildpack
+    command: node server.js
+    path: .
+    env:
+      NODE_ENV: production

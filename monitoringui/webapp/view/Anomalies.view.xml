@@ -1,0 +1,65 @@
+<mvc:View
+  controllerName="pwc.monitoring.monitoringui.controller.Anomalies"
+  xmlns:mvc="sap.ui.core.mvc"
+  xmlns="sap.m">
+
+  <Page title="Security Anomalies">
+
+    <headerContent>
+      <Button text="Refresh"
+        type="Emphasized"
+        press=".onRefresh"/>
+    </headerContent>
+
+    <content>
+
+      <BusyIndicator visible="{anom>/loading}" />
+
+      <Table growing="true"
+        items="{anom>/anomalies}">
+
+        <columns>
+
+          <Column width="16rem">
+            <Text text="Actor"/>
+          </Column>
+
+          <Column width="14rem">
+            <Text text="Role Collection"/>
+          </Column>
+
+          <Column width="10rem">
+            <Text text="Time"/>
+          </Column>
+
+          <Column width="6rem">
+            <Text text="Risk"/>
+          </Column>
+
+        </columns>
+
+        <items>
+          <ColumnListItem>
+            <cells>
+
+              <Text text="{anom>actor}"/>
+
+              <Text text="{anom>collection}"/>
+
+              <Text text="{anom>timeFmt}"/>
+
+              <ObjectStatus
+                text="{anom>anomaly}"
+                state="{anom>riskState}"/>
+
+            </cells>
+          </ColumnListItem>
+        </items>
+
+      </Table>
+
+    </content>
+
+  </Page>
+
+</mvc:View>

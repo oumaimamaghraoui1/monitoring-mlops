@@ -1,0 +1,41 @@
+<mvc:View
+  controllerName="pwc.monitoring.monitoringui.controller.SystemHealth"
+  xmlns:mvc="sap.ui.core.mvc"
+  xmlns="sap.m"
+  xmlns:l="sap.ui.layout"
+  displayBlock="true">
+
+  <Page title="System Health Dashboard">
+    <content>
+
+      <VBox class="sapUiLargeMargin" renderType="Bare">
+
+        <ObjectStatus
+          title="CPU Usage"
+          text="{= (${metrics>/cpu}).toFixed(1) + '%'}"
+          state="{= ${metrics>/cpu} > 85 ? 'Error' : ${metrics>/cpu} > 60 ? 'Warning' : 'Success' }" />
+
+        <ObjectStatus
+          title="RSS Memory (MB)"
+          text="{= (${metrics>/rss} / 1024 / 1024).toFixed(1) + ' MB'}" />
+
+        <ObjectStatus
+          title="Heap Used (MB)"
+          text="{= (${metrics>/heapUsed} / 1024 / 1024).toFixed(1) + ' MB'}" />
+
+        <ObjectStatus
+          title="Event Loop Lag"
+          text="{= ${metrics>/elLagMs} + ' ms'}"
+          state="{= ${metrics>/elLagMs} > 250 ? 'Error' : ${metrics>/elLagMs} > 80 ? 'Warning' : 'Success' }" />
+
+        <ObjectStatus
+          title="Uptime"
+          text="{= ${metrics>/uptimeSec} + ' sec'}" />
+
+        <Button text="Refresh Now" press=".onRefresh" type="Emphasized" />
+
+      </VBox>
+
+    </content>
+  </Page>
+</mvc:View>
