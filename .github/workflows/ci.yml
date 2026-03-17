@@ -77,14 +77,14 @@ jobs:
       - name: Start backend
         run: |
           node monitoring-backend/server.js &
-          sleep 5
+          sleep 10
 
       # -------------------------------
       # 9. Health check API
       # -------------------------------
       - name: Health check
         run: |
-          curl --fail http://localhost:3000/health
+          curl --fail http://localhost:8090/health
 
       # -------------------------------
       # 10. Test anomaly scoring logic
