@@ -114,7 +114,11 @@ onGoAnomalies() {
     .getRouter()
     .navTo("anomalies");
 },
-
+goRisk: function () {
+  this.getOwnerComponent()
+      .getRouter()
+      .navTo("risk");
+},
     // ===== Core filterer =====
     _applyFilters() {
       const m = this.getView().getModel("logs");

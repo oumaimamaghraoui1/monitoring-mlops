@@ -1,6 +1,7 @@
 // =========================================================
-// full-log-poller.js — FULL FIXED VERSION
-// Keeps ONLY last 14 days + fetches REAL latest logs
+// full-log-poller.js — RAW INGESTION ONLY
+// Pulls SAP logs → writes all_config_logs.json
+// DOES NOT TOUCH ML
 // =========================================================
 
 import path from "path";
@@ -27,7 +28,7 @@ const {
 // =========================================================
 
 const STATE_DIR = path.join(rootPath, "data");
-const STATE_FILE = path.join(STATE_DIR, "all_config_logs.json");
+const STATE_FILE = path.join(rootPath, "data", "all_config_logs.json");
 
 // =========================================================
 // CONFIG
@@ -103,7 +104,7 @@ async function getToken() {
 }
 
 // =========================================================
-// ✅ FETCH (BUG FIXED HERE)
+// FETCH
 // =========================================================
 
 async function fetchLogs(tok) {
@@ -167,7 +168,13 @@ function mapEvent(raw, actor, target) {
 
   let objectType = "Configuration Change";
   let action = id.crudType || "UPDATE";
-  let details = id.description || "";
+  let details =
+    id.description ||
+    id.rolecollection_name ||
+    id.role_name ||
+    id.scope_name ||
+    id.object_id ||
+    JSON.stringify(id, null, 2);
 
   const isHuman =
     actor.includes("@") ||
@@ -184,12 +191,12 @@ function mapEvent(raw, actor, target) {
 }
 
 // =========================================================
-// ✅ POLL FIXED
+// POLL RAW ONLY
 // =========================================================
 
 async function pollOnce() {
 
-  console.log("[POLL] Monitoring audit.configuration (last 14 days)…");
+  console.log("[POLL] Monitoring audit.configuration…");
 
   const now = Date.now();
   const cutoff = now - RETENTION_MS;
@@ -201,21 +208,17 @@ async function pollOnce() {
     return !isNaN(t) && t >= cutoff;
   });
 
-  console.log(`[POLL] After cleanup: ${existing.length}`);
-
   const token = await getToken();
   const fresh = await fetchLogs(token);
 
-  console.log(`[POLL] fetched ${fresh.length} logs.`);
+  const merged = [...existing];
+  const seen = new Set(existing.map(l => l.uuid));
 
-  const merged = [];
-  const seen = new Set();
+  for (const raw of fresh) {
 
-  for (const raw of [...fresh, ...existing]) {
+    const key = raw.message_uuid;
 
-    const key =
-      raw.message_uuid ||
-      `${raw.category}|${raw.time}|${raw.id || ""}`;
+if (!key) continue;
 
     if (seen.has(key)) continue;
     seen.add(key);
@@ -229,7 +232,7 @@ async function pollOnce() {
 
     if (isNaN(logTime) || logTime < cutoff) continue;
 
-    merged.push({
+    const logEvent = {
       uuid: key,
       time: raw.time,
       actor: mapped.actor,
@@ -239,7 +242,9 @@ async function pollOnce() {
       details: mapped.details,
       isHuman: mapped.isHuman,
       raw
-    });
+    };
+
+    merged.push(logEvent);
   }
 
   merged.sort(
@@ -249,9 +254,7 @@ async function pollOnce() {
 
   await saveState(merged);
 
-  console.log(
-    `[POLL] Saved ${merged.length} logs (last 14 days)`
-  );
+  console.log(`[POLL] Saved ${merged.length} RAW logs`);
 }
 
 // =========================================================

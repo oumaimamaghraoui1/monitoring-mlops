@@ -1,6 +1,40 @@
 node_modules/
+
+# ======================
+# ENV
+# ======================
 .env
-monitoring-backend/data/*.json
+.env.*
+
+# ======================
+# BACKEND SECURITY LOGS
+# ======================
+monitoring-backend/data/
+
+monitoring-backend/mlops/data/raw/
+monitoring-backend/mlops/data/processed/
+monitoring-backend/mlops/data/features/
+
 monitoring-backend/src/utils/role_alert_state.json
+
+# ======================
+# ML MODELS
+# ======================
+monitoring-backend/mlops/models/
+*.joblib
+*.pkl
+*.h5
+*.onnx
+
+# ======================
+# GENERATED DATA
+# ======================
+*.parquet
+*.csv
+*.feather
+
+# ======================
+# IDE
+# ======================
 .vscode/
 workspace.code-workspace

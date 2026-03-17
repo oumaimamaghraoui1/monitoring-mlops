@@ -1,39 +1,58 @@
-import fs from "fs/promises";
+import { spawn } from "child_process";
 import path from "path";
 import { fileURLToPath } from "url";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
 const rootPath = path.resolve(__dirname, "../..");
 
-const BASELINE_FILE =
-  path.join(rootPath, "data", "behaviour_baseline.json");
+const pythonPath = path.join(
+  rootPath,
+  "mlops",
+  "venv",
+  "bin",
+  "python"
+);
 
-export async function computeAnomaly(log) {
+const scriptPath = path.join(
+  rootPath,
+  "mlops",
+  "inference",
+  "score_event.py"
+);
 
-  const raw =
-    await fs.readFile(BASELINE_FILE, "utf8");
+export function scoreEvent(event) {
 
-  const baseline = JSON.parse(raw);
+  return new Promise((resolve) => {
 
-  const actor = log.actor;
-  const role = log.objectType;
-  const hour =
-    new Date(log.time).getHours();
+    const py = spawn(pythonPath, [scriptPath]);
 
-  if (!baseline[actor]) return 1;
+    let data = "";
 
-  const roleFreq =
-    baseline[actor].roles[role] || 0;
+    py.stdout.on("data", chunk => {
+      data += chunk.toString();
+    });
 
-  const hourFreq =
-    baseline[actor].hours[hour] || 0;
+    py.stderr.on("data", err => {
+      console.log("❌ PYTHON STDERR:", err.toString());
+    });
 
-  const roleScore =
-    roleFreq === 0 ? 1 : 0;
+    py.on("close", () => {
 
-  const timeScore =
-    hourFreq === 0 ? 1 : 0;
+      try {
+        const parsed = JSON.parse(data);
+        resolve(parsed);
+      } catch {
+        resolve({ score: 0, anomaly: 0 });
+      }
 
-  return (roleScore + timeScore) / 2;
+    });
+
+    // ✅ SEND JSON VIA STDIN
+    py.stdin.write(JSON.stringify(event));
+    py.stdin.end();
+
+  });
+
 }

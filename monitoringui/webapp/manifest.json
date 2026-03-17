@@ -26,7 +26,8 @@
     "dependencies": {
       "libs": {
         "sap.m": {},
-        "sap.ui.core": {}
+        "sap.ui.core": {},
+        "sap.viz": {}
       }
     },
     "routing": {
@@ -69,7 +70,12 @@
           "pattern": "",
           "name": "default",
           "target": "logs"
-        }
+        },
+        {
+  "pattern": "risk",
+  "name": "risk",
+  "target": "risk"
+}
       ],
       "targets": {
         "logs": {
@@ -91,7 +97,11 @@
         "anomalies": {
           "viewName": "Anomalies",
           "viewLevel": 2
-        }
+        },
+        "risk": {
+  "viewName": "Risk",
+  "viewLevel": 2
+}
       }
     }
   }

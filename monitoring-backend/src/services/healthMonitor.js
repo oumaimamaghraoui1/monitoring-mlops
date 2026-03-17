@@ -1,7 +1,7 @@
 // src/services/healthMonitor.js
 import os from "os";
 import * as NotificationService from "../infrastructure/notifications/NotificationService.js";
-
+const IS_PROD = process.env.NODE_ENV === "production";
 // Optional modules
 let pidusage = null;
 try { pidusage = (await import("pidusage")).default; } catch (_) {}
@@ -222,8 +222,13 @@ function raiseAlert(type, message, severity = "MEDIUM", extras = {}) {
         context: { ...state, ...extras }
       });
     } else {
-      console.error("[healthMonitor] NotificationService.notify NOT found");
-    }
+
+  // ✅ Only warn in production
+  if (IS_PROD) {
+    console.error("[healthMonitor] NotificationService.notify NOT found");
+  }
+
+}
   } catch (e) {
     console.error("[healthMonitor] alert error:", e.message);
   }
