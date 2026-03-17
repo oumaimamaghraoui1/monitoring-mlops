@@ -1,7 +1,21 @@
+// ==============================================
+// anomaly-worker.js
+// CI-SAFE VERSION
+// ==============================================
+
 import fs from "fs/promises";
 import path from "path";
 import { fileURLToPath } from "url";
 import { scoreEvent } from "./anomaly-score.js";
+
+// ✅ Detect CI environment
+const isCI = process.env.CI === "true";
+
+// ✅ NEVER run worker in CI
+if (isCI) {
+  console.log("⚠️ CI environment detected — anomaly worker disabled.");
+  process.exit(0);
+}
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -50,18 +64,15 @@ async function runWorker() {
 
       const now = new Date(log.time).getTime();
 
-      // ✅ last 7 day activity
       const last7d = actorLogs.filter(l => {
         const t = new Date(l.time).getTime();
         return now - t <= 7 * 24 * 60 * 60 * 1000;
       });
 
-      // ✅ same role usage
       const sameRole = actorLogs.filter(l =>
         l.details === log.details
       );
 
-      // ✅ previous action
       const previous = actorLogs
         .filter(l => new Date(l.time) < new Date(log.time))
         .sort((a,b)=> new Date(b.time)-new Date(a.time))[0];
@@ -99,7 +110,6 @@ async function runWorker() {
 
       scoredUUIDs.add(log.uuid);
 
-      // ✅ progressive write
       await fs.writeFile(
         SCORED_FILE,
         JSON.stringify(scoredLogs,null,2)
@@ -117,4 +127,5 @@ async function runWorker() {
   isRunning = false;
 }
 
+// ✅ Start worker ONLY outside CI
 setInterval(runWorker, 15000);
