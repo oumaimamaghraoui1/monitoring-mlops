@@ -12,9 +12,9 @@ import {
   installCrashHooks
 } from "./src/services/healthMonitor.js";
 import healthRoutes from "./src/api/health.routes.js";
-app.use("/health", healthRoutes);
-const app = express();
 
+const app = express();
+app.use("/health", healthRoutes);
 /* --------------------------------------------
  * BAS ORIGIN (Workspace aware)
  * -------------------------------------------- */
@@ -55,9 +55,12 @@ app.use(express.json());
 /* --------------------------------------------
  * Monitoring Engine Activation
  * -------------------------------------------- */
-installCrashHooks();
-startSampling();
-startHeartbeatWatchdog();
+// Disable monitoring engine in CI
+if (process.env.CI !== "true") {
+  installCrashHooks();
+  startSampling();
+  startHeartbeatWatchdog();
+}
 
 /* --------------------------------------------
  * Monitoring API
