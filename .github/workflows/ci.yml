@@ -10,29 +10,42 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      #
-      # 1. Checkout the repo
-      #
+
+      # -------------------------------
+      # 1. Checkout repo
+      # -------------------------------
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      #
-      # 2. Setup Node.js (NO secrets needed)
-      #
+      # -------------------------------
+      # 2. Setup Node
+      # -------------------------------
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
 
-      #
-      # 3. Install dependencies
-      #
+      # -------------------------------
+      # 3. Install backend deps
+      # -------------------------------
       - name: Install dependencies
         run: npm install --ignore-scripts
 
-      #
-      # 4. Lint (optional)
-      #
+      # -------------------------------
+      # 4. Setup Python for ML
+      # -------------------------------
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install ML dependencies
+        run: |
+          pip install -r monitoring-backend/mlops/requirements.txt
+
+      # -------------------------------
+      # 5. Lint (optional)
+      # -------------------------------
       - name: Lint code
         run: |
           if [ -f "./.eslintrc.json" ]; then
@@ -41,9 +54,9 @@ jobs:
             echo "No ESLint config found. Skipping lint."
           fi
 
-      #
-      # 5. Run tests (if any exist)
-      #
+      # -------------------------------
+      # 6. Run unit tests (if exist)
+      # -------------------------------
       - name: Run tests
         run: |
           if npm test --silent 2>/dev/null; then
@@ -52,20 +65,53 @@ jobs:
             echo "No tests found or test script missing"
           fi
 
-      #
-      # 6. Train ML Baseline (NO secrets needed)
-      #
+      # -------------------------------
+      # 7. npm Security Audit
+      # -------------------------------
+      - name: Security audit
+        run: npm audit --audit-level=high
+
+      # -------------------------------
+      # 8. Start backend
+      # -------------------------------
+      - name: Start backend
+        run: |
+          node monitoring-backend/server.js &
+          sleep 5
+
+      # -------------------------------
+      # 9. Health check API
+      # -------------------------------
+      - name: Health check
+        run: |
+          curl --fail http://localhost:3000/health
+
+      # -------------------------------
+      # 10. Test anomaly scoring logic
+      # -------------------------------
+      - name: Test anomaly scoring
+        run: node monitoring-backend/src/services/test-anomaly.js
+
+      # -------------------------------
+      # 11. Train Behaviour Baseline
+      # -------------------------------
       - name: Train Behaviour Baseline
         run: |
           if [ -f "monitoring-backend/src/services/build-baseline.js" ]; then
-          node monitoring-backend/src/services/build-baseline.js
+            node monitoring-backend/src/services/build-baseline.js
           else
             echo "ML baseline script not found."
           fi
 
-      #
-      # 7. Upload ML model artifact
-      #
+      # -------------------------------
+      # 12. Validate baseline JSON
+      # -------------------------------
+      - name: Validate baseline
+        run: node monitoring-backend/src/services/validate-baseline.js
+
+      # -------------------------------
+      # 13. Upload artifact
+      # -------------------------------
       - name: Upload trained baseline artifact
         uses: actions/upload-artifact@v4
         with:

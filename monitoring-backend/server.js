@@ -11,7 +11,8 @@ import {
   startHeartbeatWatchdog,
   installCrashHooks
 } from "./src/services/healthMonitor.js";
-
+import healthRoutes from "./src/api/health.routes.js";
+app.use("/health", healthRoutes);
 const app = express();
 
 /* --------------------------------------------
