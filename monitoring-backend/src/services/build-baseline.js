@@ -1,9 +1,11 @@
 // ==============================================
 // build-baseline.js
 // Builds user behaviour baseline from logs
+// CI-safe version
 // ==============================================
 
 import fs from "fs/promises";
+import fsSync from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 
@@ -19,6 +21,15 @@ const BASELINE_FILE =
 
 async function main() {
 
+  // ✅ CI SAFETY CHECK
+  if (!fsSync.existsSync(LOG_FILE)) {
+    console.log("⚠️ Training logs not found.");
+    console.log("ℹ️ CI environment detected — skipping baseline training.");
+    return;
+  }
+
+  console.log("✅ Logs found. Building behaviour baseline...");
+
   const raw = await fs.readFile(LOG_FILE, "utf8");
   const logs = JSON.parse(raw || "[]");
 
@@ -26,12 +37,11 @@ async function main() {
 
   for (const log of logs) {
 
-    if (!log.actor || !log.objectType) continue;
+    if (!log.actor || !log.objectType || !log.time) continue;
 
     const actor = log.actor;
     const role = log.objectType;
-    const hour =
-      new Date(log.time).getHours();
+    const hour = new Date(log.time).getHours();
 
     if (!baseline[actor]) {
       baseline[actor] = {
@@ -57,4 +67,7 @@ async function main() {
   console.log("✅ Behaviour baseline built.");
 }
 
-main();
+main().catch(err => {
+  console.error("❌ Baseline build failed:", err);
+  process.exit(1);
+});
