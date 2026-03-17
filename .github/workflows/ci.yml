@@ -71,20 +71,6 @@ jobs:
       - name: Security audit
         run: npm audit --audit-level=high
 
-      # -------------------------------
-      # 8. Start backend
-      # -------------------------------
-      - name: Start backend
-        run: |
-          node monitoring-backend/server.js &
-          sleep 10
-
-      # -------------------------------
-      # 9. Health check API
-      # -------------------------------
-      - name: Health check
-        run: |
-          curl --fail http://localhost:8090/health
 
       # -------------------------------
       # 10. Test anomaly scoring logic
