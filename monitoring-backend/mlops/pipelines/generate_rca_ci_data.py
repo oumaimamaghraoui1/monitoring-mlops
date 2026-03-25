@@ -8,10 +8,11 @@ n = 500
 
 df = pd.DataFrame({
     "cpu": np.random.rand(n),
-    "memory": np.random.rand(n),
-    "disk": np.random.rand(n),
-    "network": np.random.rand(n),
-    "incident_type": np.random.choice([0,1,2], n)
+    "latency": np.random.rand(n),
+    "heapGrowth": np.random.rand(n),
+    "gc": np.random.rand(n),
+    "lag": np.random.rand(n),
+    "cause": np.random.choice(["MEMORY","CPU","NETWORK"], n)
 })
 
 df.to_csv(
