@@ -7,13 +7,9 @@ const __dirname = path.dirname(__filename);
 
 const rootPath = path.resolve(__dirname, "../..");
 
-const pythonPath = path.join(
-  rootPath,
-  "mlops",
-  "venv",
-  "bin",
-  "python"
-);
+const pythonPath =
+  process.env.CI ? "python3" :
+  path.join(rootPath,"mlops","venv","bin","python");
 
 const scriptPath = path.join(
   rootPath,
