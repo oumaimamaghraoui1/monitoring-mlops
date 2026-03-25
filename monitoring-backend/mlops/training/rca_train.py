@@ -9,6 +9,10 @@ from sklearn.preprocessing import LabelEncoder
 import joblib
 import os
 
+if os.getenv("CI"):
+    DATA_PATH = "monitoring-backend/mlops/data/processed/rca_ci_dataset.csv"
+else:
+    DATA_PATH = "monitoring-backend/mlops/data/processed/rca_dataset.csv"
 # ============================
 # PATHS
 # ============================

@@ -1,4 +1,4 @@
-name: CI - Test and Train ML Baseline
+name: CI - Test and Train ML Baseline + RCA
 
 on:
   push:
@@ -11,29 +11,21 @@ jobs:
 
     steps:
 
-      # -------------------------------
       # 1. Checkout repo
-      # -------------------------------
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # -------------------------------
       # 2. Setup Node
-      # -------------------------------
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
 
-      # -------------------------------
       # 3. Install backend deps
-      # -------------------------------
       - name: Install dependencies
         run: npm install --ignore-scripts
 
-      # -------------------------------
-      # 4. Setup Python for ML
-      # -------------------------------
+      # 4. Setup Python
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
@@ -42,9 +34,7 @@ jobs:
       - name: Install ML dependencies
         run: pip install -r monitoring-backend/mlops/requirements.txt
 
-      # -------------------------------
-      # 5. Lint (optional)
-      # -------------------------------
+      # 5. Lint
       - name: Lint code
         run: |
           if [ -f "./.eslintrc.json" ]; then
@@ -53,65 +43,58 @@ jobs:
             echo "No ESLint config found. Skipping lint."
           fi
 
-      # -------------------------------
-      # 6. Run unit tests (if exist)
-      # -------------------------------
+      # 6. Run unit tests
       - name: Run tests
         run: |
           if npm test --silent 2>/dev/null; then
             echo "Tests executed"
           else
-            echo "No tests found or test script missing"
+            echo "No tests found"
           fi
 
-      # -------------------------------
-      # 7. npm Security Audit
-      # -------------------------------
+      # 7. Security audit
       - name: Security audit
         run: npm audit --audit-level=high
 
       # -------------------------------
-      # 8. Create ML data folder
+      # ANOMALY BASELINE PIPELINE
       # -------------------------------
+
       - name: Create ML data folder
         run: mkdir -p monitoring-backend/data
 
-      # -------------------------------
-      # 9. Train Behaviour Baseline
-      # -------------------------------
       - name: Train Behaviour Baseline
-        run: |
-          if [ -f "monitoring-backend/src/services/build-baseline.js" ]; then
-            node monitoring-backend/src/services/build-baseline.js
-          else
-            echo "ML baseline script not found."
-            exit 1
-          fi
+        run: node monitoring-backend/src/services/build-baseline.js
 
-      # -------------------------------
-      # 10. Validate baseline JSON
-      # -------------------------------
       - name: Validate baseline
-        run: |
-          if [ -f "monitoring-backend/data/behaviour_baseline.json" ]; then
-            node monitoring-backend/src/services/validate-baseline.js
-          else
-            echo "Baseline not generated!"
-            exit 1
-          fi
+        run: node monitoring-backend/src/services/validate-baseline.js
 
-      # -------------------------------
-      # 11. Test anomaly scoring logic
-      # -------------------------------
       - name: Test anomaly scoring
         run: node monitoring-backend/src/services/test-anomaly.js
 
-      # -------------------------------
-      # 12. Upload artifact
-      # -------------------------------
-      - name: Upload trained baseline artifact
+      - name: Upload baseline artifact
         uses: actions/upload-artifact@v4
         with:
           name: behaviour-baseline
           path: monitoring-backend/data/behaviour_baseline.json
+          if-no-files-found: error
+
+      # -------------------------------
+      # RCA ML PIPELINE
+      # -------------------------------
+
+      - name: Generate RCA synthetic dataset
+        run: python monitoring-backend/mlops/pipelines/generate_rca_ci_data.py
+
+      - name: Train RCA model
+        run: python monitoring-backend/mlops/training/rca_train.py
+
+      - name: Test RCA inference
+        run: python monitoring-backend/mlops/inference/rca_predict.py
+
+      - name: Upload RCA model artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: rca-model
+          path: monitoring-backend/mlops/models/
           if-no-files-found: error
