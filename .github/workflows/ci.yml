@@ -71,16 +71,15 @@ jobs:
       - name: Security audit
         run: npm audit --audit-level=high
 
+        # -------------------------------
+      # 9. Create ML data folder
+      # -------------------------------
+      - name: Create ML data folder
+        run: mkdir -p monitoring-backend/data
 
-      # -------------------------------
-      # 10. Test anomaly scoring logic
-      # -------------------------------
-      - name: Test anomaly scoring
-        run: node monitoring-backend/src/services/test-anomaly.js
-
-      # -------------------------------
-      # 11. Train Behaviour Baseline
-      # -------------------------------
+# -------------------------------
+# 10. Train Behaviour Baseline
+# -------------------------------
       - name: Train Behaviour Baseline
         run: |
           if [ -f "monitoring-backend/src/services/build-baseline.js" ]; then
@@ -90,10 +89,16 @@ jobs:
           fi
 
       # -------------------------------
-      # 12. Validate baseline JSON
+      # 11. Validate baseline JSON
       # -------------------------------
       - name: Validate baseline
         run: node monitoring-backend/src/services/validate-baseline.js
+
+      # -------------------------------
+      # 12. Test anomaly scoring logic
+      # -------------------------------
+      - name: Test anomaly scoring
+        run: node monitoring-backend/src/services/test-anomaly.js
 
       # -------------------------------
       # 13. Upload artifact
