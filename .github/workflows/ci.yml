@@ -40,8 +40,7 @@ jobs:
           python-version: '3.10'
 
       - name: Install ML dependencies
-        run: |
-          pip install -r monitoring-backend/mlops/requirements.txt
+        run: pip install -r monitoring-backend/mlops/requirements.txt
 
       # -------------------------------
       # 5. Lint (optional)
@@ -71,41 +70,48 @@ jobs:
       - name: Security audit
         run: npm audit --audit-level=high
 
-        # -------------------------------
-      # 9. Create ML data folder
+      # -------------------------------
+      # 8. Create ML data folder
       # -------------------------------
       - name: Create ML data folder
         run: mkdir -p monitoring-backend/data
 
-# -------------------------------
-# 10. Train Behaviour Baseline
-# -------------------------------
+      # -------------------------------
+      # 9. Train Behaviour Baseline
+      # -------------------------------
       - name: Train Behaviour Baseline
         run: |
           if [ -f "monitoring-backend/src/services/build-baseline.js" ]; then
             node monitoring-backend/src/services/build-baseline.js
           else
             echo "ML baseline script not found."
+            exit 1
           fi
 
       # -------------------------------
-      # 11. Validate baseline JSON
+      # 10. Validate baseline JSON
       # -------------------------------
       - name: Validate baseline
-        run: node monitoring-backend/src/services/validate-baseline.js
+        run: |
+          if [ -f "monitoring-backend/data/behaviour_baseline.json" ]; then
+            node monitoring-backend/src/services/validate-baseline.js
+          else
+            echo "Baseline not generated!"
+            exit 1
+          fi
 
       # -------------------------------
-      # 12. Test anomaly scoring logic
+      # 11. Test anomaly scoring logic
       # -------------------------------
       - name: Test anomaly scoring
         run: node monitoring-backend/src/services/test-anomaly.js
 
       # -------------------------------
-      # 13. Upload artifact
+      # 12. Upload artifact
       # -------------------------------
       - name: Upload trained baseline artifact
         uses: actions/upload-artifact@v4
         with:
           name: behaviour-baseline
           path: monitoring-backend/data/behaviour_baseline.json
-          if-no-files-found: ignore
+          if-no-files-found: error
