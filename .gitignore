@@ -38,3 +38,9 @@ monitoring-backend/mlops/models/
 # ======================
 .vscode/
 workspace.code-workspace
+# virtual environment
+venv/
+
+# python cache
+__pycache__/
+*.pyc

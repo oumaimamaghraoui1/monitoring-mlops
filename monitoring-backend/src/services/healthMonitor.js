@@ -1,267 +1,270 @@
-// src/services/healthMonitor.js
 import os from "os";
+import { PerformanceObserver } from "perf_hooks";
 import * as NotificationService from "../infrastructure/notifications/NotificationService.js";
-const IS_PROD = process.env.NODE_ENV === "production";
-// Optional modules
-let pidusage = null;
-try { pidusage = (await import("pidusage")).default; } catch (_) {}
-
-let eventLoopLag = null;
-try {
-  const lag = await import("event-loop-lag");
-  eventLoopLag = lag.default(1000);
-} catch (_) {}
-
-// ===== Helpers =====
-function num(v, d) {
-  const n = Number(v);
-  return Number.isFinite(n) ? n : d;
-}
-
-// ===== Config from .env =====
-const SAMPLE_INTERVAL_MS = num(process.env.SAMPLE_INTERVAL_MS, 3000);
-const HEARTBEAT_CHECK_MS = num(process.env.HEARTBEAT_CHECK_MS, 5000);
-const MAX_STALE_SEC      = num(process.env.MAX_STALE_SEC, 20);
-
-const CPU_HIGH_PCT   = num(process.env.CPU_HIGH_PCT, 85);
-const CPU_SUSTAIN_MS = num(process.env.CPU_SUSTAIN_MS, 15000);
-
-const HEAP_LEAK_MB    = num(process.env.HEAP_LEAK_MB, 30);
-const HEAP_WINDOW_SEC = num(process.env.HEAP_WINDOW_SEC, 300);
-
-const LAG_THRESHOLD_MS = num(process.env.LAG_THRESHOLD_MS, 250);
+import { PythonShell } from "python-shell";
+import fs from "fs";
+import path from "path";
 
 const ONE_MB = 1024 * 1024;
 
-// ===== Internal State =====
+// =============================
+// Runtime State
+// =============================
 const state = {
-  startedAt: new Date().toISOString(),
-  lastSampleAt: null,
-  cpu: null,
-  rss: null,
-  heapUsed: null,
-  heapTotal: null,
-  elLagMs: null,
+  cpu: 0,
+  heapUsed: 0,
+  heapTotal: 0,
+  elLagMs: 0,
   uptimeSec: 0,
   heartbeatTs: Date.now(),
-  pid: process.pid
+  gcTimeMs: 0,
+  healthScore: 100
 };
 
-// Timers
+// =============================
+// GC Observer
+// =============================
+new PerformanceObserver((list) => {
+  state.gcTimeMs = list.getEntries()
+    .reduce((acc, e) => acc + e.duration, 0);
+}).observe({ entryTypes: ["gc"] });
+
+// =============================
+const SAMPLE_INTERVAL_MS = 2000;
+const HEARTBEAT_CHECK_MS = 5000;
+const MAX_STALE_SEC = 20;
+const HEALTH_ALERT_SCORE = 90;
+const ALERT_COOLDOWN_MS = 10000;
+
 let samplerTimer = null;
 let heartbeatTimer = null;
+let lastLoop = process.hrtime.bigint();
 
-// Windows
-const cpuWindow = {
-  highSince: null,
-  lastAlertAt: 0
+const alertWindow = {
+  lastHealth: 0
 };
 
-const heapWindow = {
-  points: [],
-  lastAlertAt: 0
-};
+// =============================
+function computeEventLoopLag() {
+  const now = process.hrtime.bigint();
+  const diff = Number(now - lastLoop) / 1e6;
+  lastLoop = now;
+  return Math.max(diff - SAMPLE_INTERVAL_MS, 0);
+}
 
-const lastByKey = new Map();
+function computeHealthScore() {
+  let score = 100;
+  if (state.cpu > 80) score -= 25;
+  if (state.elLagMs > 200) score -= 25;
+  if (state.gcTimeMs > 50) score -= 20;
+  if ((global.lastRequestLatency || 0) > 300) score -= 30;
+  return Math.max(score, 0);
+}
 
-// ===== Sampling (runs every SAMPLE_INTERVAL_MS) =====
-function sample() {
+// =============================
+// ML RCA
+// =============================
+async function getSmartRecommendation() {
+
+  try {
+    const pyshell = new PythonShell(
+      process.cwd() + "/mlops/inference/rca_predict.py",
+      {
+        pythonPath: process.cwd() + "/mlops/venv/bin/python",
+        args: [
+          JSON.stringify({
+            cpu: state.cpu,
+            latency: global.lastRequestLatency || 0,
+            gc: state.gcTimeMs,
+            lag: state.elLagMs
+          })
+        ]
+      }
+    );
+
+    const result = await new Promise((resolve, reject) => {
+      pyshell.on("message", resolve);
+      pyshell.on("error", reject);
+    });
+
+    return JSON.parse(result);
+
+  } catch {
+    return null;
+  }
+}
+
+// =============================
+// INCIDENT LOGGER ✅ FIXED
+// =============================
+function logIncident(cause){
+
+  const file = path.resolve(
+    process.cwd(),
+    "mlops/data/rca/incidents_log.csv"
+  );
+
+  const row = `${state.cpu},${global.lastRequestLatency || 0},0,${state.gcTimeMs},${state.elLagMs},${cause}\n`;
+
+  fs.appendFile(file,row,()=>{});
+
+}
+
+// =============================
+// ALERT ✅ NON‑BLOCKING + LOGGING
+// =============================
+async function raiseAlert(type, message, severity = "MEDIUM") {
+
+  console.log(`⚠ Runtime alert triggered (score=${state.healthScore}%)`);
+
+  NotificationService.notify({
+    eventType: "runtime.degradation",
+    severity,
+    subject: `⚠ Runtime Health Degradation (${state.healthScore}%)`,
+    body: buildEmailBody(type,message),
+    tags: {
+      alertType: type,
+      service: "monitoring-backend",
+      environment: process.env.NODE_ENV || "dev"
+    },
+    resource: {
+      resourceName: "monitoring-backend",
+      resourceType: "application"
+    }
+  }).catch(()=>{});
+
+  getSmartRecommendation().then(ml => {
+
+    if (!ml) return;
+
+    // ✅ LOG ONLY VALID RCA
+    if (ml.cause !== "UNKNOWN") {
+      logIncident(ml.cause);
+    }
+
+    NotificationService.notify({
+      eventType: "runtime.degradation",
+      severity,
+      subject: `🧠 RCA Suggestion (${state.healthScore}%)`,
+      body: buildEmailBody(type,message,ml),
+      tags: {
+        alertType: type,
+        service: "monitoring-backend",
+        environment: process.env.NODE_ENV || "dev"
+      },
+      resource: {
+        resourceName: "monitoring-backend",
+        resourceType: "application"
+      }
+    }).catch(()=>{});
+
+  });
+
+}
+
+// =============================
+function buildEmailBody(type,message,ml=null){
+
+  const smartCause = ml?.cause ?? "UNKNOWN";
+  const smartAction = ml?.recommendation ?? "Investigate logs";
+
+  return `
+🚨 Runtime Degradation Detected
+
+Health Score: ${state.healthScore}%
+CPU Usage: ${state.cpu}%
+Latency: ${Math.round(global.lastRequestLatency || 0)} ms
+Event Loop Lag: ${state.elLagMs} ms
+Heap: ${Math.round(state.heapUsed/ONE_MB)} MB
+
+Likely Cause:
+${smartCause}
+
+Recommended Action:
+${smartAction}
+`;
+
+}
+
+// =============================
+async function sample(){
+
   const now = Date.now();
-  state.lastSampleAt = new Date(now).toISOString();
   state.uptimeSec = Math.floor(process.uptime());
   state.heartbeatTs = now;
 
-  // --- Memory ---
+  state.elLagMs = Math.round(computeEventLoopLag());
+
   const mem = process.memoryUsage();
-  state.rss = mem.rss;
   state.heapUsed = mem.heapUsed;
   state.heapTotal = mem.heapTotal;
 
-  const heapMB = state.heapUsed / ONE_MB;
-  heapWindow.points.push({ t: now, heap: heapMB });
-
-  const cutoff = now - HEAP_WINDOW_SEC * 1000;
-  while (heapWindow.points.length && heapWindow.points[0].t < cutoff) {
-    heapWindow.points.shift();
-  }
-
-  // --- CPU ---
-  if (pidusage) {
-    pidusage(process.pid)
-      .then(stats => {
-        state.cpu = Number(stats.cpu.toFixed(2));
-        checkCpu(now);
-      })
-      .catch(() => fallbackCpu(now));
-  } else {
-    fallbackCpu(now);
-  }
-
-  // --- Event Loop Lag ---
-  if (eventLoopLag) {
-    state.elLagMs = Math.round(eventLoopLag());
-    if (state.elLagMs > LAG_THRESHOLD_MS) {
-      raiseOncePerKey(
-        "PERF_DEGRADATION",
-        `Event loop lag ${state.elLagMs}ms > ${LAG_THRESHOLD_MS}ms`,
-        "HIGH",
-        "lag"
-      );
-    }
-  }
-
-  // --- Heap Trend ---
-  checkHeapTrend(now);
-}
-
-function fallbackCpu(now) {
   const load = os.loadavg()[0];
   const cores = os.cpus()?.length || 1;
-  state.cpu = Number(((load * 100) / cores).toFixed(2));
-  checkCpu(now);
-}
+  state.cpu = Number(((load*100)/cores).toFixed(2));
 
-// ===== High CPU sustained =====
-function checkCpu(now) {
-  if (state.cpu == null) return;
+  state.healthScore = computeHealthScore();
 
-  const high = state.cpu >= CPU_HIGH_PCT;
-  if (high) {
-    if (cpuWindow.highSince == null) cpuWindow.highSince = now;
+  if (!alertWindow.lastHealth) alertWindow.lastHealth = 0;
 
-    const span = now - cpuWindow.highSince;
-    if (span >= CPU_SUSTAIN_MS) {
-      if (now - cpuWindow.lastAlertAt >= 60000) {
-        raiseAlert(
-          "CPU_SUSTAINED_HIGH",
-          `CPU >= ${CPU_HIGH_PCT}% for ${(span / 1000).toFixed(0)}s (now=${state.cpu}%)`,
-          "HIGH"
-        );
-        cpuWindow.lastAlertAt = now;
-      }
-    }
-  } else {
-    cpuWindow.highSince = null;
-  }
-}
+  if(state.healthScore < HEALTH_ALERT_SCORE &&
+     (now - alertWindow.lastHealth) > ALERT_COOLDOWN_MS){
 
-// ===== Memory leak trend =====
-function checkHeapTrend(now) {
-  if (heapWindow.points.length < 2) return;
-
-  const first = heapWindow.points[0];
-  const last  = heapWindow.points[heapWindow.points.length - 1];
-  const delta = last.heap - first.heap;
-
-  if (delta >= HEAP_LEAK_MB) {
-    if (now - heapWindow.lastAlertAt >= 10 * 60000) {
-      raiseAlert(
-        "MEMORY_LEAK_SUSPECTED",
-        `Heap grew +${delta.toFixed(1)}MB in ${(HEAP_WINDOW_SEC/60).toFixed(1)}min`,
-        "HIGH",
-        { heapWindow: heapWindow.points }
-      );
-      heapWindow.lastAlertAt = now;
-    }
-  }
-}
-
-// ===== Crash Hooks =====
-export function installCrashHooks() {
-  process.on("uncaughtException", (err) => {
-    raiseAlert("UNCAUGHT_EXCEPTION", err?.stack || String(err), "CRITICAL");
-    process.exit(1);
-  });
-
-  process.on("unhandledRejection", (reason) => {
-    raiseAlert("UNHANDLED_REJECTION", String(reason), "CRITICAL");
-    process.exit(1);
-  });
-
-  process.on("exit", (code) => {
-    raiseAlert(
-      "PROCESS_EXIT",
-      `Process exiting with code ${code}`,
-      code === 0 ? "LOW" : "CRITICAL"
+    await raiseAlert(
+      "HEALTH_DEGRADATION",
+      `Health score dropped to ${state.healthScore}%`
     );
-  });
+
+    alertWindow.lastHealth = now;
+  }
+
 }
 
-// ===== Start monitoring =====
-export function startSampling() {
-  if (samplerTimer) return;
+// =============================
+export function startSampling(){
+  if(samplerTimer) return;
   sample();
-  samplerTimer = setInterval(sample, SAMPLE_INTERVAL_MS);
+  samplerTimer=setInterval(sample,SAMPLE_INTERVAL_MS);
 }
 
-export function startHeartbeatWatchdog() {
-  if (heartbeatTimer) return;
+export function startHeartbeatWatchdog(){
 
-  heartbeatTimer = setInterval(() => {
-    const delta = (Date.now() - state.heartbeatTs) / 1000;
-    if (delta > MAX_STALE_SEC) {
-      raiseAlert(
+  if(heartbeatTimer) return;
+
+  heartbeatTimer=setInterval(async()=>{
+    const delta=(Date.now()-state.heartbeatTs)/1000;
+    if(delta>MAX_STALE_SEC){
+      await raiseAlert(
         "PROCESS_STALL",
-        `No heartbeat for ${Math.round(delta)} seconds`,
+        `No heartbeat for ${Math.round(delta)}s`,
         "CRITICAL"
       );
     }
-  }, HEARTBEAT_CHECK_MS);
-}
-
-// ===== Alert helpers =====
-function raiseAlert(type, message, severity = "MEDIUM", extras = {}) {
-  try {
-    if (typeof NotificationService.notify === "function") {
-      NotificationService.notify({
-        type,
-        message,
-        severity,
-        time: new Date().toISOString(),
-        source: "monitoring-backend",
-        context: { ...state, ...extras }
-      });
-    } else {
-
-  // ✅ Only warn in production
-  if (IS_PROD) {
-    console.error("[healthMonitor] NotificationService.notify NOT found");
-  }
+  },HEARTBEAT_CHECK_MS);
 
 }
-  } catch (e) {
-    console.error("[healthMonitor] alert error:", e.message);
-  }
+
+export function startMonitoringEngine(){
+  startSampling();
+  startHeartbeatWatchdog();
 }
 
-// once/min de-noising
-function raiseOncePerKey(type, message, severity, key) {
-  const now = Date.now();
-  const last = lastByKey.get(key) || 0;
-  if (now - last >= 60000) {
-    raiseAlert(type, message, severity);
-    lastByKey.set(key, now);
-  }
+export function getRuntimeSnapshot(){
+  return {...state};
 }
 
-// ===== Expose ENV & runtime snapshots =====
-const SECRET_KEYS = (process.env.SECRET_KEYS_MASK || "")
-  .split(",")
-  .map(s => s.trim().toUpperCase())
-  .filter(Boolean);
-
-function isSecret(k) {
-  const up = k.toUpperCase();
-  return SECRET_KEYS.some(mask => up.includes(mask));
+export function getEnvSnapshot(){
+  return {...process.env};
 }
 
-export function getEnvSnapshot() {
-  const out = {};
-  for (const k of Object.keys(process.env))
-    out[k] = isSecret(k) ? "***" : process.env[k];
-  return out;
-}
+export function installCrashHooks(){
 
-export function getRuntimeSnapshot() {
-  return { ...state };
+  process.on("unhandledRejection",(reason)=>{
+    console.error("[SAFE UNHANDLED REJECTION]",reason);
+  });
+
+  process.on("uncaughtException",(err)=>{
+    console.error("[SAFE UNCAUGHT EXCEPTION]",err);
+  });
+
 }

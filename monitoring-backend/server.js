@@ -1,6 +1,19 @@
-import express from "express";
-import cors from "cors";
+import dotenv from "dotenv";
+import path from "path";
+import { fileURLToPath } from "url";
 
+const __filename =
+fileURLToPath(import.meta.url);
+
+const __dirname =
+path.dirname(__filename);
+
+dotenv.config({
+  path: path.join(__dirname,".env")
+});
+import express from "express";
+import os from "os";
+import cors from "cors";
 import auditRoutes from "./src/api/audit.routes.js";
 import securityRoutes from "./src/api/security.routes.js";
 import dataRoutes from "./src/api/data.routes.js";
@@ -14,6 +27,7 @@ import {
 import healthRoutes from "./src/api/health.routes.js";
 
 const app = express();
+const isCI = process.env.CI === "true";
 app.use("/health", healthRoutes);
 /* --------------------------------------------
  * BAS ORIGIN (Workspace aware)
@@ -55,8 +69,9 @@ app.use(express.json());
 /* --------------------------------------------
  * Monitoring Engine Activation
  * -------------------------------------------- */
+
 // Disable monitoring engine in CI
-if (process.env.CI !== "true") {
+if (!isCI) {
   installCrashHooks();
   startSampling();
   startHeartbeatWatchdog();
@@ -76,6 +91,18 @@ app.use("/audit", auditRoutes);
 app.use("/security", securityRoutes);
 app.use("/data", dataRoutes);
 
+app.use((req, res, next) => {
+
+  const start = process.hrtime.bigint();
+
+  res.on("finish", () => {
+    const end = process.hrtime.bigint();
+    const latency = Number(end - start) / 1e6;
+    global.lastRequestLatency = latency;
+  });
+
+  next();
+});
 /* --------------------------------------------
  * Global Error Handler
  * -------------------------------------------- */
@@ -93,3 +120,43 @@ const host = "0.0.0.0";
 app.listen(port, host, () =>
   console.log(`Server running on http://${host}:${port}`)
 );
+/*app.get("/slow", async (req, res) => {
+
+  await new Promise(r => setTimeout(r, 2000));
+
+  res.send("Simulated slow dependency");
+
+}); */
+// =============================
+// 🔥 CPU SATURATION MOCK ROUTE
+// =============================
+import { Worker } from "worker_threads";
+
+
+// =============================
+// ✅ TRUE NON‑BLOCKING CPU SATURATION
+// =============================
+app.get("/burn", (req, res) => {
+
+  res.send("CPU saturation started ✅");
+
+  setTimeout(() => {
+
+    console.log("🔥 Background CPU saturation...");
+
+    const cores = os.cpus().length;
+
+    for (let i = 0; i < cores; i++) {
+
+      new Worker(`
+        const end = Date.now() + 5000;
+        while(Date.now() < end){
+          Math.sqrt(Math.random());
+        }
+      `, { eval: true });
+
+    }
+
+  }, 0);
+
+});

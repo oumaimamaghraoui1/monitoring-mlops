@@ -11,3 +11,18 @@
     width: auto !important;
     padding: 0 1rem !important;     /* extra internal padding */
 }
+.compactGrid .sapUiRespGridSpanL4,
+.compactGrid .sapUiRespGridSpanM6 {
+    margin-bottom: 0.5rem !important;
+}
+
+.compactGrid .sapFCard {
+    height: auto !important;
+}
+
+.compactGrid .sapFCardContent {
+    padding-bottom: 0.5rem !important;
+}
+.compactGrid .sapUiTinyMarginTop {
+    margin-top: 0.25rem !important;
+}

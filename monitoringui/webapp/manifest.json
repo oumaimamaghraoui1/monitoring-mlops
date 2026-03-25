@@ -23,6 +23,13 @@
       "async": true,
       "id": "app"
     },
+    "resources": {
+  "css": [
+    {
+      "uri": "css/style.css"
+    }
+  ]
+},
     "dependencies": {
       "libs": {
         "sap.m": {},

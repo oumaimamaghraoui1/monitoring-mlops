@@ -2,48 +2,104 @@ sap.ui.define([
   "sap/ui/core/mvc/Controller",
   "sap/ui/model/json/JSONModel"
 ], function (Controller, JSONModel) {
+
   "use strict";
 
-  return Controller.extend("pwc.monitoring.monitoringui.controller.SystemHealth", {
+  return Controller.extend(
+    "pwc.monitoring.monitoringui.controller.SystemHealth", {
 
-    onInit() {
-      const model = new JSONModel({
-        cpu: 0,
-        rss: 0,
-        heapUsed: 0,
-        heapTotal: 0,
-        elLagMs: 0,
-        uptimeSec: 0
-      });
+      onInit: function () {
 
-      this.getView().setModel(model, "metrics");
+        const model = new JSONModel({});
+        this.getView().setModel(model, "metrics");
 
-      this.onRefresh();
-      this._interval = setInterval(() => this.onRefresh(), 5000);
-    },
+        this._interval = setInterval(() => {
+          this.onRefresh();
+        }, 3000);
 
-    onRefresh() {
+        this.onRefresh();
+      },
 
-      // IMPORTANT: FULL BACKEND URL ON PORT 8090 👇
-      const BACKEND = 
-        "https://port8090-workspaces-ws-dl8fm.eu10.applicationstudio.cloud.sap";
+      onRefresh: function () {
 
-      fetch(`${BACKEND}/metrics/runtime`, {
-        method: "GET",
-        credentials: "include"
-      })
-        .then(res => res.json())
-        .then(data => {
-          this.getView().getModel("metrics").setData(data);
-        })
-        .catch(err => {
-          console.error("[SystemHealth] metrics load error:", err);
-        });
-    },
+        const BACKEND =
+          "https://port8090-workspaces-ws-dl8fm.eu10.applicationstudio.cloud.sap";
 
-    onExit() {
-      if (this._interval) clearInterval(this._interval);
-    }
+        fetch(BACKEND + "/metrics/runtime", {
+  method: "GET",
+  credentials: "include"
+})
+          .then(r => r.json())
+          .then(data => {
 
-  });
+            // TEXT
+            data.cpuText =
+              (data.cpu || 0).toFixed(1) + " %";
+
+            data.memText =
+              (data.rss / 1024 / 1024).toFixed(1) + " MB";
+
+            data.respText =
+              (data.responseTimeMs || 0).toFixed(0) + " ms";
+
+            data.gcText =
+              (data.gcTimeMs || 0).toFixed(2) + " ms";
+
+            data.heapText =
+              (data.heapGrowthRate || 0) + " MB/min";
+
+            data.healthText =
+              (data.healthScore || 0) + " %";
+
+            data.uptimeText =
+              (data.uptimeSec || 0) + " sec";
+
+            // STATES
+            data.cpuState =
+              data.cpu > 85 ? "Error" :
+              data.cpu > 60 ? "Warning" :
+              "Success";
+
+            data.lagState =
+              data.elLagMs > 250 ? "Error" :
+              data.elLagMs > 80 ? "Warning" :
+              "Success";
+
+            data.respState =
+              data.responseTimeMs > 500 ? "Error" :
+              data.responseTimeMs > 200 ? "Warning" :
+              "Success";
+
+            data.gcState =
+              data.gcTimeMs > 100 ? "Error" :
+              data.gcTimeMs > 40 ? "Warning" :
+              "Success";
+
+            data.heapState =
+              data.heapGrowthRate > 5 ? "Error" :
+              data.heapGrowthRate > 2 ? "Warning" :
+              "Success";
+
+            data.healthState =
+              data.healthScore < 40 ? "Error" :
+              data.healthScore < 70 ? "Warning" :
+              "Success";
+
+            this.getView()
+              .getModel("metrics")
+              .setData(data);
+
+          })
+          .catch(err => {
+            console.error("Runtime API error", err);
+          });
+      },
+
+      onExit: function () {
+        if (this._interval) {
+          clearInterval(this._interval);
+        }
+      }
+
+    });
 });
