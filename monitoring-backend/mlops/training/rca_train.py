@@ -1,29 +1,32 @@
-# ============================================
-# RCA MODEL TRAINING SCRIPT
-# Root Cause Analysis Classifier
-# ============================================
+# ==============================================
+# RCA TRAINING SCRIPT (CI-SAFE)
+# ==============================================
 
+import os
 import pandas as pd
+import joblib
+from pathlib import Path
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.preprocessing import LabelEncoder
-import joblib
-import os
+
+# ============================
+# BASE PATH
+# ============================
+
+BASE_DIR = Path(__file__).resolve().parents[1]
+
+# ============================
+# SELECT DATASET BASED ON ENV
+# ============================
 
 if os.getenv("CI"):
-    DATA_PATH = "monitoring-backend/mlops/data/processed/rca_ci_dataset.csv"
+    print("✅ CI environment detected — using synthetic RCA dataset")
+    DATA_PATH = BASE_DIR / "data" / "processed" / "rca_ci_dataset.csv"
 else:
-    DATA_PATH = "monitoring-backend/mlops/data/processed/rca_dataset.csv"
-# ============================
-# PATHS
-# ============================
+    print("✅ Local environment — using real RCA dataset")
+    DATA_PATH = BASE_DIR / "data" / "rca" / "rca_dataset.csv"
 
-BASE = os.path.dirname(os.path.abspath(__file__))
-
-DATA_PATH = os.path.join(BASE, "../data/rca/rca_dataset.csv")
-MODEL_PATH = os.path.join(BASE, "../models/rca_model.pkl")
-ENCODER_PATH = os.path.join(BASE, "../models/rca_label_encoder.pkl")
-
-print("✅ Loading RCA dataset...")
+print("📂 Loading RCA dataset from:", DATA_PATH)
 
 # ============================
 # LOAD DATASET
@@ -43,7 +46,6 @@ y = df["cause"]
 
 # ============================
 # ENCODE LABELS
-# (ML needs numbers not text)
 # ============================
 
 label_encoder = LabelEncoder()
@@ -67,10 +69,14 @@ model.fit(X, y_encoded)
 print("✅ RCA model trained")
 
 # ============================
-# CREATE MODELS FOLDER IF NEEDED
+# CREATE MODEL DIRECTORY
 # ============================
 
-os.makedirs("../models", exist_ok=True)
+MODEL_DIR = BASE_DIR / "models"
+MODEL_DIR.mkdir(parents=True, exist_ok=True)
+
+MODEL_PATH = MODEL_DIR / "rca_model.pkl"
+ENCODER_PATH = MODEL_DIR / "rca_label_encoder.pkl"
 
 # ============================
 # SAVE MODEL + ENCODER
