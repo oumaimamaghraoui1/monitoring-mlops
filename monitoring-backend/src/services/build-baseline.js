@@ -1,7 +1,7 @@
 // ==============================================
 // build-baseline.js
 // Builds user behaviour baseline from logs
-// CI-safe version
+// CI-compatible version
 // ==============================================
 
 import fs from "fs/promises";
@@ -13,25 +13,57 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const rootPath = path.resolve(__dirname, "../..");
 
+const DATA_DIR = path.join(rootPath, "data");
+
 const LOG_FILE =
-  path.join(rootPath, "data", "all_config_logs.json");
+  path.join(DATA_DIR, "all_config_logs.json");
 
 const BASELINE_FILE =
-  path.join(rootPath, "data", "behaviour_baseline.json");
+  path.join(DATA_DIR, "behaviour_baseline.json");
+
+
+// ✅ Generate synthetic logs for CI
+function generateSyntheticLogs() {
+
+  console.log("⚠️ No training logs found. Generating synthetic CI logs...");
+
+  const users = ["userA", "userB", "admin"];
+  const roles = ["CONFIG", "SECURITY", "AUDIT"];
+
+  const fakeLogs = [];
+
+  for (let i = 0; i < 300; i++) {
+
+    fakeLogs.push({
+      actor: users[Math.floor(Math.random() * users.length)],
+      objectType: roles[Math.floor(Math.random() * roles.length)],
+      time: new Date(
+        Date.now() - Math.random() * 86400000
+      ).toISOString()
+    });
+  }
+
+  return fakeLogs;
+}
+
 
 async function main() {
 
-  // ✅ CI SAFETY CHECK
+  await fs.mkdir(DATA_DIR, { recursive: true });
+
+  let logs = [];
+
   if (!fsSync.existsSync(LOG_FILE)) {
-    console.log("⚠️ Training logs not found.");
-    console.log("ℹ️ CI environment detected — skipping baseline training.");
-    return;
+
+    logs = generateSyntheticLogs();
+
+  } else {
+
+    console.log("✅ Real logs found. Training baseline...");
+
+    const raw = await fs.readFile(LOG_FILE, "utf8");
+    logs = JSON.parse(raw || "[]");
   }
-
-  console.log("✅ Logs found. Building behaviour baseline...");
-
-  const raw = await fs.readFile(LOG_FILE, "utf8");
-  const logs = JSON.parse(raw || "[]");
 
   const baseline = {};
 
@@ -50,11 +82,9 @@ async function main() {
       };
     }
 
-    // count role usage
     baseline[actor].roles[role] =
       (baseline[actor].roles[role] || 0) + 1;
 
-    // count hour activity
     baseline[actor].hours[hour] =
       (baseline[actor].hours[hour] || 0) + 1;
   }
