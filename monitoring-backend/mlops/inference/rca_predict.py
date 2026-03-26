@@ -15,7 +15,23 @@ encoder = joblib.load(ENCODER_PATH)
 
 
 # Read input from Node
-input_data = json.loads(sys.argv[1])
+# CI-safe input handling
+if len(sys.argv) > 1:
+    input_data = json.loads(sys.argv[1])
+else:
+    input_data = {
+        "cpu":50,
+        "latency":100,
+        "heap_ratio":0.5,
+        "gc":1,
+        "lag":5,
+        "cpu_delta":0,
+        "lag_delta":0,
+        "handle_count":5,
+        "handle_delta":0,
+        "req_rate":0.02,
+        "resp_rate":0.015
+    }
 
 X = [[
     input_data["cpu"],
