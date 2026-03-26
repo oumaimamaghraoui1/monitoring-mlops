@@ -2,75 +2,75 @@ import dotenv from "dotenv";
 import path from "path";
 import { fileURLToPath } from "url";
 
-const __filename =
-fileURLToPath(import.meta.url);
-
-const __dirname =
-path.dirname(__filename);
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 dotenv.config({
-  path: path.join(__dirname,".env")
+  path: path.join(__dirname, ".env")
 });
+
 import express from "express";
 import os from "os";
 import cors from "cors";
+
 import auditRoutes from "./src/api/audit.routes.js";
 import securityRoutes from "./src/api/security.routes.js";
 import dataRoutes from "./src/api/data.routes.js";
 import anomalyRoutes from "./src/api/anomaly.routes.js";
 import metricsRoutes from "./src/api/metrics.routes.js";
+import healthRoutes from "./src/api/health.routes.js";
+
 import {
   startSampling,
   startHeartbeatWatchdog,
-  installCrashHooks
+  installCrashHooks,
+  logIncident
 } from "./src/services/healthMonitor.js";
-import healthRoutes from "./src/api/health.routes.js";
 
 const app = express();
 const isCI = process.env.CI === "true";
-app.use("/health", healthRoutes);
-/* --------------------------------------------
- * BAS ORIGIN (Workspace aware)
- * -------------------------------------------- */
-const BAS_ORIGIN_REGEX =
-  /^https:\/\/port\d+-workspaces-[a-zA-Z0-9-]+\.eu10\.applicationstudio\.cloud\.sap$/;
 
 app.enable("trust proxy");
 
 /* --------------------------------------------
- * FULL EXPRESS v5 SAFE CORS HANDLER
- * (Replaces app.options("*"), which causes crash)
- * -------------------------------------------- */
+   ✅ CORS SAFE HANDLER
+-------------------------------------------- */
+app.use(cors({
+  credentials: true,
+  origin: true
+}));
+
+/* --------------------------------------------
+   ✅ RESPONSE + REQUEST RATE TRACKING
+-------------------------------------------- */
 app.use((req, res, next) => {
-  const origin = req.headers.origin || "";
 
-  // Allow UI5 app origin
-  if (BAS_ORIGIN_REGEX.test(origin)) {
-    res.header("Access-Control-Allow-Origin", origin);
-  }
+  const start = Date.now();
 
-  res.header("Access-Control-Allow-Credentials", "true");
-  res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
-  res.header("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
+  global.reqCount =
+    (global.reqCount || 0) + 1;
 
-  // Preflight response
-  if (req.method === "OPTIONS") {
-    return res.sendStatus(200);
-  }
+  res.on("finish", () => {
+
+    const latency = Date.now() - start;
+
+    global.lastRequestLatency = latency;
+
+    global.respCount =
+      (global.respCount || 0) + 1;
+  });
 
   next();
 });
 
 /* --------------------------------------------
- * JSON Body Parser
- * -------------------------------------------- */
+   ✅ JSON Parser
+-------------------------------------------- */
 app.use(express.json());
 
 /* --------------------------------------------
- * Monitoring Engine Activation
- * -------------------------------------------- */
-
-// Disable monitoring engine in CI
+   ✅ MONITORING ENGINE (Disabled in CI)
+-------------------------------------------- */
 if (!isCI) {
   installCrashHooks();
   startSampling();
@@ -78,85 +78,247 @@ if (!isCI) {
 }
 
 /* --------------------------------------------
- * Monitoring API
- * -------------------------------------------- */
+   ✅ ROUTES
+-------------------------------------------- */
+
+app.use("/health", healthRoutes);
 app.use("/metrics", metricsRoutes);
-
-/* --------------------------------------------
- * Business Routes
- * -------------------------------------------- */
-app.get("/", (_req, res) => res.send("Monitoring Backend is running"));
-
 app.use("/audit", auditRoutes);
 app.use("/security", securityRoutes);
 app.use("/data", dataRoutes);
+app.use("/anomaly", anomalyRoutes);
 
-app.use((req, res, next) => {
+app.get("/", (_req, res) =>
+  res.send("Monitoring Backend is running")
+);
 
-  const start = process.hrtime.bigint();
-
-  res.on("finish", () => {
-    const end = process.hrtime.bigint();
-    const latency = Number(end - start) / 1e6;
-    global.lastRequestLatency = latency;
-  });
-
-  next();
-});
 /* --------------------------------------------
- * Global Error Handler
- * -------------------------------------------- */
+   ✅ GLOBAL ERROR HANDLER
+-------------------------------------------- */
 app.use((err, _req, res, _next) => {
   console.error("Unhandled error:", err);
-  res.status(err.status || 500).json({ error: err.message || "Internal Server Error" });
+  res.status(err.status || 500)
+     .json({ error:
+       err.message ||
+       "Internal Server Error"
+     });
 });
-app.use("/anomaly", anomalyRoutes);
+
 /* --------------------------------------------
- * Start Server
- * -------------------------------------------- */
+   ✅ START SERVER
+-------------------------------------------- */
+
 const port = process.env.PORT || 8090;
 const host = "0.0.0.0";
 
 app.listen(port, host, () =>
-  console.log(`Server running on http://${host}:${port}`)
+  console.log(
+    `Server running on http://${host}:${port}`
+  )
 );
-/*app.get("/slow", async (req, res) => {
-
-  await new Promise(r => setTimeout(r, 2000));
-
-  res.send("Simulated slow dependency");
-
-}); */
-// =============================
-// 🔥 CPU SATURATION MOCK ROUTE
-// =============================
 import { Worker } from "worker_threads";
+import fs from "fs";
+import crypto from "crypto";
 
+let leak = [];
 
 // =============================
-// ✅ TRUE NON‑BLOCKING CPU SATURATION
+// CPU SATURATION
 // =============================
-app.get("/burn", (req, res) => {
+app.get("/burn",(req,res)=>{
 
-  res.send("CPU saturation started ✅");
+  logIncident("CPU_SATURATION");
 
-  setTimeout(() => {
+  res.send("CPU burn simulated ✅");
 
-    console.log("🔥 Background CPU saturation...");
-
-    const cores = os.cpus().length;
-
-    for (let i = 0; i < cores; i++) {
-
+  setTimeout(()=>{
+    const cores=os.cpus().length;
+    for(let i=0;i<cores;i++){
       new Worker(`
-        const end = Date.now() + 5000;
-        while(Date.now() < end){
+        const end=Date.now()+2000;
+        while(Date.now()<end){
           Math.sqrt(Math.random());
         }
-      `, { eval: true });
-
+      `,{eval:true});
     }
+  },0);
+});
 
-  }, 0);
+// =============================
+// MEMORY PRESSURE
+// =============================
+app.get("/leak",(req,res)=>{
+
+  logIncident("MEMORY_PRESSURE");
+
+  for(let i=0;i<80;i++){
+    leak.push(Buffer.allocUnsafe(512*1024));
+  }
+
+  setTimeout(()=>{
+    leak.length=0;
+    global.gc?.();
+  },2000);
+
+  res.send("Memory pressure simulated ✅");
+});
+
+// =============================
+app.get("/block",(req,res)=>{
+  logIncident("BLOCKING_IO");
+  for(let i=0;i<200;i++){
+    fs.readFileSync("package.json");
+  }
+  res.send("Blocking IO ✅");
+});
+
+// =============================
+app.get("/slow-api",async(req,res)=>{
+  logIncident("DEPENDENCY_LATENCY");
+  await new Promise(r=>setTimeout(r,2000));
+  res.send("Slow dependency ✅");
+});
+
+// =============================
+app.get("/thread-starve",(req,res)=>{
+  logIncident("THREAD_POOL_STARVATION");
+  for(let i=0;i<100;i++){
+    crypto.pbkdf2("p","s",100000,64,"sha512",()=>{});
+  }
+  res.send("Thread pool saturation ✅");
+});
+
+// =============================
+app.get("/conn-flood",(req,res)=>{
+  logIncident("CONNECTION_SATURATION");
+  for(let i=0;i<500;i++){
+    fetch("http://localhost:8090/");
+  }
+  res.send("Connection flood ✅");
+});
+
+// =============================
+app.get("/promise-storm",(req,res)=>{
+  logIncident("ASYNC_OVERFLOW");
+  for(let i=0;i<5000;i++){
+    Promise.resolve().then(()=>Math.random());
+  }
+  res.send("Async overflow ✅");
+});
+
+// =============================
+app.get("/fs-saturate",(req,res)=>{
+  logIncident("FS_LOCK_CONTENTION");
+  for(let i=0;i<300;i++){
+    fs.writeFileSync(`tmp${i}.txt`,"data");
+  }
+  res.send("FS contention ✅");
+});
+
+// =============================
+app.get("/db-lock",async(req,res)=>{
+  logIncident("QUERY_LATENCY");
+  const start=Date.now();
+  while(Date.now()-start<1500){
+    await new Promise(r=>setTimeout(r,5));
+  }
+  res.send("Simulated DB lock ✅");
+});
+
+// =============================
+app.get("/flood",(req,res)=>{
+  logIncident("REQUEST_BACKLOG");
+  for(let i=0;i<1000;i++){
+    fetch("http://localhost:8090/health");
+  }
+  res.send("Backlog simulated ✅");
+});
+
+// =============================
+app.get("/timer-flood",(req,res)=>{
+  logIncident("SCHEDULER_STARVATION");
+  for(let i=0;i<5000;i++){
+    setTimeout(()=>{},10000);
+  }
+  res.send("Scheduler starvation ✅");
+});
+
+// =============================
+app.get("/burn-io",(req,res)=>{
+  logIncident("CPU_SATURATION");
+  for(let i=0;i<200;i++){
+    fs.readFileSync("package.json");
+  }
+  res.send("CPU+IO ✅");
+});
+
+// =============================
+app.get("/mem-async",(req,res)=>{
+  logIncident("MEMORY_PRESSURE");
+  for(let i=0;i<80;i++){
+    leak.push(Buffer.allocUnsafe(512*1024));
+  }
+  setTimeout(()=>{
+    leak.length=0;
+    global.gc?.();
+  },2000);
+  for(let i=0;i<3000;i++){
+    Promise.resolve().then(()=>Math.random());
+  }
+  res.send("Mem+Async ✅");
+});
+
+// =============================
+app.get("/tp-lat",(req,res)=>{
+  logIncident("THREAD_POOL_STARVATION");
+  for(let i=0;i<100;i++){
+    crypto.pbkdf2("p","s",100000,64,"sha512",()=>{});
+  }
+  global.lastRequestLatency=1200;
+  res.send("Threadpool latency ✅");
+});
+app.get("/real-conn-flood",(req,res)=>{
+
+  logIncident("CONNECTION_SATURATION");
+
+  for(let i=0;i<600;i++){
+    fetch("http://localhost:8090/socket-wait");
+  }
+
+  res.send("conn saturated ✅");
+});
+
+app.get("/socket-stall",(req,res)=>{
+
+  // Stall response WITHOUT CPU burn
+  setTimeout(()=>{
+    res.send("served");
+  },200);
 
 });
+app.get("/socket-wait",(req,res)=>{
+
+  setTimeout(()=>{
+    res.send("ok");
+  },200);
+
+});
+
+app.get("/slow-worker", async (req, res) => {
+
+  // simulate slow async work
+  await new Promise(resolve => setTimeout(resolve, 80));
+
+  for(let i=0;i<20000;i++){
+    Math.sqrt(Math.random());
+  }
+
+  res.send("slow work done");
+});
+/* ============================================
+   MONITORING ENGINE START  ✅ VERY IMPORTANT
+============================================ */
+
+installCrashHooks();
+startSampling();
+startHeartbeatWatchdog();

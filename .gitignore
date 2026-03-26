@@ -5,7 +5,10 @@ node_modules/
 # ======================
 .env
 .env.*
-
+# ======================
+# MLOPS DATA (ALL)
+# ======================
+monitoring-backend/mlops/data/
 # ======================
 # BACKEND SECURITY LOGS
 # ======================

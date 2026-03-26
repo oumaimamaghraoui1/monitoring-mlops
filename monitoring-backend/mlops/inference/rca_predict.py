@@ -1,95 +1,38 @@
-# ==============================================
-# RCA INFERENCE SCRIPT (CI-SAFE)
-# ==============================================
-
 import sys
 import json
 import joblib
-import numpy as np
-import os
-from pathlib import Path
 
-BASE_DIR = Path(__file__).resolve().parents[1]
+# Load trained model + encoder
+model = joblib.load("mlops/models/rca_model.pkl")
+encoder = joblib.load("mlops/models/rca_label_encoder.pkl")
 
-MODEL_PATH = BASE_DIR / "models" / "rca_model.pkl"
-ENCODER_PATH = BASE_DIR / "models" / "rca_label_encoder.pkl"
+# Read input from Node
+input_data = json.loads(sys.argv[1])
 
-model = joblib.load(MODEL_PATH)
-encoder = joblib.load(ENCODER_PATH)
+X = [[
+    input_data["cpu"],
+    input_data["latency"],
+    input_data["heap_ratio"],
+    input_data["gc"],
+    input_data["lag"],
+    input_data["cpu_delta"],
+    input_data["lag_delta"],
+    input_data["handle_count"],
+    input_data["handle_delta"],
+    input_data["req_rate"],
+    input_data["resp_rate"]
+]]
 
-ACTIONS = {
-    "CPU_SATURATION": "Scale backend instance",
-    "MEMORY_PRESSURE": "Investigate memory leak",
-    "BLOCKING_IO": "Check blocking synchronous calls",
-    "DEPENDENCY_LATENCY": "Inspect upstream API latency",
-    "UNKNOWN": "Investigate logs"
-}
-
-# ============================
-# HANDLE CI TEST MODE
-# ============================
-
-if os.getenv("CI") and len(sys.argv) < 2:
-
-    print("✅ CI inference test — generating synthetic input")
-
-    data = {
-        "cpu": 50,
-        "latency": 200,
-        "heapGrowth": 10,
-        "gc": 5,
-        "lag": 3
-    }
-
-else:
-    data = json.loads(sys.argv[1])
-
-# ============================
-# EXTRACT FEATURES
-# ============================
-
-cpu = data.get("cpu", 0)
-latency = data.get("latency", 0)
-heap = data.get("heapGrowth", 0)
-gc = data.get("gc", 0)
-lag = data.get("lag", 0)
-
-# ============================
-# HEURISTIC OVERRIDE
-# ============================
-
-if latency > 1500 and cpu < 60:
-
-    result = {
-        "cause": "DEPENDENCY_LATENCY",
-        "recommendation": ACTIONS["DEPENDENCY_LATENCY"]
-    }
-
-    print(json.dumps(result))
-    sys.exit(0)
-
-# ============================
-# ML PREDICTION
-# ============================
-
-X = np.array([[cpu, latency, heap, gc, lag]])
-
-proba = model.predict_proba(X)[0]
-confidence = max(proba)
-
-pred = model.predict(X)[0]
-cause = encoder.inverse_transform([pred])[0]
-
-# ============================
-# CONFIDENCE GATE
-# ============================
-
-if confidence < 0.4:
-    cause = "UNKNOWN"
+prediction = model.predict(X)[0]
+cause = encoder.inverse_transform([prediction])[0]
 
 result = {
     "cause": cause,
-    "recommendation": ACTIONS.get(cause, "Investigate logs")
+    "recommendation": ""
 }
 
+# ✅ THIS LINE IS THE MOST IMPORTANT
 print(json.dumps(result))
+
+# ✅ EXIT SO NODE STOPS WAITING
+sys.exit(0)

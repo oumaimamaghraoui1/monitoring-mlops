@@ -30,7 +30,12 @@ print("Dataset shape:", df.shape)
 # FEATURES & LABEL
 # ============================
 
-X = df[["cpu", "latency", "heapGrowth", "gc", "lag"]]
+X = df[
+["cpu","latency","heap_ratio","gc",
+ "lag","cpu_delta","lag_delta",
+ "handle_count","handle_delta",
+ "req_rate","resp_rate"]
+]
 y = df["cause"]
 
 # ============================
