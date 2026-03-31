@@ -91,7 +91,7 @@ def normalize_config(log):
     )
 
     return {
-        "event_id": event_id,
+        "uuid": event_id,
         "time": to_utc(log.get("time")),
         "actor": actor,
         "action": action,
@@ -119,7 +119,7 @@ def main():
     df = pd.DataFrame(rows)
     df = df.dropna(subset=["time"])
     df = df.sort_values("time")
-    df = df.drop_duplicates(subset=["event_id"])
+    df = df.drop_duplicates(subset=["uuid"])
 
     OUT_FILE.parent.mkdir(parents=True, exist_ok=True)
     df.to_parquet(OUT_FILE,index=False)

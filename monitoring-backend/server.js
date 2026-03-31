@@ -19,6 +19,8 @@ import dataRoutes from "./src/api/data.routes.js";
 import anomalyRoutes from "./src/api/anomaly.routes.js";
 import metricsRoutes from "./src/api/metrics.routes.js";
 import healthRoutes from "./src/api/health.routes.js";
+import riskExportRoutes from "./src/api/risk.export.routes.js";
+
 
 import {
   startSampling,
@@ -26,6 +28,8 @@ import {
   installCrashHooks,
   logIncident
 } from "./src/services/healthMonitor.js";
+import securityExportRoutes
+from "./src/api/security.export.routes.js";
 
 const app = express();
 const isCI = process.env.CI === "true";
@@ -39,6 +43,24 @@ app.use(cors({
   credentials: true,
   origin: true
 }));
+app.use((req,res,next)=>{
+  res.header(
+   "Access-Control-Allow-Origin",
+   req.headers.origin
+  );
+  res.header(
+   "Access-Control-Allow-Credentials",
+   "true"
+  );
+  res.header(
+   "Access-Control-Allow-Headers",
+   "*"
+  );
+  next();
+});
+app.use("/audit",riskExportRoutes);
+
+app.use("/",securityExportRoutes);
 
 /* --------------------------------------------
    ✅ RESPONSE + REQUEST RATE TRACKING
@@ -84,7 +106,7 @@ if (!isCI) {
 app.use("/health", healthRoutes);
 app.use("/metrics", metricsRoutes);
 app.use("/audit", auditRoutes);
-app.use("/security", securityRoutes);
+app.use("/security",securityRoutes);
 app.use("/data", dataRoutes);
 app.use("/anomaly", anomalyRoutes);
 

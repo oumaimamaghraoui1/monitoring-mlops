@@ -5,49 +5,123 @@ import pandas as pd
 import numpy as np
 from pathlib import Path
 
+# ==========================================
+# ROOT PATH
+# ==========================================
 ROOT = Path(__file__).resolve().parent.parent.parent
 
-MODEL = joblib.load(ROOT / "mlops/models/anomaly/isolation_forest.joblib")
+MODEL  = joblib.load(ROOT / "mlops/models/anomaly/isolation_forest.joblib")
 SCALER = joblib.load(ROOT / "mlops/models/anomaly/scaler.joblib")
 
-try:
+# ==========================================
+# REQUIRED FEATURES
+# ==========================================
 
-    # ✅ READ FROM STDIN INSTEAD OF ARGV
-    raw = sys.stdin.read()
-    log = json.loads(raw)
+required = [
+    "hour",
+    "day",
+    "weekend",
+    "actor_count_7d",
+    "actor_object_7d",
+    "time_since_last_actor",
+    "first_time_role"
+]
 
-    df = pd.DataFrame([log])
+# ==========================================
+# SCORING FUNCTION
+# ==========================================
 
-    required = [
-        "hour",
-        "day",
-        "weekend",
-        "actor_count_7d",
-        "actor_object_7d",
-        "time_since_last_actor",
-        "first_time_role"
-    ]
+def score_dataframe(df):
 
+    # ensure behavioural features exist
     for col in required:
-        if col not in df:
+        if col not in df.columns:
             df[col] = 0
 
-    X = df[required].astype(np.float64)
+    X = df[required].apply(
+        pd.to_numeric,
+        errors="coerce"
+    ).replace(
+        [np.inf,-np.inf],
+        np.nan
+    ).fillna(0)
 
     X_scaled = SCALER.transform(X)
 
-    score = MODEL.decision_function(X_scaled)[0]
-    pred  = MODEL.predict(X_scaled)[0]
+    df["anomalyScore"] = MODEL.decision_function(X_scaled)
+    df["anomaly"]      = MODEL.predict(X_scaled)
+
+    return df
+
+# ==========================================
+# INPUT MODE SWITCH
+# ==========================================
+
+raw = sys.stdin.read() if not sys.stdin.isatty() else ""
+
+# ==========================================
+# ✅ REAL‑TIME EVENT MODE
+# ==========================================
+
+if raw.strip():
+
+    log = json.loads(raw)
+    df  = pd.DataFrame([log])
+
+    df = score_dataframe(df)
 
     print(json.dumps({
-        "score": float(score),
-        "anomaly": int(pred == -1)
+        "score": float(df["anomalyScore"].iloc[0]),
+        "anomaly": int(df["anomaly"].iloc[0] == -1)
     }), flush=True)
 
-except Exception as e:
+# ==========================================
+# ✅ BATCH SNAPSHOT MODE
+# ==========================================
 
-    print(json.dumps({
-        "score": 0,
-        "anomaly": 0,
-        "error": str(e)
-    }), flush=True)
+else:
+
+    FEATURES  = ROOT / "mlops/data/features/ml_features.parquet"
+    RAW_LOGS  = ROOT / "data/all_config_logs.json"
+    OUTPUT    = ROOT / "data/scored_snapshot.json"
+
+    # behavioural history
+    df_feat = pd.read_parquet(FEATURES)
+
+    # audit enrichment
+    with open(RAW_LOGS) as f:
+        raw_logs = json.load(f)
+
+    df_raw = pd.DataFrame(raw_logs)
+
+    # score behaviour only
+    df_scored = score_dataframe(df_feat)
+
+    # merge audit details
+    df_final = df_scored.merge(
+        df_raw[["uuid","details","actor","time"]],
+        on="uuid",
+        how="left",
+        suffixes=("","_raw")
+    )
+
+    # ✅ FIX: preserve behavioural timeline
+    df_final["time"] = df_final["time"].fillna(df_final["time_raw"])
+
+    df_final = df_final.drop(columns=["time_raw"])
+
+    # ✅ default cold‑start events
+    df_final["anomalyScore"] = df_final["anomalyScore"].fillna(0)
+    df_final["anomaly"]      = df_final["anomaly"].fillna(1)
+
+    df_final.to_json(
+        OUTPUT,
+        orient="records",
+        indent=2,
+        date_format="iso"
+    )
+
+    print(
+        f"[ML] Snapshot rebuilt with {len(df_final)} logs",
+        flush=True
+    )

@@ -17,6 +17,8 @@
     "axios": "^1.13.5",
     "cors": "^2.8.6",
     "dotenv": "^17.3.1",
+    "excel": "^1.0.1",
+    "exceljs": "^4.4.0",
     "express": "^5.2.1",
     "node-cron": "^4.2.1",
     "python-shell": "^5.0.0"
