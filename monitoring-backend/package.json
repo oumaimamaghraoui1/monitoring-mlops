@@ -15,6 +15,7 @@
   "dependencies": {
     "@sap_oss/alert-notification-client": "^1.10.0",
     "axios": "^1.13.5",
+    "cfenv": "^1.2.5",
     "cors": "^2.8.6",
     "dotenv": "^17.3.1",
     "excel": "^1.0.1",

@@ -5,152 +5,203 @@
   xmlns:core="sap.ui.core"
   xmlns:viz="sap.viz.ui5.controls"
   xmlns:viz.data="sap.viz.ui5.data"
-  xmlns:viz.feeds="sap.viz.ui5.controls.common.feeds">
+  xmlns:viz.feeds="sap.viz.ui5.controls.common.feeds"
+  xmlns:l="sap.ui.layout">
 
 <Page title="AI Risk Monitoring">
- <headerContent>
-      <Button id="btnRefreshh" text="Refresh" press=".onRefresh"/>
-      <Button id="btnGoSecurityy" text="Security Events" press=".onGoSecurity"/>
-      <Button id="btnGoDataChangess" text="Data Changes" press=".onGoDataChanges"/>
-      <Button text="System Health" press=".onGoSystemHealth" />
-    </headerContent>
-  <content>
 
-    <!-- ================= FILTER TILES ================= -->
+<headerContent>
+  <Button text="Refresh" press=".onRefresh"/>
+  <Button text="Security Events" press=".onGoSecurity"/>
+  <Button text="Data Changes" press=".onGoDataChanges"/>
+  <Button text="System Health" press=".onGoSystemHealth"/>
+</headerContent>
 
-    <HBox justifyContent="SpaceAround" class="sapUiMediumMarginBottom">
+<content>
 
-      <GenericTile header="High Risk" press=".onRiskFilter">
-        <customData>
-          <core:CustomData key="risk" value="High"/>
-        </customData>
-        <TileContent>
-          <NumericContent value="{logs>/highCount}" valueColor="Error"/>
-        </TileContent>
-      </GenericTile>
+<!-- ================= KPI ================= -->
 
-      <GenericTile header="Medium Risk" press=".onRiskFilter">
-        <customData>
-          <core:CustomData key="risk" value="Medium"/>
-        </customData>
-        <TileContent>
-          <NumericContent value="{logs>/mediumCount}" valueColor="Critical"/>
-        </TileContent>
-      </GenericTile>
+<l:Grid
+ defaultSpan="XL3 L3 M6 S12"
+ hSpacing="1"
+ vSpacing="1"
+ class="sapUiMediumMarginBottom">
 
-      <GenericTile header="Low Risk" press=".onRiskFilter">
-        <customData>
-          <core:CustomData key="risk" value="Low"/>
-        </customData>
-        <TileContent>
-          <NumericContent value="{logs>/lowCount}" valueColor="Neutral"/>
-        </TileContent>
-      </GenericTile>
+  <GenericTile header="High Risk" press=".onRiskFilter">
+    <customData>
+      <core:CustomData key="risk" value="High"/>
+    </customData>
+    <TileContent>
+      <NumericContent value="{logs>/highCount}" valueColor="Error"/>
+    </TileContent>
+  </GenericTile>
 
-      <GenericTile header="Normal" press=".onRiskFilter">
-        <customData>
-          <core:CustomData key="risk" value="Normal"/>
-        </customData>
-        <TileContent>
-          <NumericContent value="{logs>/normalCount}" valueColor="Good"/>
-        </TileContent>
-      </GenericTile>
+  <GenericTile header="Medium Risk" press=".onRiskFilter">
+    <customData>
+      <core:CustomData key="risk" value="Medium"/>
+    </customData>
+    <TileContent>
+      <NumericContent value="{logs>/mediumCount}" valueColor="Critical"/>
+    </TileContent>
+  </GenericTile>
 
-    </HBox>
+  <GenericTile header="Low Risk" press=".onRiskFilter">
+    <customData>
+      <core:CustomData key="risk" value="Low"/>
+    </customData>
+    <TileContent>
+      <NumericContent value="{logs>/lowCount}" valueColor="Neutral"/>
+    </TileContent>
+  </GenericTile>
 
-    <!-- ================= WEEKLY TREND LINE CHART ================= -->
+  <GenericTile header="Normal" press=".onRiskFilter">
+    <customData>
+      <core:CustomData key="risk" value="Normal"/>
+    </customData>
+    <TileContent>
+      <NumericContent value="{logs>/normalCount}" valueColor="Good"/>
+    </TileContent>
+  </GenericTile>
 
-    <VBox class="sapUiMediumMarginTop">
+</l:Grid>
 
-      <viz:VizFrame
-        id="riskChart"
-        vizType="line"
-        width="100%"
-        height="320px">
+<!-- ================= CHARTS ================= -->
 
-        <viz:dataset>
-          <viz.data:FlattenedDataset data="{logs>/trendData}">
+<l:Grid class="sapUiMediumMarginTop"
+ hSpacing="1"
+ vSpacing="1">
 
-            <viz.data:dimensions>
-              <viz.data:DimensionDefinition
-                name="Week"
-                value="{logs>date}"/>
-            </viz.data:dimensions>
+  <!-- LINE -->
+  <viz:VizFrame
+    id="riskChart"
+    vizType="line"
+    width="100%"
+    height="280px"
+    vizProperties="{
+      title:{visible:true,text:'Weekly Risk Trend'},
+      interaction:{selectability:{mode:'single'}},
+      valueAxis:{title:{visible:true,text:'Log Count'}},
+      categoryAxis:{title:{visible:true,text:'ISO Week'}},
+      plotArea:{dataLabel:{visible:false}}
+    }">
 
-            <viz.data:measures>
-              <viz.data:MeasureDefinition name="High" value="{logs>High}"/>
-              <viz.data:MeasureDefinition name="Medium" value="{logs>Medium}"/>
-              <viz.data:MeasureDefinition name="Low" value="{logs>Low}"/>
-              <viz.data:MeasureDefinition name="Normal" value="{logs>Normal}"/>
-            </viz.data:measures>
+    <viz:layoutData>
+      <l:GridData span="XL8 L8 M12 S12"/>
+    </viz:layoutData>
 
-          </viz.data:FlattenedDataset>
-        </viz:dataset>
+    <viz:dataset>
+      <viz.data:FlattenedDataset data="{logs>/trendData}">
+        <viz.data:dimensions>
+          <viz.data:DimensionDefinition name="Week" value="{logs>week}"/>
+        </viz.data:dimensions>
+        <viz.data:measures>
+          <viz.data:MeasureDefinition name="High" value="{logs>High}"/>
+          <viz.data:MeasureDefinition name="Medium" value="{logs>Medium}"/>
+          <viz.data:MeasureDefinition name="Low" value="{logs>Low}"/>
+          <viz.data:MeasureDefinition name="Normal" value="{logs>Normal}"/>
+        </viz.data:measures>
+      </viz.data:FlattenedDataset>
+    </viz:dataset>
 
-        <viz:feeds>
-          <viz.feeds:FeedItem
-            uid="valueAxis"
-            type="Measure"
-            values="High,Medium,Low,Normal"/>
-          <viz.feeds:FeedItem
-            uid="categoryAxis"
-            type="Dimension"
-            values="Week"/>
-        </viz:feeds>
+    <viz:feeds>
+      <viz.feeds:FeedItem uid="valueAxis"
+        type="Measure"
+        values="High,Medium,Low,Normal"/>
+      <viz.feeds:FeedItem uid="categoryAxis"
+        type="Dimension"
+        values="Week"/>
+    </viz:feeds>
 
-      </viz:VizFrame>
+  </viz:VizFrame>
 
-    </VBox>
+  <!-- DONUT -->
+  <viz:VizFrame
+    vizType="donut"
+    width="100%"
+    height="280px"
+    vizProperties="{
+      title:{visible:true,text:'Risk Composition'},
+      plotArea:{
+        dataLabel:{visible:false},
+        dataPointSize:{min:2}
+      }
+    }">
 
-    <!-- ================= TABLE ================= -->
+    <viz:layoutData>
+      <l:GridData span="XL4 L4 M12 S12"/>
+    </viz:layoutData>
 
-    <Table
-      id="riskTable"
-      items="{logs>/logs}"
-      growing="true"
-      growingThreshold="20"
-      growingScrollToLoad="true">
+    <viz:dataset>
+      <viz.data:FlattenedDataset data="{logs>/pieData}">
+        <viz.data:dimensions>
+          <viz.data:DimensionDefinition
+            name="Risk"
+            value="{logs>risk}"/>
+        </viz.data:dimensions>
+        <viz.data:measures>
+          <viz.data:MeasureDefinition
+            name="%"
+            value="{logs>value}"/>
+        </viz.data:measures>
+      </viz.data:FlattenedDataset>
+    </viz:dataset>
 
-      <columns>
-        <Column width="40%">
-          <Text text="Role / Operation"/>
-        </Column>
-        <Column width="20%">
-          <Text text="Score"/>
-        </Column>
-        <Column width="20%">
-          <Text text="Risk"/>
-        </Column>
-      </columns>
+    <viz:feeds>
+      <viz.feeds:FeedItem uid="size"
+        type="Measure"
+        values="%"/>
+      <viz.feeds:FeedItem uid="color"
+        type="Dimension"
+        values="Risk"/>
+    </viz:feeds>
 
-      <items>
-        <ColumnListItem>
-          <cells>
+  </viz:VizFrame>
 
-            <Text
-              text="{
-                path:'logs>details',
-                formatter:'.formatOperation'
-              }"
-              wrapping="true"/>
+</l:Grid>
 
-            <ObjectNumber
-              number="{
-                path:'logs>anomalyScore',
-                formatter:'.formatScore'
-              }"/>
+<!-- ================= LAST AUDIT ================= -->
 
-            <ObjectStatus
-              text="{logs>risk}"
-              state="{logs>riskState}"/>
+<ObjectStatus
+  class="sapUiSmallMarginTop"
+  title="Last Audit Event Available"
+  text="{logs>/lastAuditDate}"/>
+<HBox
+ justifyContent="End"
+ class="sapUiSmallMarginEnd sapUiSmallMarginBottom">
 
-          </cells>
-        </ColumnListItem>
-      </items>
+ <Button
+  text="Export to Excel"
+  icon="sap-icon://excel-attachment"
+  type="Emphasized"
+  press=".onExportExcel"/>
 
-    </Table>
+</HBox>
+<!-- ================= TABLE ================= -->
 
-  </content>
+<Table
+  id="riskTable"
+  items="{logs>/logs}"
+  growing="true"
+  growingThreshold="20">
+  <columns>
+    <Column width="40%"><Text text="Role / Operation"/></Column>
+    <Column width="20%"><Text text="Score"/></Column>
+    <Column width="20%"><Text text="Risk"/></Column>
+  </columns>
+
+  <items>
+    <ColumnListItem>
+      <cells>
+        <Text text="{path:'logs>details',formatter:'.formatOperation'}"/>
+        <ObjectNumber
+          number="{path:'logs>anomalyScore',formatter:'.formatScore'}"/>
+        <ObjectStatus text="{logs>risk}" state="{logs>riskState}"/>
+      </cells>
+    </ColumnListItem>
+  </items>
+</Table>
+
+</content>
 
 </Page>
 </mvc:View>

@@ -25,7 +25,7 @@ sap.ui.define([
   function includesIC(hay, needle) {
     if (!needle) return true;
     if (!hay) return false;
-    return hay.toLowerCase().includes(needle.toLowerCase());
+    return String(hay).toLowerCase().includes(String(needle).toLowerCase());
   }
 
   function mapTypeToGroup(t) {
@@ -37,51 +37,99 @@ sap.ui.define([
     return "OTHER";
   }
 
+  const EMAIL_RE = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/;
+
   // ============================================
-  // Data‑cleaning helpers
+  // Deep extraction helpers
+  // These repair older nested rows without touching the file
   // ============================================
 
-  function cleanUserField(user) {
-    if (!user) return "Unknown";
+  function collectNestedStrings(obj, out = []) {
+    if (!obj) return out;
 
-    // Try parse JSON payload (XSUAA sometimes dumps user JSON)
-    try {
-      const obj = JSON.parse(user);
-      if (obj.email) return obj.email;
-      if (obj.user_name) return obj.user_name;
-      if (obj.given_name && obj.family_name)
-        return obj.given_name + " " + obj.family_name;
-    } catch (e) {}
-
-    // If it’s just an email
-    if (user.includes("@")) return user.trim();
-
-    // Otherwise remove quotes
-    return user.replace(/\"/g, "").trim();
-  }
-
-  function cleanClientField(client) {
-    if (!client) return "Unknown";
-
-    // Example: sb-clone...|destination-xsappname!b404
-    const parts = client.split("|");
-    if (parts.length > 1) {
-      return parts[1].split("!")[0]; // destination-xsappname
+    if (typeof obj === "string") {
+      out.push(obj);
+      return out;
     }
 
-    // Example: destination-xsappname!b404
-    return client.split("!")[0];
+    if (Array.isArray(obj)) {
+      obj.forEach(x => collectNestedStrings(x, out));
+      return out;
+    }
+
+    if (typeof obj === "object") {
+      Object.keys(obj).forEach(k => collectNestedStrings(obj[k], out));
+      return out;
+    }
+
+    return out;
+  }
+
+  function extractEmailDeep(ev) {
+    // 1) top-level user if already email
+    if (ev.user && EMAIL_RE.test(String(ev.user))) {
+      const m = String(ev.user).match(EMAIL_RE);
+      if (m) return m[0];
+    }
+
+    // 2) search in nested raw/message strings
+    const strings = collectNestedStrings(ev);
+    for (const s of strings) {
+      const m = String(s).match(EMAIL_RE);
+      if (m) return m[0];
+    }
+
+    return "Unknown";
+  }
+
+  function normalizeClient(client) {
+    if (!client) return "Unknown";
+
+    const c = String(client).replace(/\"/g, "").trim();
+
+    // Keep technical ids readable instead of reducing to only "it"
+    if (c.includes("sb-") || c.includes("|")) {
+      const label = c.split("|")[1]?.split("!")[0] || c;
+      return `${label} (${c})`;
+    }
+
+    return c;
+  }
+
+  function extractClientDeep(ev) {
+    // 1) prefer top-level client if already useful
+    if (ev.client && ev.client !== "Unknown") {
+      return normalizeClient(ev.client);
+    }
+
+    const strings = collectNestedStrings(ev);
+
+    for (const s of strings) {
+      const str = String(s);
+
+      // JSON-style client identifiers
+      let m =
+        /"client_id"\s*:\s*"([^"]+)"/.exec(str) ||
+        /"cid"\s*:\s*"([^"]+)"/.exec(str) ||
+        /"azp"\s*:\s*"([^"]+)"/.exec(str) ||
+        /clientId=([^,\]]+)/.exec(str);
+
+      if (m && m[1]) {
+        return normalizeClient(m[1]);
+      }
+
+      // Direct service principal fallback
+      if (str.includes("sb-") && (str.includes("|") || str.includes("!"))) {
+        return normalizeClient(str);
+      }
+    }
+
+    return "Unknown";
   }
 
   function cleanOriginField(origin) {
     if (!origin) return "N/A";
-
-    const parts = origin.split("|");
-    if (parts.length > 1) {
-      return parts[1].split("!")[0];
-    }
-
-    return origin;
+    return String(origin);
   }
 
   function summarizeMessage(ev) {
@@ -105,7 +153,6 @@ sap.ui.define([
       return `Token issued for ${user} via ${client}`;
     }
 
-    // fallback: short message
     if (ev.message && ev.message.length > 80) {
       return ev.message.slice(0, 80) + "...";
     }
@@ -114,7 +161,7 @@ sap.ui.define([
   }
 
   // ============================================
-  // MAIN CONTROLLER
+  // Main controller
   // ============================================
 
   return Controller.extend("pwc.monitoring.monitoringui.controller.Security", {
@@ -125,98 +172,246 @@ sap.ui.define([
         rows: [],
         typeKey: "ALL",
         emailFilter: "",
-        ipFilter: ""
+        ipFilter: "",
+        kpi: {
+          high: 0,
+          medium: 0,
+          low: 0
+        }
       });
+
       this.getView().setModel(model, "security");
       this.onRefresh();
     },
 
-    // Security.controller.js
+    // ============================================
+    // Load merged + scored security events
+    // Backend /security/events must already return:
+    // { logs: [ ...with anomalyScore... ] }
+    // ============================================
+    onRefresh() {
+      const API_BASE =
+        "https://port8090-workspaces-ws-dl8fm.eu10.applicationstudio.cloud.sap";
 
-onRefresh() {
-  // Use the 8090 UI origin of your backend in BAS:
-  const API_BASE = "https://port8090-workspaces-ws-dl8fm.eu10.applicationstudio.cloud.sap";
+      fetch(`${API_BASE}/security/events`, {
+        credentials: "include"
+      })
+        .then(async (r) => {
+          if (!r.ok) {
+            const text = await r.text();
+            throw new Error(
+              `HTTP ${r.status} ${r.statusText}: ${text.slice(0, 200)}`
+            );
+          }
+          return r.json();
+        })
+        .then((json) => {
+          const arr = Array.isArray(json.logs) ? json.logs : [];
 
-  fetch(`${API_BASE}/security/events`, { credentials: "include" })
-    .then(async (r) => {
-      if (!r.ok) {
-        const text = await r.text(); // avoid JSON.parse on HTML error pages
-        throw new Error(`HTTP ${r.status} ${r.statusText}: ${text.slice(0, 200)}`);
-      }
-      return r.json();
-    })
-    .then((json) => {
-      const arr = Array.isArray(json.logs) ? json.logs : [];
+          const norm = arr.map((ev) => {
+            const score = ev.anomalyScore ?? 0;
 
-      const norm = arr.map((ev) => {
-        const user = cleanUserField(ev.user);
-        const client = cleanClientField(ev.client);
-        const origin = cleanOriginField(ev.origin);
-        const msg = summarizeMessage(ev);
-        return {
-          ...ev,
-          user,
-          client,
-          origin,
-          message: msg,
-          time: formatTime(ev.time),
-          eventGroup: mapTypeToGroup(ev.eventType)
-        };
-      });
+            const risk =
+              score < -0.4 ? "High" :
+              score < -0.2 ? "Medium" :
+              score < 0 ? "Low" :
+              "Normal";
 
-      norm.sort((a, b) => new Date(b.time) - new Date(a.time));
+            const riskState =
+              risk === "High" ? "Error" :
+              risk === "Medium" ? "Critical" :
+              risk === "Low" ? "Warning" :
+              "Success";
 
-      const m = this.getView().getModel("security");
-      m.setProperty("/all", norm);
-      this._applyFilters();
-    })
-    .catch((err) => console.error("[SEC] Load failed", err));
+            const user = extractEmailDeep(ev);
+            const client = extractClientDeep(ev);
+            const origin = cleanOriginField(ev.origin);
+            const msg = summarizeMessage({
+              ...ev,
+              user,
+              client
+            });
+
+            return {
+              ...ev,
+              user,
+              client,
+              origin,
+              message: msg,
+              time: formatTime(ev.time),
+              eventGroup: mapTypeToGroup(ev.eventType || ""),
+              anomalyScore: score,
+              risk,
+              riskState
+            };
+          });
+
+          norm.sort((a, b) => new Date(b.time) - new Date(a.time));
+
+          const m = this.getView().getModel("security");
+          m.setProperty("/all", norm);
+          m.setProperty("/lastAuditDate",json.lastAuditDate);
+          // =============================
+// Events per hour timeline
+// =============================
+// ===============================
+// IAM Activity by Hour of Day
+// ===============================
+const hourCounts = {};
+
+// initialize 24h
+for(let i=0;i<24;i++){
+  const label = (`0${i}`).slice(-2);
+  hourCounts[label] = 0;
+}
+
+// count events per hour
+norm.forEach(ev=>{
+  if(!ev.time) return;
+
+  const hour =
+      new Date(ev.time)
+      .getHours();
+
+  const label =
+      (`0${hour}`).slice(-2);
+
+  hourCounts[label]++;
+});
+
+// convert to chart dataset
+const hourChart =
+  Object.entries(hourCounts)
+  .map(([hour,count])=>({
+    time:hour,
+    count
+  }));
+
+m.setProperty("/hourChart",hourChart);
+
+
+
+          // ==============================
+// Aggregate events per user
+// For Pie / Donut chart
+// ==============================
+
+const userCounts = {};
+
+norm.forEach(ev => {
+  const u = ev.user || "Unknown";
+
+  if (!userCounts[u]) {
+    userCounts[u] = 0;
+  }
+  userCounts[u]++;
+});
+
+// Turn into array for SAP chart binding
+const chartUsers = Object.entries(userCounts)
+  .map(([user,count]) => ({
+    user,
+    count
+  }))
+  .sort((a,b)=>b.count-a.count)
+  .slice(0,8); // top 8 users (avoid clutter)
+
+m.setProperty("/userChart", chartUsers);
+
+          // KPI from full dataset
+          m.setProperty("/kpi", {
+            high: norm.filter(x => x.risk === "High").length,
+            medium: norm.filter(x => x.risk === "Medium").length,
+            low: norm.filter(x => x.risk === "Low").length
+          });
+
+          this._applyFilters();
+        })
+        .catch((err) => {
+          console.error("[SEC] Load failed", err);
+
+          const m = this.getView().getModel("security");
+          m.setProperty("/all", []);
+          m.setProperty("/rows", []);
+          m.setProperty("/kpi", {
+            high: 0,
+            medium: 0,
+            low: 0
+          });
+        });
+    },
+onUserPieSelect(oEvent){
+
+  const data =
+    oEvent.getParameter("data")[0].data;
+
+  const user  = data.User;
+  const count = data.Events;
+
+  sap.m.MessageBox.information(
+    `${user}\n\nGenerated ${count} IAM Security Events`,
+    {title:"User Event Count"}
+  );
+
 },
-
     onBack() {
       this.getOwnerComponent().getRouter().navTo("logs");
     },
 
-    // ========================================================
+    onGoDataChanges() {
+      this.getOwnerComponent().getRouter().navTo("datachanges");
+    },
+
+    onGoLogs() {
+      this.getOwnerComponent().getRouter().navTo("logs");
+    },
+
+    // ============================================
     // Filter handlers
-    // ========================================================
-    onTypeChange(e) {
-      this.getView().getModel("security").setProperty(
-        "/typeKey",
-        e.getParameter("item").getKey()
-      );
+    // ============================================
+
+    onTypeChange(oEvent) {
+      const key = oEvent.getParameter("item").getKey();
+      this.getView().getModel("security").setProperty("/typeKey", key);
       this._applyFilters();
     },
 
-    onEmailChange(e) {
-      const val = (e.getParameter("newValue") || "").trim();
+    onEmailChange(oEvent) {
+      const val = (oEvent.getParameter("newValue") || "").trim();
       this.getView().getModel("security").setProperty("/emailFilter", val);
       this._applyFilters();
     },
 
-    onIpChange(e) {
-      const val = (e.getParameter("newValue") || "").trim();
+    onIpChange(oEvent) {
+      const val = (oEvent.getParameter("newValue") || "").trim();
       this.getView().getModel("security").setProperty("/ipFilter", val);
       this._applyFilters();
     },
+onExportSecurityExcel: function(){
 
-onGoDataChanges() {
-  this.getOwnerComponent().getRouter().navTo("datachanges");
+const API_BASE =
+"https://port8090-workspaces-ws-dl8fm.eu10.applicationstudio.cloud.sap";
+
+window.open(
+ `${API_BASE}/security/export`,
+ "_blank"
+);
+
 },
-onGoLogs()     { this.getOwnerComponent().getRouter().navTo("logs")},
-    // ========================================================
+    // ============================================
     // Apply filters to the table
-    // ========================================================
+    // ============================================
+
     _applyFilters() {
       const m = this.getView().getModel("security");
-      const all = m.getProperty("/all");
+      const all = m.getProperty("/all") || [];
       const typeKey = m.getProperty("/typeKey");
       const email = m.getProperty("/emailFilter");
       const ip = m.getProperty("/ipFilter");
 
       let rows = all.slice();
 
-      if (typeKey !== "ALL") {
+      if (typeKey && typeKey !== "ALL") {
         rows = rows.filter((r) => r.eventGroup === typeKey);
       }
 

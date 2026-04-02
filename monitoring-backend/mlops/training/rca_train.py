@@ -18,7 +18,7 @@ if os.getenv("CI"):
     DATA_PATH = BASE_DIR / "data" / "processed" / "rca_ci_dataset.csv"
 else:
     print("✅ Local environment — using real RCA dataset")
-    DATA_PATH = BASE_DIR / "data" / "rca" / "rca_dataset.csv"
+    DATA_PATH = BASE_DIR / "data" / "rca" / "rca_dataset_clean.csv"
 
 print("📂 Loading RCA dataset from:", DATA_PATH)
 

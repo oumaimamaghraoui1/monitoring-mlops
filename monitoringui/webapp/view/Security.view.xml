@@ -1,116 +1,277 @@
 <mvc:View
   controllerName="pwc.monitoring.monitoringui.controller.Security"
   xmlns:mvc="sap.ui.core.mvc"
-  xmlns="sap.m">
+  xmlns="sap.m"
+  xmlns:viz="sap.viz.ui5.controls"
+  xmlns:vizData="sap.viz.ui5.data"
+  xmlns:vizFeeds="sap.viz.ui5.controls.common.feeds">
 
-  <Page
-    id="securityPage"
-    title="Security Events (audit.security-events)"
-    showNavButton="true"
-    navButtonPress=".onBack">
+<Page
+  title="Security Behaviour Monitoring (UEBA)"
+  showNavButton="true"
+  navButtonPress=".onBack">
 
-    <!-- Header -->
-    <headerContent>
-      <Button id="btnSecRefresh" text="Refresh" press=".onRefresh"/>
-      <Button id="btnGoDataChangess" text="Data Changes" press=".onGoDataChanges"/>
-      <Button id="btnGoLogsDataa" text="Configuration Logs" press=".onGoLogs"/>
+  <headerContent>
+    <Button text="Refresh" press=".onRefresh"/>
+    <Button text="Data Changes" press=".onGoDataChanges"/>
+    <Button text="Configuration Logs" press=".onGoLogs"/>
+  </headerContent>
 
-    </headerContent>
+  <content>
 
-    <content>
+    <!-- KPI ROW -->
+    <HBox
+      width="100%"
+      justifyContent="SpaceAround"
+      wrap="Wrap"
+      class="sapUiContentPadding sapUiMediumMarginBottom">
 
-      <!-- Filters wrapper -->
-      <VBox id="vbFilters" class="sapUiContentPadding sapUiMediumMarginTop">
+      <GenericTile header="High Behaviour Risk">
+        <TileContent>
+          <NumericContent value="{security>/kpi/high}"
+            valueColor="Error"/>
+        </TileContent>
+      </GenericTile>
 
-        <!-- One filter row; adds comfortable spacing and alignment -->
-        <HBox id="hbFilterRow"
-              class="sapUiSmallMarginBottom"
-              alignItems="Center"
-              justifyContent="SpaceBetween">
+      <GenericTile header="Medium Behaviour Risk">
+        <TileContent>
+          <NumericContent value="{security>/kpi/medium}"
+            valueColor="Critical"/>
+        </TileContent>
+      </GenericTile>
 
-          <!-- Left group: segmented button + inputs with spacing -->
-          <HBox id="hbTypeGroup" alignItems="Center">
+      <GenericTile header="Low Behaviour Risk">
+        <TileContent>
+          <NumericContent value="{security>/kpi/low}"
+            valueColor="Neutral"/>
+        </TileContent>
+      </GenericTile>
 
-            <!-- Segmented buttons with widths so text doesn't clip -->
-            <SegmentedButton id="sbSecType"
-                             class="sapUiSmallMarginEnd"
-                             selectedKey="ALL"
-                             selectionChange=".onTypeChange">
-              <items>
-                <SegmentedButtonItem id="sbSecAll"    key="ALL"    text="All"         width="5rem"/>
-                <SegmentedButtonItem id="sbSecLogin"  key="LOGIN"  text="Logins"      width="6rem"/>
-                <SegmentedButtonItem id="sbSecToken"  key="TOKEN"  text="Tokens"      width="6rem"/>
-                <SegmentedButtonItem id="sbSecClient" key="CLIENT" text="Client Auth" width="8rem"/>
-                <SegmentedButtonItem id="sbSecOther"  key="OTHER"  text="Other"       width="5rem"/>
-              </items>
-            </SegmentedButton>
+      <GenericTile header="Total Events">
+        <TileContent>
+          <NumericContent
+            value="{= (${security>/rows}.length || 0) }"
+            valueColor="Good"/>
+        </TileContent>
+      </GenericTile>
 
-            <!-- Label has a little space to the right before the input -->
-            <Label id="lblEmail"
-                   text="Email / Client"
-                   class="sapUiSmallMarginEnd"/>
+    </HBox>
 
-            <SearchField id="sfEmail"
-                         width="16rem"
-                         class="sapUiSmallMarginEnd"
-                         liveChange=".onEmailChange"/>
+    <!-- FILTER PANEL -->
+    <Panel
+      headerText="Analyst Filters"
+      expandable="true"
+      expanded="true"
+      class="sapUiContentPadding sapUiMediumMarginBottom">
 
-            <!-- Small space before IP label; label also has space before input -->
-            <Label id="lblIp"
-                   text="IP"
-                   class="sapUiSmallMarginBegin sapUiSmallMarginEnd"/>
+      <VBox>
 
-            <SearchField id="sfIp"
-                         width="12rem"
-                         liveChange=".onIpChange"/>
+        <SegmentedButton
+          selectedKey="ALL"
+          selectionChange=".onTypeChange">
+          <items>
+            <SegmentedButtonItem key="ALL" text="All"/>
+            <SegmentedButtonItem key="LOGIN" text="Logins"/>
+            <SegmentedButtonItem key="TOKEN" text="Tokens"/>
+            <SegmentedButtonItem key="CLIENT" text="Client Auth"/>
+            <SegmentedButtonItem key="OTHER" text="Other"/>
+          </items>
+        </SegmentedButton>
 
-          </HBox>
-
+        <HBox class="sapUiSmallMarginTop">
+          <SearchField
+            width="16rem"
+            liveChange=".onEmailChange"
+            placeholder="Search User / Client"/>
+          <SearchField
+            width="12rem"
+            liveChange=".onIpChange"
+            placeholder="Search IP"/>
         </HBox>
 
       </VBox>
 
-      <!-- Data table -->
-      <Table id="tblSecurity"
-             growing="true"
-             items="{ path: 'security>/rows' }">
+    </Panel>
 
-        <headerToolbar>
-          <Toolbar id="tbHeader">
-            <Title id="ttlSec" text="Security Events" level="H2"/>
-            <ToolbarSpacer id="spHeader"/>
-            <Text id="txtCount" text="{= (${security>/rows}.length || 0) + ' items'}"/>
-          </Toolbar>
-        </headerToolbar>
+    <!-- SIDE BY SIDE FLEX CHARTS -->
+    <FlexBox
+      width="100%"
+      renderType="Bare"
+      wrap="NoWrap"
+      justifyContent="SpaceBetween"
+      class="sapUiContentPadding sapUiMediumMarginBottom">
 
-        <columns>
-          <Column id="colTime"   width="12rem"><Text id="txtTime" text="Time"/></Column>
-          <Column id="colUser"   width="14rem"><Text id="txtUser" text="User"/></Column>
-          <Column id="colType"   width="14rem"><Text id="txtType" text="Event Type"/></Column>
-          <Column id="colIp"     width="10rem"><Text id="txtIp" text="IP"/></Column>
-          <Column id="colOrigin" width="18rem"><Text id="txtOrigin" text="Origin"/></Column>
-          <Column id="colClient" width="18rem"><Text id="txtClient" text="Client"/></Column>
-          <Column id="colMsg"    width="28rem"><Text id="txtMsg" text="Message"/></Column>
-        </columns>
+      <!-- PIE PANEL -->
+      <Panel>
+        <layoutData>
+          <FlexItemData growFactor="1" baseSize="50%"/>
+        </layoutData>
 
-        <items>
-          <ColumnListItem id="itemSec">
-            <cells>
-              <Text id="cellTime"    text="{security>time}"/>
-              <Text id="cellUser"    text="{security>user}"    wrapping="true"/>
-              <Text id="cellType"    text="{security>eventType}"/>
-              <Text id="cellIp"      text="{security>ip}"/>
-              <Text id="cellOrigin"  text="{security>origin}"  wrapping="true"/>
-              <Text id="cellClient"  text="{security>client}"  wrapping="true"/>
-              <Text id="cellMsg"     text="{security>message}" wrapping="true" maxLines="3"/>
-            </cells>
-          </ColumnListItem>
-        </items>
+        <viz:VizFrame
+          id="idUserPie"
+          width="100%"
+          height="420px"
+          vizType="pie"
+          uiConfig="{applicationSet:'fiori'}"
+          selectData=".onUserPieSelect"
+          vizProperties='{
+            "plotArea":{
+              "dataLabel":{"visible":true}
+            },
+            "legend":{
+              "visible":true,
+              "layout":{"position":"bottom"}
+            }
+          }'>
 
-      </Table>
+          <viz:dataset>
+            <vizData:FlattenedDataset
+              data="{security>/userChart}">
+              <vizData:dimensions>
+                <vizData:DimensionDefinition
+                  name="User"
+                  value="{security>user}"/>
+              </vizData:dimensions>
+              <vizData:measures>
+                <vizData:MeasureDefinition
+                  name="Events"
+                  value="{security>count}"/>
+              </vizData:measures>
+            </vizData:FlattenedDataset>
+          </viz:dataset>
 
-    </content>
+          <viz:feeds>
+            <vizFeeds:FeedItem uid="size"
+              type="Measure" values="Events"/>
+            <vizFeeds:FeedItem uid="color"
+              type="Dimension" values="User"/>
+          </viz:feeds>
 
-  </Page>
+        </viz:VizFrame>
+      </Panel>
+
+      <!-- LINE PANEL -->
+      <Panel>
+        <layoutData>
+          <FlexItemData growFactor="1" baseSize="50%"/>
+        </layoutData>
+
+        <viz:VizFrame
+          id="idRiskLine"
+          width="100%"
+          height="420px"
+          vizType="line"
+          uiConfig="{applicationSet:'fiori'}"
+          vizProperties='{
+            "title":{
+              "visible":true,
+             "text":"IAM Activity by Hour of Day"
+            }
+          }'>
+
+          <viz:dataset>
+            <vizData:FlattenedDataset
+              data="{security>/hourChart}">
+              <vizData:dimensions>
+                <vizData:DimensionDefinition
+                  name="Time"
+                  value="{security>time}"/>
+              </vizData:dimensions>
+              <vizData:measures>
+                <vizData:MeasureDefinition
+                  name="Risk Events"
+                  value="{security>count}"/>
+              </vizData:measures>
+            </vizData:FlattenedDataset>
+          </viz:dataset>
+
+          <viz:feeds>
+            <vizFeeds:FeedItem uid="valueAxis"
+              type="Measure" values="Risk Events"/>
+            <vizFeeds:FeedItem uid="categoryAxis"
+              type="Dimension" values="Time"/>
+          </viz:feeds>
+
+        </viz:VizFrame>
+
+      </Panel>
+
+    </FlexBox>
+<HBox
+ justifyContent="End"
+ class="sapUiSmallMarginBottom">
+
+ <Button
+  text="Export Security to Excel"
+  icon="sap-icon://excel-attachment"
+  type="Emphasized"
+  press=".onExportSecurityExcel"/>
+
+</HBox>
+
+<!-- ================= LAST AUDIT ================= -->
+
+<HBox
+  width="100%"
+  justifyContent="End"
+  class="sapUiContentPadding sapUiMediumMarginTop sapUiMediumMarginBottom">
+
+  <ObjectStatus
+    title="Last Security Event Available"
+    text="{security>/lastAuditDate}"
+    state="Success"/>
+
+
+</HBox>
+
+    <!-- TABLE -->
+    <Table
+      items="{security>/rows}"
+      growing="true"
+      growingThreshold="25"
+      class="sapUiContentPadding">
+
+      <columns>
+        <Column><Text text="Time"/></Column>
+        <Column><Text text="User"/></Column>
+        <Column><Text text="Risk"/></Column>
+        <Column><Text text="Event Type"/></Column>
+        <Column><Text text="IP"/></Column>
+        <Column><Text text="Client"/></Column>
+        <Column><Text text="Score"/></Column>
+      </columns>
+
+      <items>
+        <ColumnListItem>
+          <cells>
+
+            <Text text="{security>time}"/>
+            <Text text="{security>user}" wrapping="true"/>
+            <ObjectStatus
+              text="{security>risk}"
+              state="{security>riskState}"/>
+            <Text text="{security>eventType}"/>
+            <Text text="{security>ip}"/>
+            <Text text="{security>client}" wrapping="true"/>
+
+            <ObjectNumber
+              number="{
+                path:'security>anomalyScore',
+                type:'sap.ui.model.type.Float',
+                formatOptions:{
+                  minFractionDigits:3,
+                  maxFractionDigits:3
+                }
+              }"/>
+
+          </cells>
+        </ColumnListItem>
+      </items>
+
+    </Table>
+
+  </content>
+
+</Page>
 
 </mvc:View>

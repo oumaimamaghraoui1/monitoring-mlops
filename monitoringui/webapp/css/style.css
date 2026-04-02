@@ -26,3 +26,9 @@
 .compactGrid .sapUiTinyMarginTop {
     margin-top: 0.25rem !important;
 }
+.sapMGenericTile{
+  height:7rem !important;
+}
+.sapVizFrame{
+  min-height:240px !important;
+}

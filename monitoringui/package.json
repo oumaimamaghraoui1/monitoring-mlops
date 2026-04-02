@@ -13,6 +13,7 @@
     "@ui5/cli": "^4.0.43",
     "mbt": "^1.2.29",
     "rimraf": "^5.0.5",
+    "ui5-middleware-simpleproxy": "^3.7.0",
     "ui5-task-zipper": "^3.4.x"
   },
   "scripts": {
