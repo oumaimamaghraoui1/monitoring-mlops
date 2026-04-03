@@ -13,8 +13,10 @@
 
   <headerContent>
     <Button text="Refresh" press=".onRefresh"/>
-    <Button text="Data Changes" press=".onGoDataChanges"/>
-    <Button text="Configuration Logs" press=".onGoLogs"/>
+    <!-- <Button text="Data Changes" press=".onGoDataChanges"/> -->
+    <Button text="System Health" press=".onGoSystemHealth" />
+    <!--<Button text="Configuration Logs" press=".onGoLogs"/>-->
+    <Button text="AI Risk Monitor" press=".goRisk"/>
   </headerContent>
 
   <content>

@@ -23,7 +23,7 @@ new PerformanceObserver(list=>{
 
 const SAMPLE_INTERVAL_MS=2000;
 const HEALTH_ALERT_SCORE=90;
-const ALERT_COOLDOWN_MS=10000;
+const ALERT_COOLDOWN_MS=300000;
 
 let samplerTimer=null;
 let lastLoop=process.hrtime.bigint();

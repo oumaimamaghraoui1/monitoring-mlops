@@ -94,6 +94,11 @@ sap.ui.define([
             console.error("Runtime API error", err);
           });
       },
+      goRisk: function () {
+  this.getOwnerComponent()
+      .getRouter()
+      .navTo("risk");
+},
 
       onExit: function () {
         if (this._interval) {
@@ -102,4 +107,5 @@ sap.ui.define([
       }
 
     });
+    
 });

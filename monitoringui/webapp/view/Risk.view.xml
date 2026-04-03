@@ -13,7 +13,7 @@
 <headerContent>
   <Button text="Refresh" press=".onRefresh"/>
   <Button text="Security Events" press=".onGoSecurity"/>
-  <Button text="Data Changes" press=".onGoDataChanges"/>
+  <!--<Button text="Data Changes" press=".onGoDataChanges"/>-->
   <Button text="System Health" press=".onGoSystemHealth"/>
 </headerContent>
 

@@ -8,9 +8,8 @@
     <headerContent>
       <Button id="btnRefresh" text="Refresh" press=".onRefresh"/>
       <Button id="btnGoSecurity" text="Security Events" press=".onGoSecurity"/>
-      <Button id="btnGoDataChanges" text="Data Changes" press=".onGoDataChanges"/>
+      <!-- <Button id="btnGoDataChanges" text="Data Changes" press=".onGoDataChanges"/> -->
       <Button text="System Health" press=".onGoSystemHealth" />
-      <Button text="Security Anomalies" press=".onGoAnomalies"/>
 <Button text="AI Risk Monitor" press=".goRisk"/>
     </headerContent>
 

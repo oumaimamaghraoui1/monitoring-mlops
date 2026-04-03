@@ -381,7 +381,15 @@ onUserPieSelect(oEvent){
       this.getView().getModel("security").setProperty("/emailFilter", val);
       this._applyFilters();
     },
-
+    
+onGoSystemHealth() {
+  this.getOwnerComponent().getRouter().navTo("system");
+},
+goRisk: function () {
+  this.getOwnerComponent()
+      .getRouter()
+      .navTo("risk");
+},
     onIpChange(oEvent) {
       const val = (oEvent.getParameter("newValue") || "").trim();
       this.getView().getModel("security").setProperty("/ipFilter", val);

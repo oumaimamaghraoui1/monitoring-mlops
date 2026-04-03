@@ -7,8 +7,13 @@
   xmlns:viz="sap.viz.ui5.controls"
   displayBlock="true">
 
-  <Page title="System Observability Dashboard">
-
+<Page title="Backend Health and Root Cause Analysis Dashboard">
+<headerContent>
+  <Button text="Refresh" press=".onRefresh"/>
+  <Button text="Security Events" press=".onGoSecurity"/>
+  <!--<Button text="Data Changes" press=".onGoDataChanges"/>-->
+  <Button text="AI Risk Monitor" press=".goRisk"/>
+</headerContent>
     <content>
 
       <l:Grid width="100%" class="sapUiLargeMargin">
