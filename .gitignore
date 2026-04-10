@@ -47,3 +47,91 @@ venv/
 # python cache
 __pycache__/
 *.pyc
+
+# =========================
+# sap_ai_recommender - Python cache / virtual env
+# =========================
+sap_ai_recommender/venv/
+sap_ai_recommender/.venv/
+sap_ai_recommender/__pycache__/
+sap_ai_recommender/**/*.pyc
+sap_ai_recommender/*.pyc
+
+# =========================
+# Environment / secrets
+# =========================
+sap_ai_recommender/.env
+sap_ai_recommender/.env.*
+sap_ai_recommender/*.pem
+sap_ai_recommender/*.key
+sap_ai_recommender/*.crt
+sap_ai_recommender/*.p12
+sap_ai_recommender/*.pfx
+
+# =========================
+# Artifacts / ML models / generated data
+# =========================
+sap_ai_recommender/artifacts/
+sap_ai_recommender/output/
+sap_ai_recommender/data/
+sap_ai_recommender/*.joblib
+sap_ai_recommender/*.pkl
+sap_ai_recommender/*.pickle
+sap_ai_recommender/*.npz
+sap_ai_recommender/*.npy
+sap_ai_recommender/*.csv
+sap_ai_recommender/*.xlsx
+sap_ai_recommender/*.xls
+
+# =========================
+# Logs / temp
+# =========================
+sap_ai_recommender/*.log
+sap_ai_recommender/logs/
+sap_ai_recommender/tmp/
+sap_ai_recommender/temp/
+
+# =========================
+# IDE / OS files
+# =========================
+sap_ai_recommender/.DS_Store
+sap_ai_recommender/.idea/
+sap_ai_recommender/.vscode/
+
+# =========================
+# Optional local config
+# =========================
+sap_ai_recommender/config.local.json
+sap_ai_recommender/settings.local.json
+# sap_ai_recommender
+sap_ai_recommender/venv/
+sap_ai_recommender/.venv/
+sap_ai_recommender/__pycache__/
+sap_ai_recommender/**/*.pyc
+sap_ai_recommender/*.pyc
+sap_ai_recommender/.env
+sap_ai_recommender/.env.*
+sap_ai_recommender/*.pem
+sap_ai_recommender/*.key
+sap_ai_recommender/*.crt
+sap_ai_recommender/*.p12
+sap_ai_recommender/*.pfx
+sap_ai_recommender/artifacts/
+sap_ai_recommender/output/
+sap_ai_recommender/data/
+sap_ai_recommender/*.joblib
+sap_ai_recommender/*.pkl
+sap_ai_recommender/*.pickle
+sap_ai_recommender/*.npz
+sap_ai_recommender/*.npy
+sap_ai_recommender/*.csv
+sap_ai_recommender/*.xlsx
+sap_ai_recommender/*.xls
+sap_ai_recommender/*.log
+sap_ai_recommender/logs/
+sap_ai_recommender/tmp/
+sap_ai_recommender/temp/
+sap_ai_recommender/.DS_Store
+sap_ai_recommender/.idea/
+sap_ai_recommender/.vscode/
+

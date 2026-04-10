@@ -14,7 +14,7 @@
   "description": "",
   "dependencies": {
     "@sap_oss/alert-notification-client": "^1.10.0",
-    "axios": "^1.13.5",
+    "axios": "^1.14.0",
     "cfenv": "^1.2.5",
     "cors": "^2.8.6",
     "dotenv": "^17.3.1",

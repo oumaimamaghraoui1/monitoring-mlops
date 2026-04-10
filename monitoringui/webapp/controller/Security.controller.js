@@ -355,15 +355,15 @@ onUserPieSelect(oEvent){
 
 },
     onBack() {
-      this.getOwnerComponent().getRouter().navTo("logs");
+      this.getOwnerComponent().getRouter().navTo("logs", {}, false);
     },
 
     onGoDataChanges() {
-      this.getOwnerComponent().getRouter().navTo("datachanges");
+      this.getOwnerComponent().getRouter().navTo("datachanges", {}, false);
     },
 
     onGoLogs() {
-      this.getOwnerComponent().getRouter().navTo("logs");
+      this.getOwnerComponent().getRouter().navTo("logs", {}, false);
     },
 
     // ============================================
@@ -383,12 +383,12 @@ onUserPieSelect(oEvent){
     },
     
 onGoSystemHealth() {
-  this.getOwnerComponent().getRouter().navTo("system");
+  this.getOwnerComponent().getRouter().navTo("system", {}, false);
 },
 goRisk: function () {
   this.getOwnerComponent()
       .getRouter()
-      .navTo("risk");
+      .navTo("risk", {}, false);
 },
     onIpChange(oEvent) {
       const val = (oEvent.getParameter("newValue") || "").trim();

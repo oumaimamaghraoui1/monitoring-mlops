@@ -1,0 +1,51 @@
+<mvc:View
+  controllerName="pwc.monitoring.monitoringui.controller.kmeans"
+  xmlns:mvc="sap.ui.core.mvc"
+  xmlns="sap.m">
+
+  <Page title="SAP Basis Intelligence">
+    <content>
+      <VBox class="sapUiSmallMargin">
+
+        <Input
+  id="tcodeInput"
+  placeholder="Enter T-Code or keyword"
+  submit="onSearch" />
+
+        <Button
+          text="Search"
+          press="onSearch"
+          class="sapUiTinyMarginTop sapUiTinyMarginBottom" />
+
+        <Table
+          id="resultTable"
+          items="{recModel>/}">
+
+          <columns>
+            <Column><Text text="Rank" /></Column>
+            <Column><Text text="Code" /></Column>
+            <Column><Text text="Program" /></Column>
+            <Column><Text text="Description" /></Column>
+            <Column><Text text="Cluster" /></Column>
+            <Column><Text text="Similarity" /></Column>
+          </columns>
+
+          <items>
+            <ColumnListItem>
+              <cells>
+                <Text text="{recModel>rank}" />
+                <Text text="{recModel>tcode}" />
+                <Text text="{recModel>program}" />
+                <Text text="{recModel>desc}" />
+                <Text text="{recModel>cluster}" />
+                <Text text="{recModel>similarity}" />
+              </cells>
+            </ColumnListItem>
+          </items>
+
+        </Table>
+
+      </VBox>
+    </content>
+  </Page>
+</mvc:View>

@@ -11,6 +11,12 @@
       <!-- <Button id="btnGoDataChanges" text="Data Changes" press=".onGoDataChanges"/> -->
       <Button text="System Health" press=".onGoSystemHealth" />
 <Button text="AI Risk Monitor" press=".goRisk"/>
+
+<Button
+text="AI Recommendation"
+press="goKmeans"
+type="Emphasized"/>
+
     </headerContent>
 
     <content>

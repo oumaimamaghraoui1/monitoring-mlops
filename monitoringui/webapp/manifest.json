@@ -7,29 +7,33 @@
       "version": "1.0.0"
     }
   },
+
   "sap.ui": {
     "technology": "UI5",
-    "icons": {},
     "deviceTypes": {
       "desktop": true,
       "tablet": true,
       "phone": true
     }
   },
+
   "sap.ui5": {
+
     "rootView": {
       "viewName": "pwc.monitoring.monitoringui.view.App",
       "type": "XML",
       "async": true,
       "id": "app"
     },
+
     "resources": {
-  "css": [
-    {
-      "uri": "css/style.css"
-    }
-  ]
-},
+      "css": [
+        {
+          "uri": "css/style.css"
+        }
+      ]
+    },
+
     "dependencies": {
       "libs": {
         "sap.m": {},
@@ -37,7 +41,9 @@
         "sap.viz": {}
       }
     },
+
     "routing": {
+
       "config": {
         "routerClass": "sap.m.routing.Router",
         "viewType": "XML",
@@ -47,9 +53,10 @@
         "async": true,
         "transition": "slide"
       },
+
       "routes": [
         {
-          "pattern": "logs",
+          "pattern": "",
           "name": "logs",
           "target": "logs"
         },
@@ -66,24 +73,25 @@
         {
           "pattern": "system",
           "name": "system",
-          "target": "SystemHealth"
+          "target": "system"
+        },
+        {
+          "pattern": "risk",
+          "name": "risk",
+          "target": "risk"
+        },
+        {
+          "pattern": "kmeans",
+          "name": "kmeans",
+          "target": "kmeans"
         },
         {
           "pattern": "anomalies",
           "name": "anomalies",
           "target": "anomalies"
-        },
-        {
-          "pattern": "",
-          "name": "default",
-          "target": "logs"
-        },
-        {
-  "pattern": "risk",
-  "name": "risk",
-  "target": "risk"
-}
+        }
       ],
+
       "targets": {
         "logs": {
           "viewName": "Logs",
@@ -91,25 +99,31 @@
         },
         "security": {
           "viewName": "Security",
-          "viewLevel": 2
+          "viewLevel": 1
         },
         "datachanges": {
           "viewName": "DataChanges",
-          "viewLevel": 3
+          "viewLevel": 1
         },
-        "SystemHealth": {
+        "system": {
           "viewName": "SystemHealth",
+          "viewLevel": 1
+        },
+        "risk": {
+          "viewName": "Risk",
+          "viewLevel": 1
+        },
+        "kmeans": {
+          "viewName": "kmeans",
           "viewLevel": 1
         },
         "anomalies": {
           "viewName": "Anomalies",
-          "viewLevel": 2
-        },
-        "risk": {
-  "viewName": "Risk",
-  "viewLevel": 2
-}
+          "viewLevel": 1
+        }
       }
+
     }
+
   }
 }

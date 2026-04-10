@@ -1,0 +1,10 @@
+{
+  "authenticationMethod": "none",
+  "routes": [
+    {
+      "source": "^/recommend$",
+      "target": "/recommend",
+      "authenticationType": "none"
+    }
+  ]
+}

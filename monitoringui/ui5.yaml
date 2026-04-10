@@ -15,8 +15,39 @@ framework:
 
 server:
   customMiddleware:
-    - name: fiori-tools-appreload
+    - name: fiori-tools-proxy
       afterMiddleware: compression
+      configuration:
+        ignoreCertErrors: true
+        backend:
+          # Existing backend APIs to Node (8090)
+          - path: /audit
+            url: http://localhost:8090
+          - path: /security
+            url: http://localhost:8090
+          - path: /data
+            url: http://localhost:8090
+          - path: /anomaly
+            url: http://localhost:8090
+          - path: /metrics
+            url: http://localhost:8090
+          - path: /health
+            url: http://localhost:8090
+
+          # AI route to Node (8090)
+          - path: /ai
+            url: http://localhost:8090
+
+        ui5:
+          - path: /resources
+            url: https://ui5.sap.com
+            version: "1.144.1"
+          - path: /test-resources
+            url: https://ui5.sap.com
+            version: "1.144.1"
+
+    - name: fiori-tools-appreload
+      afterMiddleware: fiori-tools-proxy
       configuration:
         port: 35729
         path: webapp
@@ -27,19 +58,3 @@ server:
       configuration:
         flp:
           theme: sap_horizon
-
-    - name: fiori-tools-proxy
-      afterMiddleware: compression
-      configuration:
-        ignoreCertErrors: false
-        backend:
-          - path: /backend
-            url: https://monitoring-backend.cfapps.eu10-004.hana.ondemand.com
-            pathReplace: /
-        ui5:
-          - path: /resources
-            url: https://ui5.sap.com
-            version: "1.144.1"
-          - path: /test-resources
-            url: https://ui5.sap.com
-            version: "1.144.1"

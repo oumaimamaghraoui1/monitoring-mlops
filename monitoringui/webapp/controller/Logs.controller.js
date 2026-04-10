@@ -101,24 +101,27 @@ onRefresh() {
     },
    
   onGoSecurity: function () {
-  this.getOwnerComponent().getRouter().navTo("security");
+  this.getOwnerComponent()
+    .getRouter()
+    .navTo("security", {}, false);
 },
 onGoDataChanges() {
-  this.getOwnerComponent().getRouter().navTo("datachanges");
+  this.getOwnerComponent().getRouter().navTo("datachanges", {}, false);
 },
 onGoSystemHealth() {
-  this.getOwnerComponent().getRouter().navTo("system");
+  this.getOwnerComponent().getRouter().navTo("system", {}, false);
 },
 onGoAnomalies() {
   this.getOwnerComponent()
     .getRouter()
-    .navTo("anomalies");
+    .navTo("anomalies", {}, false);
 },
 goRisk: function () {
   this.getOwnerComponent()
       .getRouter()
-      .navTo("risk");
+      .navTo("risk", {}, false);
 },
+goKmeans: function () {this.getOwnerComponent().getRouter().navTo("kmeans", {}, false);},
     // ===== Core filterer =====
     _applyFilters() {
       const m = this.getView().getModel("logs");

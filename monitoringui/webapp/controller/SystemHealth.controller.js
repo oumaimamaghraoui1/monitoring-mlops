@@ -97,9 +97,15 @@ sap.ui.define([
       goRisk: function () {
   this.getOwnerComponent()
       .getRouter()
-      .navTo("risk");
+      .navTo("risk", {}, false);
 },
+onGoSecurity: function () {
 
+  this.getOwnerComponent()
+      .getRouter()
+      .navTo("security", {}, false);
+
+},
       onExit: function () {
         if (this._interval) {
           clearInterval(this._interval);

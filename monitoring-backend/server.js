@@ -30,6 +30,7 @@ import metricsRoutes from "./src/api/metrics.routes.js";
 import healthRoutes from "./src/api/health.routes.js";
 import riskExportRoutes from "./src/api/risk.export.routes.js";
 import securityExportRoutes from "./src/api/security.export.routes.js";
+import axios from "axios";
 
 // =======================
 // ✅ MONITORING ENGINE
@@ -125,15 +126,6 @@ app.get("/slow-api", async (req,res)=>{
   await new Promise(r => setTimeout(r,2000));
   res.send("Slow dependency ✅");
 });
-
-// ======================================================
-
-const port = process.env.PORT || 8090;
-const host = "0.0.0.0";
-
-app.listen(port, host, () =>
-  console.log(`Server running on http://${host}:${port}`)
-);
 // =============================
 // ✅ EVENT LOOP STARVATION TEST
 // =============================
@@ -147,3 +139,51 @@ app.get("/timer-flood",(req,res)=>{
   }
 
 });
+
+// ======================================================
+// ✅ AI PROXY ROUTE (THE IMPORTANT PART)
+// ======================================================
+app.post("/ai/recommend", async (req, res) => {
+  console.log("➡ POST /ai/recommend");
+  console.log("Payload:", req.body);
+
+  try {
+    const response = await axios.post(
+      "http://127.0.0.1:9090/recommend",   // ✅ CORRECT FOR BAS
+      req.body,
+      {
+        headers: { "Content-Type": "application/json" },
+        timeout: 10000
+      }
+    );
+
+    console.log("✅ Python responded with:", response.status);
+    res.status(200).json(response.data);
+
+  } catch (err) {
+    console.error("❌ Python AI ERROR");
+    console.error("message:", err.message);
+
+    if (err.response) {
+      console.error("status:", err.response.status);
+      console.error("data:", err.response.data);
+    }
+
+    res.status(500).json({
+      error: "Node failed to reach Python AI",
+      details: err.message
+    });
+  }
+});
+
+// ======================================================
+
+const port = process.env.PORT || 8090;
+const host = "0.0.0.0";
+
+app.listen(port, host, () =>
+  console.log(`Server running on http://${host}:${port}`)
+);
+
+
+
