@@ -1,5 +1,5 @@
 // =========================================================
-// full-log-poller.js — APPEND-ONLY RAW INGESTION + ML PIPELINE
+// full-log-poller.js — RAW INGESTION + SAFE IAM CLASSIFIER
 // =========================================================
 
 import path from "path";
@@ -22,16 +22,8 @@ const {
   ALM_API_URL
 } = process.env;
 
-// =========================================================
-// FILES
-// =========================================================
-
 const STATE_DIR  = path.join(rootPath,"data");
 const STATE_FILE = path.join(rootPath,"data","all_config_logs.json");
-
-// =========================================================
-// CONFIG
-// =========================================================
 
 const POLL_TOP         = 500;
 const POLL_INTERVAL_MS = 2 * 60 * 1000;
@@ -79,7 +71,7 @@ async function getToken(){
 }
 
 // =========================================================
-// FETCH (NO HTML ENTITIES)
+// ✅ IAS FETCH (REAL FIX HERE)
 // =========================================================
 
 async function fetchLogs(tok){
@@ -87,7 +79,7 @@ async function fetchLogs(tok){
   const url =
   `${ALM_API_URL}/auditlog/v2/auditlogrecords` +
   `?category=audit.configuration` +
-  `&$orderby=time desc` +
+  `&$orderby=time%20desc` +
   `&$top=${POLL_TOP}`;
 
   const {data} = await axios.get(url,{
@@ -98,30 +90,81 @@ async function fetchLogs(tok){
 }
 
 // =========================================================
-// ML PIPELINE RUNNER
+// ✅ IAS SAFE CLASSIFIER (UI ONLY)
+// DOES NOT TOUCH RAW → ML SAFE
+// =========================================================
+
+function classifyAuditEvent(raw){
+
+  const actor = raw.user || "";
+
+  let parsed;
+  try{
+    parsed = JSON.parse(raw.message);
+  }catch(e){
+    return {
+      objectType:"Configuration Change",
+      action:"UPDATE",
+      details:"Technical event",
+      target:"TechnicalResource",
+      isHuman:false
+    };
+  }
+
+  const typeFromObject = parsed?.object?.type;
+  const tableName      = parsed?.object?.id?.tableName;
+  const crud           = parsed?.object?.id?.crudType;
+
+  // ✅ ROLE ASSIGNMENT (THIS WAS MISSING)
+  if(
+  typeFromObject === "xs_rolecollection2user" ||
+  tableName === "xs_rolecollection2user"
+){
+
+  const role =
+    parsed?.object?.id?.rolecollection_name || "Role";
+
+  return {
+    objectType:"Role Assignment",
+    action:crud || "CREATE",
+    details:`Assigned role: ${role}`,
+    target:role,
+    isHuman:true
+  };
+}
+
+  // ✅ HUMAN USER UPDATE
+  if(actor.startsWith("user/") || actor.includes("@")){
+    return {
+      objectType:"User Profile Update",
+      action:crud || "UPDATE",
+      details:"User identity updated",
+      target:"[Identity]",
+      isHuman:true
+    };
+  }
+
+  // ✅ SYSTEM EVENT
+  return {
+    objectType:"Configuration Change",
+    action:crud || "UPDATE",
+    details:"Technical configuration",
+    target:"TechnicalResource",
+    isHuman:false
+  };
+}
+
+// =========================================================
+// ML PIPELINE (UNCHANGED)
 // =========================================================
 
 function runMLPipeline(){
 
-  const python = path.join(
-    rootPath,
-    "mlops/venv/bin/python"
-  );
+  const python = path.join(rootPath,"mlops/venv/bin/python");
 
-  spawn(python,
-    ["mlops/pipelines/01_normalize_logs.py"],
-    {cwd:rootPath,detached:true,stdio:"ignore"}
-  ).unref();
-
-  spawn(python,
-    ["mlops/pipelines/02_build_features.py"],
-    {cwd:rootPath,detached:true,stdio:"ignore"}
-  ).unref();
-
-  spawn(python,
-    ["mlops/inference/score_event.py"],
-    {cwd:rootPath,detached:true,stdio:"ignore"}
-  ).unref();
+  spawn(python,["mlops/pipelines/01_normalize_logs.py"],{cwd:rootPath,detached:true,stdio:"ignore"}).unref();
+  spawn(python,["mlops/pipelines/02_build_features.py"],{cwd:rootPath,detached:true,stdio:"ignore"}).unref();
+  spawn(python,["mlops/inference/score_event.py"],{cwd:rootPath,detached:true,stdio:"ignore"}).unref();
 
   console.log("[ML] FULL RETRAIN PIPELINE TRIGGERED");
 }
@@ -150,15 +193,17 @@ async function pollOnce(){
 
     seen.add(raw.message_uuid);
 
+    const iam = classifyAuditEvent(raw);
+
     merged.push({
       uuid:raw.message_uuid,
       time:raw.time,
-      actor:raw.user||"Unknown",
-      target:"Unknown",
-      objectType:"Configuration Change",
-      action:"UPDATE",
-      details:"",
-      isHuman:true,
+      actor:raw.user,
+      objectType:iam.objectType,
+      action:iam.action,
+      details:iam.details,
+      target:iam.target,
+      isHuman:iam.isHuman,
       raw
     });
   }
@@ -167,14 +212,10 @@ async function pollOnce(){
 
   await saveState(merged);
 
-  console.log(`[POLL] Saved ${merged.length} RAW logs`);
+  console.log(`[POLL] Saved ${merged.length} logs`);
 
   runMLPipeline();
 }
-
-// =========================================================
-// RUN
-// =========================================================
 
 async function main(){
   await pollOnce();

@@ -1,22 +1,22 @@
 <mvc:View
   controllerName="pwc.monitoring.monitoringui.controller.Logs"
   xmlns:mvc="sap.ui.core.mvc"
-  xmlns="sap.m">
+  xmlns="sap.m"
+  xmlns:viz="sap.viz.ui5.controls"
+  xmlns:viz.data="sap.viz.ui5.data"
+  xmlns:viz.feeds="sap.viz.ui5.controls.common.feeds">
 
   <Page id="logsPage" title="Configuration Audit Logs">
 
     <headerContent>
       <Button id="btnRefresh" text="Refresh" press=".onRefresh"/>
       <Button id="btnGoSecurity" text="Security Events" press=".onGoSecurity"/>
-      <!-- <Button id="btnGoDataChanges" text="Data Changes" press=".onGoDataChanges"/> -->
-      <Button text="System Health" press=".onGoSystemHealth" />
-<Button text="AI Risk Monitor" press=".goRisk"/>
-
-<Button
-text="AI Recommendation"
-press="goKmeans"
-type="Emphasized"/>
-
+      <Button text="System Health" press=".onGoSystemHealth"/>
+      <Button text="AI Risk Monitor" press=".goRisk"/>
+      <Button
+        text="AI Recommendation"
+        press="goKmeans"
+        type="Emphasized"/>
     </headerContent>
 
     <content>
@@ -25,43 +25,205 @@ type="Emphasized"/>
         <items>
 
           <!-- ====================== HUMAN TAB ====================== -->
-<IconTabFilter
-    id="tabHuman"
-    key="HUMAN"
-    text="Human Changes"
-    icon="sap-icon://employee-approvals"
-    class="sapUiLargeMarginEnd sapUiExtraLargeMarginEnd" >   <!-- ADDED SPACING -->
+          <IconTabFilter
+            id="tabHuman"
+            key="HUMAN"
+            text="Human Changes"
+            icon="sap-icon://employee-approvals"
+            class="sapUiLargeMarginEnd sapUiExtraLargeMarginEnd">
 
-            <VBox id="vbHumanWrapper" class="sapUiContentPadding sapUiMediumMarginTop">
+            <VBox
+              id="vbHumanWrapper"
+              class="sapUiContentPadding sapUiMediumMarginTop"
+              width="100%">
+
+              <!-- ================= KPI DASHBOARD ================= -->
+              <Panel
+                headerText="Audit KPI Dashboard"
+                expandable="false"
+                width="100%"
+                class="sapUiNoMargin sapUiContentPadding sapUiSmallMarginBottom">
+
+                <VBox width="100%">
+
+                  <!-- KPI Tiles -->
+                  <HBox
+                    wrap="Wrap"
+                    justifyContent="SpaceBetween"
+                    width="100%"
+                    class="sapUiSmallMarginBottom">
+
+                    <GenericTile class="sapUiTinyMarginEnd sapUiTinyMarginBottom" frameType="TwoByOne">
+                      <TileContent>
+                        <content>
+                          <VBox class="sapUiSmallMargin">
+                            <Title text="Total Human Changes" level="H5"/>
+                            <ObjectNumber
+                              number="{logs>/kpis/totalHumanChanges}"
+                              emphasized="true"/>
+                          </VBox>
+                        </content>
+                      </TileContent>
+                    </GenericTile>
+
+                    <GenericTile class="sapUiTinyMarginEnd sapUiTinyMarginBottom" frameType="TwoByOne">
+                      <TileContent>
+                        <content>
+                          <VBox class="sapUiSmallMargin">
+                            <Title text="Total Role Assignments" level="H5"/>
+                            <ObjectNumber
+                              number="{logs>/kpis/totalRoleAssignments}"
+                              emphasized="true"/>
+                          </VBox>
+                        </content>
+                      </TileContent>
+                    </GenericTile>
+
+                    <GenericTile class="sapUiTinyMarginEnd sapUiTinyMarginBottom" frameType="TwoByOne">
+                      <TileContent>
+                        <content>
+                          <VBox class="sapUiSmallMargin">
+                            <Title text="Top Assigned Role" level="H5"/>
+                            <Text text="{logs>/kpis/topAssignedRole}" wrapping="true"/>
+                            <ObjectStatus
+                              text="{= 'Occurrences in logs: ' + ${logs>/kpis/topAssignedRoleCount} }"
+                              state="Information"/>
+                          </VBox>
+                        </content>
+                      </TileContent>
+                    </GenericTile>
+
+                    <GenericTile class="sapUiTinyMarginBottom" frameType="TwoByOne">
+                      <TileContent>
+                        <content>
+                          <VBox class="sapUiSmallMargin">
+                            <Title text="Top Granting Actor" level="H5"/>
+                            <Text text="{logs>/kpis/topGrantingActor}" wrapping="true"/>
+                            <ObjectStatus
+                              text="{= 'Logged actions: ' + ${logs>/kpis/topGrantingActorCount} }"
+                              state="Success"/>
+                          </VBox>
+                        </content>
+                      </TileContent>
+                    </GenericTile>
+
+                  </HBox>
+<!-- ================= CRUD SUMMARY ================= -->
+<HBox
+  justifyContent="Start"
+  width="100%"
+  class="sapUiSmallMarginBottom">
+
+  <ObjectStatus
+    text="{= 'CREATE: ' + ${logs>/kpis/crudSummary/CREATE} }"
+    state="Success"
+    class="sapUiSmallMarginEnd sapUiTinyMarginBottom"/>
+
+  <ObjectStatus
+    text="{= 'UPDATE: ' + ${logs>/kpis/crudSummary/UPDATE} }"
+    state="Warning"
+    class="sapUiSmallMarginEnd sapUiTinyMarginBottom"/>
+
+  <ObjectStatus
+    text="{= 'DELETE: ' + ${logs>/kpis/crudSummary/DELETE} }"
+    state="Error"
+    class="sapUiSmallMarginEnd sapUiTinyMarginBottom"/>
+
+  <ObjectStatus
+    text="{= 'OTHER: ' + ${logs>/kpis/crudSummary/OTHER} }"
+    state="Information"
+    class="sapUiTinyMarginBottom"/>
+
+</HBox>
+
+                  <!-- Horizontal Bar Chart -->
+                  <Panel
+                    headerText="Top 10 Assigned Roles (Audit Log Frequency)"
+                    expandable="false"
+                    width="100%"
+                    class="sapUiNoContentPadding sapUiSmallMarginTop">
+
+                    <viz:VizFrame
+                      id="topRolesChart"
+                      vizType="bar"
+                      width="100%"
+                      height="28rem"
+                      uiConfig="{applicationSet:'fiori'}">
+
+                      <viz:dataset>
+                        <viz.data:FlattenedDataset data="{logs>/kpis/top10Roles}">
+                          <viz.data:dimensions>
+                            <viz.data:DimensionDefinition
+                              name="Role"
+                              value="{logs>name}"/>
+                          </viz.data:dimensions>
+                          <viz.data:measures>
+                            <viz.data:MeasureDefinition
+                              name="Occurrences"
+                              value="{logs>count}"/>
+                          </viz.data:measures>
+                        </viz.data:FlattenedDataset>
+                      </viz:dataset>
+
+                      <viz:feeds>
+                        <viz.feeds:FeedItem
+                          uid="valueAxis"
+                          type="Measure"
+                          values="Occurrences"/>
+                        <viz.feeds:FeedItem
+                          uid="categoryAxis"
+                          type="Dimension"
+                          values="Role"/>
+                      </viz:feeds>
+
+                    </viz:VizFrame>
+
+                  </Panel>
+
+                </VBox>
+
+              </Panel>
+              <!-- =============== END KPI DASHBOARD =============== -->
 
               <!-- Filters row -->
-              <HBox id="hbHumanFilters" class="sapUiSmallMarginBottom" justifyContent="SpaceBetween" alignItems="Center">
+              <HBox
+                id="hbHumanFilters"
+                class="sapUiSmallMarginBottom"
+                justifyContent="SpaceBetween"
+                alignItems="Center"
+                width="100%">
 
                 <HBox id="hbHumanTypes" alignItems="Center" class="sapUiSmallMarginEnd">
 
-                  <!-- Segmented Button with spacing -->
                   <SegmentedButton id="sbHumanFilter" selectedKey="ALL" selectionChange=".onHumanFilterChange">
                     <items>
-                      <SegmentedButtonItem id="sbHumanAll"    key="ALL"                  text="All"                width="5rem"/>
-                      <SegmentedButtonItem id="sbHumanRoles"  key="Role Assignment"      text="Role Assignments"   width="9rem"/>
-                      <SegmentedButtonItem id="sbHumanScim"   key="User Profile Update"  text="User Updates"       width="8rem"/>
-                      <SegmentedButtonItem id="sbHumanOther"  key="Configuration Change" text="Other"              width="5rem"/>
+                      <SegmentedButtonItem id="sbHumanAll"    key="ALL"                  text="All"               width="5rem"/>
+                      <SegmentedButtonItem id="sbHumanRoles"  key="Role Assignment"      text="Role Assignments" width="9rem"/>
+                      <SegmentedButtonItem id="sbHumanScim"   key="User Profile Update"  text="User Updates"     width="8rem"/>
+                      <SegmentedButtonItem id="sbHumanOther"  key="Configuration Change" text="Other"            width="5rem"/>
                     </items>
                   </SegmentedButton>
 
-                  <!-- Add spacing between label and SearchField -->
                   <Label id="lblHumanEmail" text="Email" class="sapUiSmallMarginBegin sapUiSmallMarginEnd"/>
-                  <SearchField id="sfHumanEmail" width="18rem" liveChange=".onHumanEmailChange" placeholder="Filter by actor or target email"/>
-
+                  <SearchField
+                    id="sfHumanEmail"
+                    width="18rem"
+                    liveChange=".onHumanEmailChange"
+                    placeholder="Filter by actor, target or details"/>
                 </HBox>
 
                 <HBox id="hbUnknownToggle" alignItems="Center">
                   <Text id="txtUnknown" text="Hide Unknown"/>
-                  <Switch id="swUnknown" state="{logs>/hideUnknown}" change=".onToggleUnknown" class="sapUiSmallMarginBegin"/>
+                  <Switch
+                    id="swUnknown"
+                    state="{logs>/hideUnknown}"
+                    change=".onToggleUnknown"
+                    class="sapUiSmallMarginBegin"/>
                 </HBox>
 
               </HBox>
 
+              <!-- Human Table -->
               <Table id="tblHuman" growing="true" items="{ path:'logs>/human' }">
 
                 <headerToolbar>
@@ -92,8 +254,8 @@ type="Emphasized"/>
                                  ${logs>action}==='UPDATE' ? 'Warning' :
                                  ${logs>action}==='DELETE' ? 'Error' : 'None'}"/>
                       <Text text="{logs>details}" wrapping="true" maxLines="3"/>
-                      <Text text="{logs>actor}"   wrapping="true"/>
-                      <Text text="{logs>target}"  wrapping="true"/>
+                      <Text text="{logs>actor}" wrapping="true"/>
+                      <Text text="{logs>target}" wrapping="true"/>
                     </cells>
                   </ColumnListItem>
                 </items>
@@ -104,29 +266,36 @@ type="Emphasized"/>
           </IconTabFilter>
 
           <!-- =================== SYSTEM / TECH TAB =================== -->
-<IconTabFilter
-    id="tabSystem"
-    key="SYSTEM"
-    text="System / Technical"
-    icon="sap-icon://sys-monitor"
-    class="sapUiLargeMarginBegin sapUiExtraLargeMarginEnd"> <!-- ADDED SPACING -->
+          <IconTabFilter
+            id="tabSystem"
+            key="SYSTEM"
+            text="System / Technical"
+            icon="sap-icon://sys-monitor"
+            class="sapUiLargeMarginBegin sapUiExtraLargeMarginEnd">
 
             <VBox id="vbSystemWrapper" class="sapUiContentPadding sapUiMediumMarginTop">
 
               <!-- Filters -->
               <HBox id="hbSystemFilters" class="sapUiSmallMarginBottom" alignItems="Center">
 
-                <SegmentedButton id="sbSystemFilter" selectedKey="ALL" selectionChange=".onSystemFilterChange" class="sapUiSmallMarginEnd">
+                <SegmentedButton
+                  id="sbSystemFilter"
+                  selectedKey="ALL"
+                  selectionChange=".onSystemFilterChange"
+                  class="sapUiSmallMarginEnd">
                   <items>
-                    <SegmentedButtonItem id="sbSystemAll"   key="ALL"                  text="All"          width="5rem"/>
-                    <SegmentedButtonItem id="sbSystemDep"   key="Deployment"           text="Deployments"   width="9rem"/>
-                    <SegmentedButtonItem id="sbSystemOther" key="Configuration Change" text="Other"         width="5rem"/>
+                    <SegmentedButtonItem id="sbSystemAll"   key="ALL"                  text="All"         width="5rem"/>
+                    <SegmentedButtonItem id="sbSystemDep"   key="Deployment"           text="Deployments" width="9rem"/>
+                    <SegmentedButtonItem id="sbSystemOther" key="Configuration Change" text="Other"       width="5rem"/>
                   </items>
                 </SegmentedButton>
 
-                <!-- Add spacing between label and input -->
                 <Label id="lblSystemEmail" text="Email" class="sapUiSmallMarginEnd"/>
-                <SearchField id="sfSystemEmail" width="18rem" liveChange=".onSystemEmailChange" placeholder="Filter by actor or target email"/>
+                <SearchField
+                  id="sfSystemEmail"
+                  width="18rem"
+                  liveChange=".onSystemEmailChange"
+                  placeholder="Filter by actor, target or details"/>
 
               </HBox>
 
@@ -160,8 +329,8 @@ type="Emphasized"/>
                                  ${logs>action}==='UPDATE' ? 'Warning' :
                                  ${logs>action}==='DELETE' ? 'Error' : 'None'}"/>
                       <Text text="{logs>details}" wrapping="true" maxLines="3"/>
-                      <Text text="{logs>actor}"   wrapping="true"/>
-                      <Text text="{logs>target}"  wrapping="true"/>
+                      <Text text="{logs>actor}" wrapping="true"/>
+                      <Text text="{logs>target}" wrapping="true"/>
                     </cells>
                   </ColumnListItem>
                 </items>
