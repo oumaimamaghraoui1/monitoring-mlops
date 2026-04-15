@@ -1,11 +1,11 @@
-name: Evaluate RCA Model (Real Data)
+name: Evaluate RCA Model (CI Synthetic)
 
 on:
   workflow_dispatch:
 
 jobs:
-  evaluate-real-rca:
-    runs-on: [self-hosted, linux]
+  evaluate-rca-ci:
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout repository
@@ -19,13 +19,15 @@ jobs:
       - name: Install ML dependencies
         run: pip install -r monitoring-backend/mlops/requirements.txt
 
-      - name: Train and evaluate RCA model on protected local dataset
+      - name: Generate synthetic RCA dataset
+        run: python monitoring-backend/mlops/pipelines/generate_rca_ci_data.py
+
+      - name: Train and evaluate RCA model on synthetic dataset
         env:
-          RCA_DATA_MODE: real
-          RCA_DATASET_PATH: /opt/monitoring-secure-data/rca/rca_dataset_clean.csv
+          RCA_DATA_MODE: synthetic
         run: python monitoring-backend/mlops/training/rca_train.py | tee rca_eval.log
 
-      - name: Upload evaluation log only
+      - name: Upload evaluation log
         uses: actions/upload-artifact@v4
         with:
           name: rca-eval-log
