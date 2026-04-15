@@ -199,7 +199,6 @@
                     <items>
                       <SegmentedButtonItem id="sbHumanAll"    key="ALL"                  text="All"               width="5rem"/>
                       <SegmentedButtonItem id="sbHumanRoles"  key="Role Assignment"      text="Role Assignments" width="9rem"/>
-                      <SegmentedButtonItem id="sbHumanScim"   key="User Profile Update"  text="User Updates"     width="8rem"/>
                       <SegmentedButtonItem id="sbHumanOther"  key="Configuration Change" text="Other"            width="5rem"/>
                     </items>
                   </SegmentedButton>

@@ -1,0 +1,33 @@
+name: Evaluate RCA Model (Real Data)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  evaluate-real-rca:
+    runs-on: [self-hosted, linux]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Install ML dependencies
+        run: pip install -r monitoring-backend/mlops/requirements.txt
+
+      - name: Train and evaluate RCA model on protected local dataset
+        env:
+          RCA_DATA_MODE: real
+          RCA_DATASET_PATH: /opt/monitoring-secure-data/rca/rca_dataset_clean.csv
+        run: python monitoring-backend/mlops/training/rca_train.py | tee rca_eval.log
+
+      - name: Upload evaluation log only
+        uses: actions/upload-artifact@v4
+        with:
+          name: rca-eval-log
+          path: rca_eval.log
+          if-no-files-found: error
