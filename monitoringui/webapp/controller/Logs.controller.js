@@ -268,6 +268,11 @@ sap.ui.define([
       crudSummary: crudSummary
     };
   }
+function isRoleAssignmentRow(row) {
+  // reuse the same logic as KPI
+  return !!extractRoleName(row);
+}
+
 
   function deriveDisplayRow(row) {
     var parsed = safeParseMessage(row);
@@ -286,10 +291,13 @@ sap.ui.define([
     var human = isHumanEvent(row);
 
     // 1) Explicit role assignment events
-    if (objType === "xs_rolecollection2user" || tableName === "xs_rolecollection2user") {
+    // ✅ Role assignments (align with KPI logic)
+    if (isRoleAssignmentRow(row)) {
       objectType = "Role Assignment";
-      target = roleName || target || "Role";
-      details = roleName ? ("Assigned role: " + roleName) : "Role collection assigned or removed";
+      target = roleName || extractRoleName(row) || target || "Role";
+      details = extractRoleName(row)
+        ? ("Assigned role: " + extractRoleName(row))
+        : "Role assignment";
       human = true;
     }
     // 2) User profile updates only when really SCIM user updates
@@ -302,7 +310,7 @@ sap.ui.define([
       objectType = objectType || "Configuration Change";
       details = details || "";
     }
-
+    
     return {
       uuid: row.uuid,
       time: formatTime(row.time),
@@ -353,45 +361,89 @@ sap.ui.define([
       this._configureTopRolesChart();
     },
 
-    _configureTopRolesChart: function () {
-      var oChart = this.byId("topRolesChart");
-      if (!oChart) {
-        return;
-      }
+   _configureTopRolesChart: function () {
+  var oChart = this.byId("topRolesChart");
+  if (!oChart) {
+    return;
+  }
 
-      oChart.setVizProperties({
-        title: {
-          visible: false
-        },
-        legend: {
-          visible: false
-        },
-        plotArea: {
-          dataLabel: {
-            visible: true
-          },
-          colorPalette: ["#0a6ed1"]
-        },
-        valueAxis: {
-          title: {
-            visible: true,
-            text: "Occurrences in Logs"
-          }
-        },
-        categoryAxis: {
-          title: {
-            visible: true,
-            text: "Role"
-          }
-        },
-        interaction: {
-          selectability: {
-            mode: "NONE"
-          }
-        }
-      });
+  var aColors = [
+    "#2F6497",
+    "#3A7CA5",
+    "#4C8CBF",
+    "#5BA2C7",
+    "#6D9FA3",
+    "#7F9192",
+    "#8FA1B3",
+    "#A3B6C2",
+    "#C8D4DC",
+    "#E3E8EC"
+  ];
+
+  var oModel = this.getView().getModel("logs");
+  var aTopRoles = (oModel && oModel.getProperty("/kpis/top10Roles")) || [];
+
+  var aRules = aTopRoles.map(function (oRole, i) {
+    return {
+      dataContext: {
+        Role: oRole.name
+      },
+      properties: {
+        color: aColors[i % aColors.length]
+      }
+    };
+  });
+
+  oChart.setVizProperties({
+    title: {
+      visible: true,
+      text: "Top Assigned Role Collections in IAS Tenant"
     },
 
+    legend: {
+      visible: false
+    },
+
+    plotArea: {
+      dataPointStyle: {
+        rules: aRules,
+        others: {
+          color: "#DDE6ED"
+        }
+      },
+
+      gap: {
+        barSpacing: 0.05
+      },
+
+      dataLabel: {
+        visible: true,
+        position: "outsideEnd",
+        formatString: "0"
+      }
+    },
+
+    valueAxis: {
+      visible: false
+    },
+
+    valueAxis2: {
+      visible: false
+    },
+
+    categoryAxis: {
+      title: {
+        visible: false
+      }
+    },
+
+    interaction: {
+      selectability: {
+        mode: "NONE"
+      }
+    }
+  });
+},
     onRefresh: function () {
       var API_BASE = "https://port8090-workspaces-ws-dl8fm.eu10.applicationstudio.cloud.sap";
 
