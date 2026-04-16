@@ -112,7 +112,7 @@ function getParsedInfo(raw) {
     objectTypeRaw: objectNode.type || "",
     objectId,
     tableName: objectId.tableName || "",
-    crudType: objectId.crudType || parsed.crudType || "",
+    crudType: objectId.crudType || objectId.operationType || "",      // ✅ DELETE / CREATE parsed.crudType 
     roleName: objectId.rolecollection_name || "",
     category: parsed.category || raw.category || ""
   };
@@ -124,6 +124,15 @@ function normalizeCrud(value, fallback) {
     return v;
   }
   return "OTHER";
+}
+function extractCrudFromAttributes(attrs) {
+  if (!Array.isArray(attrs)) return "";
+  for (const a of attrs) {
+    if (a && a.name === "operation") {
+      return a.new || a.old || "";
+    }
+  }
+  return "";
 }
 
 function buildHumanConfigDetails(info) {
@@ -146,6 +155,14 @@ function classifyAuditEvent(raw) {
   const actor = raw && raw.user ? raw.user : "";
   const info = getParsedInfo(raw);
 
+  const crud =
+    info.crudType ||
+    extractCrudFromAttributes(info.parsed.attributes) ||
+    raw.action ||
+    "";
+
+  const normalizedCrud = normalizeCrud(crud, "OTHER");
+
   const isRoleAssignment =
     info.objectTypeRaw === "xs_rolecollection2user" ||
     info.tableName === "xs_rolecollection2user" ||
@@ -156,7 +173,7 @@ function classifyAuditEvent(raw) {
 
     return {
       objectType: "Role Assignment",
-      action: normalizeCrud(info.crudType, "CREATE"),
+      action: normalizedCrud,
       details: `Assigned role: ${role}`,
       target: role,
       isHuman: true
@@ -169,7 +186,7 @@ function classifyAuditEvent(raw) {
   if (isScimUserUpdate) {
     return {
       objectType: "User Profile Update",
-      action: normalizeCrud(info.crudType, "UPDATE"),
+      action: normalizedCrud,
       details: "User identity updated",
       target: "[Identity]",
       isHuman: true
@@ -182,7 +199,7 @@ function classifyAuditEvent(raw) {
   if (isUserActor) {
     return {
       objectType: "Configuration Change",
-      action: normalizeCrud(info.crudType, "UPDATE"),
+      action: normalizedCrud,
       details: buildHumanConfigDetails(info),
       target: info.tableName || info.objectTypeRaw || "Configuration",
       isHuman: true
@@ -191,12 +208,13 @@ function classifyAuditEvent(raw) {
 
   return {
     objectType: "Configuration Change",
-    action: normalizeCrud(info.crudType, "UPDATE"),
+    action: normalizedCrud,
     details: info.tableName || info.objectTypeRaw || "Technical configuration",
     target: info.tableName || info.objectTypeRaw || "TechnicalResource",
     isHuman: false
   };
 }
+
 
 // =========================================================
 // ML PIPELINE (UNCHANGED)

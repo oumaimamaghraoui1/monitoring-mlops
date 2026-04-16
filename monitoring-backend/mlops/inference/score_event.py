@@ -8,6 +8,7 @@ from pathlib import Path
 # ==========================================
 # ROOT PATH
 # ==========================================
+
 ROOT = Path(__file__).resolve().parent.parent.parent
 
 MODEL  = joblib.load(ROOT / "mlops/models/anomaly/isolation_forest.joblib")
@@ -33,18 +34,16 @@ required = [
 
 def score_dataframe(df):
 
-    # ensure behavioural features exist
     for col in required:
         if col not in df.columns:
             df[col] = 0
 
-    X = df[required].apply(
-        pd.to_numeric,
-        errors="coerce"
-    ).replace(
-        [np.inf,-np.inf],
-        np.nan
-    ).fillna(0)
+    X = (
+        df[required]
+        .apply(pd.to_numeric, errors="coerce")
+        .replace([np.inf, -np.inf], np.nan)
+        .fillna(0)
+    )
 
     X_scaled = SCALER.transform(X)
 
@@ -85,32 +84,48 @@ else:
     RAW_LOGS  = ROOT / "data/all_config_logs.json"
     OUTPUT    = ROOT / "data/scored_snapshot.json"
 
-    # behavioural history
+    # Behavioural features
     df_feat = pd.read_parquet(FEATURES)
 
-    # audit enrichment
+    # Raw audit logs (✅ already migrated)
     with open(RAW_LOGS) as f:
         raw_logs = json.load(f)
 
     df_raw = pd.DataFrame(raw_logs)
 
-    # score behaviour only
+    # Score behaviour
     df_scored = score_dataframe(df_feat)
 
-    # merge audit details
+    # ✅ MERGE RAW AUDIT CONTEXT (CRUD FIX)
     df_final = df_scored.merge(
-        df_raw[["uuid","details","actor","time"]],
+        df_raw[
+            [
+                "uuid",
+                "action",        # ✅ CRUD
+                "objectType",
+                "details",
+                "actor",
+                "target",
+                "isHuman",
+                "time"
+            ]
+        ],
         on="uuid",
         how="left",
-        suffixes=("","_raw")
+        suffixes=("", "_raw")
     )
 
-    # ✅ FIX: preserve behavioural timeline
-    df_final["time"] = df_final["time"].fillna(df_final["time_raw"])
+    # ✅ Preserve behavioural timeline
+    if "time_raw" in df_final.columns:
+        df_final["time"] = df_final["time"].fillna(df_final["time_raw"])
+        df_final = df_final.drop(columns=["time_raw"])
 
-    df_final = df_final.drop(columns=["time_raw"])
+    # ✅ Safety defaults (avoid nulls in UI)
+    df_final["action"] = df_final["action"].fillna("OTHER")
+    df_final["objectType"] = df_final["objectType"].fillna("Configuration Change")
+    df_final["target"] = df_final["target"].fillna("Unknown")
+    df_final["isHuman"] = df_final["isHuman"].fillna(False)
 
-    # ✅ default cold‑start events
     df_final["anomalyScore"] = df_final["anomalyScore"].fillna(0)
     df_final["anomaly"]      = df_final["anomaly"].fillna(1)
 
