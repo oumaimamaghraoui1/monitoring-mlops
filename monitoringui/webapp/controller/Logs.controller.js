@@ -4,6 +4,12 @@ sap.ui.define([
 ], function (Controller, JSONModel) {
   "use strict";
 
+  var EMAIL_RE = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/;
+
+  // =========================================================
+  // BASIC HELPERS
+  // =========================================================
+
   function formatTime(iso) {
     if (!iso) {
       return "";
@@ -39,6 +45,14 @@ sap.ui.define([
     return String(hay).toLowerCase().includes(String(needle).toLowerCase());
   }
 
+  function firstEmail(value) {
+    if (!value) {
+      return "";
+    }
+    var m = String(value).match(EMAIL_RE);
+    return m ? m[0].toLowerCase() : "";
+  }
+
   function safeParseMessage(row) {
     try {
       if (row && row.raw && row.raw.message) {
@@ -50,7 +64,7 @@ sap.ui.define([
     return null;
   }
 
-  function getActor(row) {
+  function getActorRaw(row) {
     return (
       (row && row.actor) ||
       (row && row.raw && row.raw.user) ||
@@ -58,19 +72,82 @@ sap.ui.define([
     );
   }
 
+  function cleanActorDisplay(value) {
+    if (!value) {
+      return "Unknown";
+    }
+
+    var s = String(value).trim();
+
+    // 1) if email exists anywhere, show only the email
+    var email = firstEmail(s);
+    if (email) {
+      return email;
+    }
+
+    // 2) user/sap.default/foo@bar.com -> foo@bar.com
+    if (s.indexOf("user/") === 0) {
+      return s.split("/").pop();
+    }
+
+    // 3) sb-xxx|portal-cf-service!b3664 -> portal-cf-service
+    if (s.indexOf("|") > -1) {
+      var afterPipe = s.split("|")[1] || s;
+      return afterPipe.split("!")[0] || afterPipe;
+    }
+
+    // 4) sb-das-application!b188376 -> das-application
+    if (s.indexOf("sb-") === 0 && s.indexOf("!") > -1) {
+      return s.replace("sb-", "").split("!")[0];
+    }
+
+    return s;
+  }
+
+  function cleanTargetDisplay(value) {
+    if (!value) {
+      return "Unknown";
+    }
+
+    var s = String(value).trim();
+
+    if (s === "Unknown") {
+      return "Unknown";
+    }
+
+    var email = firstEmail(s);
+    if (email) {
+      return email;
+    }
+
+    if (s.indexOf("user/") === 0) {
+      return s.split("/").pop();
+    }
+
+    return s;
+  }
+
+  function isHumanActor(actorRaw) {
+    return (
+      typeof actorRaw === "string" &&
+      (
+        actorRaw.indexOf("user/") === 0 ||
+        actorRaw.indexOf("@") > -1
+      )
+    );
+  }
+
   function isHumanEvent(row) {
-    var actor = getActor(row);
+    var actorRaw = getActorRaw(row);
 
     return (
       !!(row && row.isHuman === true) ||
-      (typeof actor === "string" && actor.indexOf("user/") === 0) ||
-      (typeof actor === "string" && actor.indexOf("@") > -1)
+      isHumanActor(actorRaw)
     );
   }
 
   function normalizeCrud(value, fallback) {
-    var v = (value || fallback || "UPDATE");
-    v = String(v).trim().toUpperCase();
+    var v = String(value || fallback || "OTHER").trim().toUpperCase();
 
     if (v === "CREATE" || v === "UPDATE" || v === "DELETE") {
       return v;
@@ -94,7 +171,17 @@ sap.ui.define([
       return normalizeCrud(crud, row && row.action);
     }
 
-    // 2) sometimes operation appears in attributes
+    // 2) operationType
+    crud = parsed &&
+      parsed.object &&
+      parsed.object.id &&
+      parsed.object.id.operationType;
+
+    if (crud) {
+      return normalizeCrud(crud, row && row.action);
+    }
+
+    // 3) operation in attributes
     for (i = 0; i < attrs.length; i++) {
       if (attrs[i] && attrs[i].name === "operation") {
         crud = attrs[i].new || attrs[i].old;
@@ -104,13 +191,93 @@ sap.ui.define([
       }
     }
 
-    // 3) generic fallbacks
+    // 4) generic fallback
     crud = parsed && parsed.crudType;
     if (crud) {
       return normalizeCrud(crud, row && row.action);
     }
 
-    return normalizeCrud(row && row.action, "UPDATE");
+    return normalizeCrud(row && row.action, "OTHER");
+  }
+
+  // =========================================================
+  // SCIM / ROLE HELPERS
+  // =========================================================
+
+  function extractScimUserInfo(parsed) {
+    if (!parsed || !parsed.attributes || !Array.isArray(parsed.attributes)) {
+      return {
+        email: "",
+        name: ""
+      };
+    }
+
+    var i, payload, obj, emails, first, nameObj, name, email;
+    for (i = 0; i < parsed.attributes.length; i++) {
+      if (!parsed.attributes[i] || parsed.attributes[i].name !== "complete") {
+        continue;
+      }
+
+      var payloads = [parsed.attributes[i].new, parsed.attributes[i].old];
+
+      for (var j = 0; j < payloads.length; j++) {
+        payload = payloads[j];
+        if (!payload) {
+          continue;
+        }
+
+        try {
+          obj = JSON.parse(payload);
+        } catch (e) {
+          obj = null;
+        }
+
+        if (!obj || typeof obj !== "object") {
+          continue;
+        }
+
+        email = "";
+        emails = obj.emails || [];
+
+        if (Array.isArray(emails)) {
+          first = null;
+          for (var k = 0; k < emails.length; k++) {
+            if (emails[k] && emails[k].value) {
+              first = emails[k];
+              break;
+            }
+          }
+          if (first && first.value) {
+            email = String(first.value).toLowerCase();
+          }
+        }
+
+        if (!email && obj.externalId) {
+          email = firstEmail(obj.externalId);
+        }
+
+        if (!email) {
+          email = firstEmail(payload);
+        }
+
+        nameObj = obj.name || {};
+        name =
+          nameObj.formatted ||
+          [nameObj.givenName, nameObj.familyName].filter(Boolean).join(" ");
+
+        if (email || name) {
+          return {
+            email: email || "",
+            name: name || ""
+          };
+        }
+      }
+    }
+
+    return {
+      email: "",
+      name: ""
+    };
   }
 
   function extractRoleName(row) {
@@ -118,7 +285,7 @@ sap.ui.define([
       return "";
     }
 
-    // 1) Best source: rolecollection_name from raw audit payload
+    // strict source: rolecollection_name only
     try {
       var parsed = JSON.parse((row.raw && row.raw.message) || "{}");
       var role = parsed &&
@@ -133,34 +300,13 @@ sap.ui.define([
       // ignore
     }
 
-    // 2) Fallback: details column
-    if (row.details) {
-      var d = String(row.details).trim();
-
-      if (d.indexOf("Assigned role: ") === 0) {
-        return d.replace("Assigned role: ", "").trim();
-      }
-
-      var denyList = [
-        "User identity updated",
-        "Technical configuration",
-        "Technical event",
-        "Role collection assigned or removed",
-        "Configuration Change",
-        "Redeployment",
-        "Deployment",
-        "Update",
-        "Updated",
-        "Unknown"
-      ];
-
-      if (d && denyList.indexOf(d) === -1) {
-        return d;
-      }
+    // safe fallback only if row is already Role Assignment with explicit Assigned role:
+    if (row.details && String(row.details).indexOf("Assigned role: ") === 0) {
+      return String(row.details).replace("Assigned role: ", "").trim();
     }
 
-    // 3) Fallback: target if meaningful
     if (
+      row.objectType === "Role Assignment" &&
       row.target &&
       row.target !== "Unknown" &&
       row.target !== row.actor
@@ -171,33 +317,160 @@ sap.ui.define([
     return "";
   }
 
+  function isExplicitRoleAssignment(parsed) {
+    var tableName =
+      parsed &&
+      parsed.object &&
+      parsed.object.id &&
+      parsed.object.id.tableName;
+
+    var objectType =
+      parsed &&
+      parsed.object &&
+      parsed.object.type;
+
+    var roleName =
+      parsed &&
+      parsed.object &&
+      parsed.object.id &&
+      parsed.object.id.rolecollection_name;
+
+    return (
+      tableName === "xs_rolecollection2user" ||
+      objectType === "xs_rolecollection2user" ||
+      !!roleName
+    );
+  }
+
+  function buildGenericDetails(parsed, currentDetails) {
+    var d = String(currentDetails || "").trim();
+
+    // do not preserve polluted legacy strings
+    if (
+      d &&
+      d.indexOf("Assigned role: ") !== 0 &&
+      d.indexOf("User identity updated") !== 0
+    ) {
+      return d;
+    }
+
+    var objectNode = parsed && parsed.object ? parsed.object : {};
+    var objectId = objectNode.id || {};
+    var tableName = objectId.tableName || "";
+    var objectTypeRaw = objectNode.type || "";
+
+    if (objectTypeRaw === "Deployment") {
+      return "Deployment";
+    }
+    if (objectTypeRaw === "Undeployment") {
+      return "Undeployment";
+    }
+    if (objectTypeRaw === "Redeployment") {
+      return "Redeployment";
+    }
+
+    if (tableName) {
+      return "Configuration updated (" + tableName + ")";
+    }
+
+    if (objectTypeRaw) {
+      return "Configuration updated (" + objectTypeRaw + ")";
+    }
+
+    return "Configuration updated";
+  }
+
+  // =========================================================
+  // DISPLAY NORMALIZATION
+  // =========================================================
+
+  function deriveDisplayRow(row) {
+    var parsed = safeParseMessage(row);
+
+    var actorRaw = getActorRaw(row);
+    var actor = cleanActorDisplay(actorRaw);
+
+    var action = extractCrudType(row, parsed);
+    var target = (row && row.target) || "Unknown";
+    var objectType = (row && row.objectType) || "Configuration Change";
+    var details = (row && row.details) || "";
+
+    var objType = parsed && parsed.object && parsed.object.type;
+    var objId = parsed && parsed.object && parsed.object.id ? parsed.object.id : {};
+    var roleName = objId.rolecollection_name || "";
+
+    var human = isHumanEvent(row);
+
+    // 1) SCIM USER UPDATE MUST WIN FIRST
+    if (objType === "scim user") {
+      var scim = extractScimUserInfo(parsed);
+
+      objectType = "User Profile Update";
+      target = cleanTargetDisplay(
+        scim.email ||
+        (target !== "Unknown" ? target : actor)
+      );
+
+      details =
+        scim.name && scim.email
+          ? "User identity updated: " + scim.name + " (" + scim.email + ")"
+          : scim.email
+          ? "User identity updated: " + scim.email
+          : details || "User identity updated";
+
+      human = true;
+    }
+
+    // 2) REAL ROLE ASSIGNMENT ONLY
+    else if (isExplicitRoleAssignment(parsed)) {
+      objectType = "Role Assignment";
+      target = cleanTargetDisplay(roleName || extractRoleName(row) || target || "Role");
+      details = roleName
+        ? "Assigned role: " + roleName
+        : "Role assignment";
+      human = true;
+    }
+
+    // 3) GENERIC CONFIG CHANGE
+    else {
+      objectType = "Configuration Change";
+      details = buildGenericDetails(parsed, details);
+      target = cleanTargetDisplay(target);
+
+      // generic human only if actor is human-like
+      human = isHumanActor(actorRaw);
+    }
+
+    return {
+      uuid: row.uuid,
+      time: formatTime(row.time),
+      actor: actor || "Unknown",
+      target: target || "Unknown",
+      objectType: objectType || "Configuration Change",
+      action: action || "OTHER",
+      details: details || "",
+      isHuman: !!human,
+      raw: row.raw || null,
+      risk: row.risk || "",
+      riskState: row.riskState || "",
+      anomalyScore:
+        row.anomalyScore !== undefined && row.anomalyScore !== null
+          ? row.anomalyScore
+          : ""
+    };
+  }
+
+  // =========================================================
+  // KPI
+  // =========================================================
+
   function computeLogKpis(rows) {
     var humanRows = rows.filter(function (r) {
       return isHumanEvent(r);
     });
 
     var roleRows = humanRows.filter(function (r) {
-      try {
-        var parsed = JSON.parse((r.raw && r.raw.message) || "{}");
-        var tableName =
-          parsed &&
-          parsed.object &&
-          parsed.object.id &&
-          parsed.object.id.tableName;
-
-        var objectType =
-          parsed &&
-          parsed.object &&
-          parsed.object.type;
-
-        if (tableName === "xs_rolecollection2user" || objectType === "xs_rolecollection2user") {
-          return true;
-        }
-      } catch (e) {
-        // ignore
-      }
-
-      return !!extractRoleName(r);
+      return isExplicitRoleAssignment(safeParseMessage(r));
     });
 
     var roleCounts = {};
@@ -213,16 +486,16 @@ sap.ui.define([
       var parsed = safeParseMessage(r);
       var crud = extractCrudType(r, parsed);
 
-      if (!crudSummary[crud] && crudSummary[crud] !== 0) {
-        crudSummary.OTHER += 1;
-      } else {
+      if (crudSummary[crud] !== undefined) {
         crudSummary[crud] += 1;
+      } else {
+        crudSummary.OTHER += 1;
       }
     });
 
     roleRows.forEach(function (r) {
       var role = extractRoleName(r);
-      var actor = r.actor || "Unknown";
+      var actor = cleanActorDisplay(r.actor || "Unknown");
 
       if (!role) {
         return;
@@ -268,61 +541,10 @@ sap.ui.define([
       crudSummary: crudSummary
     };
   }
-function isRoleAssignmentRow(row) {
-  // reuse the same logic as KPI
-  return !!extractRoleName(row);
-}
 
-
-  function deriveDisplayRow(row) {
-    var parsed = safeParseMessage(row);
-
-    var actor = getActor(row);
-    var action = extractCrudType(row, parsed);
-    var target = (row && row.target) || "Unknown";
-    var objectType = (row && row.objectType) || "Configuration Change";
-    var details = (row && row.details) || "";
-
-    var objType = parsed && parsed.object && parsed.object.type;
-    var objId = parsed && parsed.object && parsed.object.id ? parsed.object.id : {};
-    var tableName = objId.tableName || "";
-    var roleName = objId.rolecollection_name || "";
-
-    var human = isHumanEvent(row);
-
-    // 1) Explicit role assignment events
-    // ✅ Role assignments (align with KPI logic)
-    if (isRoleAssignmentRow(row)) {
-      objectType = "Role Assignment";
-      target = roleName || extractRoleName(row) || target || "Role";
-      details = extractRoleName(row)
-        ? ("Assigned role: " + extractRoleName(row))
-        : "Role assignment";
-      human = true;
-    }
-    // 2) User profile updates only when really SCIM user updates
-    else if (objType === "scim user") {
-      objectType = "User Profile Update";
-      target = target && target !== "Unknown" ? target : actor;
-      details = details || "User identity updated";
-      human = true;
-    } else {
-      objectType = objectType || "Configuration Change";
-      details = details || "";
-    }
-    
-    return {
-      uuid: row.uuid,
-      time: formatTime(row.time),
-      actor: actor || "Unknown",
-      target: target || "Unknown",
-      objectType: objectType || "Configuration Change",
-      action: action || "UPDATE",
-      details: details || "",
-      isHuman: !!human,
-      raw: row.raw || null
-    };
-  }
+  // =========================================================
+  // CONTROLLER
+  // =========================================================
 
   return Controller.extend("pwc.monitoring.monitoringui.controller.Logs", {
 
@@ -361,89 +583,90 @@ function isRoleAssignmentRow(row) {
       this._configureTopRolesChart();
     },
 
-   _configureTopRolesChart: function () {
-  var oChart = this.byId("topRolesChart");
-  if (!oChart) {
-    return;
-  }
-
-  var aColors = [
-    "#2F6497",
-    "#3A7CA5",
-    "#4C8CBF",
-    "#5BA2C7",
-    "#6D9FA3",
-    "#7F9192",
-    "#8FA1B3",
-    "#A3B6C2",
-    "#C8D4DC",
-    "#E3E8EC"
-  ];
-
-  var oModel = this.getView().getModel("logs");
-  var aTopRoles = (oModel && oModel.getProperty("/kpis/top10Roles")) || [];
-
-  var aRules = aTopRoles.map(function (oRole, i) {
-    return {
-      dataContext: {
-        Role: oRole.name
-      },
-      properties: {
-        color: aColors[i % aColors.length]
+    _configureTopRolesChart: function () {
+      var oChart = this.byId("topRolesChart");
+      if (!oChart) {
+        return;
       }
-    };
-  });
 
-  oChart.setVizProperties({
-    title: {
-      visible: true,
-      text: "Top Assigned Role Collections in IAS Tenant"
-    },
+      var aColors = [
+        "#2F6497",
+        "#3A7CA5",
+        "#4C8CBF",
+        "#5BA2C7",
+        "#6D9FA3",
+        "#7F9192",
+        "#8FA1B3",
+        "#A3B6C2",
+        "#C8D4DC",
+        "#E3E8EC"
+      ];
 
-    legend: {
-      visible: false
-    },
+      var oModel = this.getView().getModel("logs");
+      var aTopRoles = (oModel && oModel.getProperty("/kpis/top10Roles")) || [];
 
-    plotArea: {
-      dataPointStyle: {
-        rules: aRules,
-        others: {
-          color: "#DDE6ED"
+      var aRules = aTopRoles.map(function (oRole, i) {
+        return {
+          dataContext: {
+            Role: oRole.name
+          },
+          properties: {
+            color: aColors[i % aColors.length]
+          }
+        };
+      });
+
+      oChart.setVizProperties({
+        title: {
+          visible: true,
+          text: "Top Assigned Role Collections in IAS Tenant"
+        },
+
+        legend: {
+          visible: false
+        },
+
+        plotArea: {
+          dataPointStyle: {
+            rules: aRules,
+            others: {
+              color: "#DDE6ED"
+            }
+          },
+
+          gap: {
+            barSpacing: 0.05
+          },
+
+          dataLabel: {
+            visible: true,
+            position: "outsideEnd",
+            formatString: "0"
+          }
+        },
+
+        valueAxis: {
+          visible: false
+        },
+
+        valueAxis2: {
+          visible: false
+        },
+
+        categoryAxis: {
+          title: {
+            visible: false
+          }
+        },
+
+        interaction: {
+          selectability: {
+            mode: "NONE"
+          }
         }
-      },
-
-      gap: {
-        barSpacing: 0.05
-      },
-
-      dataLabel: {
-        visible: true,
-        position: "outsideEnd",
-        formatString: "0"
-      }
+      });
     },
 
-    valueAxis: {
-      visible: false
-    },
-
-    valueAxis2: {
-      visible: false
-    },
-
-    categoryAxis: {
-      title: {
-        visible: false
-      }
-    },
-
-    interaction: {
-      selectability: {
-        mode: "NONE"
-      }
-    }
-  });
-},
     onRefresh: function () {
       var API_BASE = "https://port8090-workspaces-ws-dl8fm.eu10.applicationstudio.cloud.sap";
 
@@ -487,7 +710,12 @@ function isRoleAssignmentRow(row) {
           }
 
           this._applyFilters();
+
+          // apply chart styling after data is present
           this._configureTopRolesChart();
+          setTimeout(function () {
+            this._configureTopRolesChart();
+          }.bind(this), 0);
 
           console.log("[UI] Total rows:", normalized.length);
           console.log("[KPI] Computed KPIs:", kpis);
@@ -533,6 +761,16 @@ function isRoleAssignmentRow(row) {
       this.getOwnerComponent().getRouter().navTo("security", {}, false);
     },
 
+    onExportLogsExcel: function () {
+      var API_BASE = "https://port8090-workspaces-ws-dl8fm.eu10.applicationstudio.cloud.sap";
+      window.open(API_BASE + "/audit/export/excel", "_blank");
+    },
+
+    onExportLogsPdf: function () {
+      var API_BASE = "https://port8090-workspaces-ws-dl8fm.eu10.applicationstudio.cloud.sap";
+      window.open(API_BASE + "/audit/export/pdf", "_blank");
+    },
+
     onGoDataChanges: function () {
       this.getOwnerComponent().getRouter().navTo("datachanges", {}, false);
     },
@@ -571,9 +809,13 @@ function isRoleAssignmentRow(row) {
         });
       }
 
-      if (hType !== "ALL") {
+      if (hType === "Role Assignment") {
         human = human.filter(function (x) {
-          return x.objectType === hType;
+          return x.objectType === "Role Assignment";
+        });
+      } else if (hType === "Configuration Change") {
+        human = human.filter(function (x) {
+          return x.objectType === "Configuration Change";
         });
       }
 

@@ -1,130 +1,145 @@
-import json, re, hashlib, shutil
+import json
+import shutil
 from pathlib import Path
-from datetime import datetime, timezone
 import pandas as pd
 
 BASE_DIR = Path(__file__).resolve().parents[2]
 
-SRC_LOGS = BASE_DIR / "data"
-RAW_DIR  = BASE_DIR / "mlops" / "data" / "raw"
+SRC_LOGS_FILE = BASE_DIR / "data" / "all_config_logs.json"
+RAW_DIR = BASE_DIR / "mlops" / "data" / "raw"
 OUT_FILE = BASE_DIR / "mlops" / "data" / "processed" / "ml_events.parquet"
 
-EMAIL_RE = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}")
-
-def first_email(s):
-    if not s: return None
-    m = EMAIL_RE.search(str(s))
-    return m.group(0) if m else None
-
-def to_utc(ts):
-    try:
-        dt = datetime.fromisoformat(str(ts).replace("Z","+00:00"))
-        return dt.astimezone(timezone.utc)
-    except:
-        return None
-
-def sha(s):
-    return hashlib.sha256(s.encode()).hexdigest()
 
 def snapshot_logs():
+    """
+    Keep only the audit log source needed for the anomaly pipeline.
+    This avoids copying unrelated JSON files (baseline, alerts, etc.)
+    that break normalization.
+    """
     RAW_DIR.mkdir(parents=True, exist_ok=True)
-    for f in SRC_LOGS.glob("*.json"):
-        shutil.copy(f, RAW_DIR / f.name)
+
+    # clean previous raw snapshots
+    for f in RAW_DIR.glob("*.json"):
+      try:
+        f.unlink()
+      except Exception:
+        pass
+
+    if not SRC_LOGS_FILE.exists():
+        raise FileNotFoundError(f"Missing source log file: {SRC_LOGS_FILE}")
+
+    shutil.copy(SRC_LOGS_FILE, RAW_DIR / SRC_LOGS_FILE.name)
+
+
+def load_json_records(file_path):
+    """
+    Supports:
+      - [ {...}, {...} ]
+      - { "logs": [ {...}, {...} ] }
+    Returns a list in all cases.
+    """
+    with open(file_path, "r", encoding="utf-8") as fp:
+        data = json.load(fp)
+
+    if isinstance(data, list):
+        return data
+
+    if isinstance(data, dict):
+        if isinstance(data.get("logs"), list):
+            return data["logs"]
+        return []
+
+    return []
+
 
 def normalize_config(log):
-
-    # Sometimes SAP wraps log as string
-    if isinstance(log, str):
-        try:
-            log = json.loads(log)
-        except:
-            return None
-
-    raw = log.get("raw", {})
-
-    msg = raw.get("message")
-
-    # SAP embeds JSON inside string → parse again
-    if isinstance(msg, str):
-        try:
-            msg = json.loads(msg)
-        except:
-            msg = {}
-
-    if not isinstance(msg, dict):
+    """
+    Normalize one audit log row for downstream feature generation.
+    Returns None if the row is invalid.
+    """
+    if not isinstance(log, dict):
         return None
 
-    obj = msg.get("object", {})
-    idd = obj.get("id", {})
+    raw = log.get("raw") or {}
+    if not isinstance(raw, dict):
+        raw = {}
 
-    # ✅ ROLE COLLECTION EXTRACTION (IMPORTANT)
-    details = (
-        idd.get("rolecollection_name")
-        or idd.get("role_name")
-        or idd.get("scope_name")
-        or idd.get("object_id")
-        or ""
-    )
+    msg = raw.get("message")
+    parsed = {}
 
-    # ✅ CRUD ACTION
-    action = idd.get("crudType") or "UPDATE"
+    if msg and isinstance(msg, str):
+        try:
+            parsed = json.loads(msg)
+        except Exception:
+            parsed = {}
 
-    # ✅ ROLE ASSIGNMENT DETECTION
-    if idd.get("tableName") == "xs_rolecollection2user":
-        object_type = "Role Assignment"
-    else:
-        object_type = "Configuration Change"
+    # Resolve timestamp safely
+    time_value = log.get("time") or raw.get("time") or parsed.get("time")
+    dt = pd.to_datetime(time_value, errors="coerce", utc=True)
+    if pd.isna(dt):
+        return None
 
-    # ✅ ACTOR EXTRACTION FROM SAP PATH
     actor = (
-        first_email(msg.get("user"))
-        or first_email(raw.get("user"))
-        or first_email(log.get("actor"))
+        log.get("actor")
+        or raw.get("user")
+        or parsed.get("user")
         or "Unknown"
     )
 
-    # ✅ UUID IS INSIDE msg NOT log
-    event_id = (
-        msg.get("uuid")
-        or log.get("uuid")
-        or sha(json.dumps(log))
-    )
+    action = log.get("action") or "OTHER"
+    object_type = log.get("objectType") or "Configuration Change"
+    details = log.get("details") or ""
+    target = log.get("target") or "Unknown"
+    is_human = bool(log.get("isHuman", False))
 
     return {
-        "uuid": event_id,
-        "time": to_utc(log.get("time")),
+        "uuid": log.get("uuid") or raw.get("message_uuid"),
+        "time": dt.isoformat(),
         "actor": actor,
         "action": action,
-        "object_type": object_type,
+        "objectType": object_type,
         "details": details,
-        "target": "Unknown",
-        "success": msg.get("success", True)
+        "target": target,
+        "isHuman": is_human,
+
+        # behavioral / normalized fields
+        "hour": int(dt.hour),
+        "day": int(dt.dayofweek),
+        "weekend": 1 if int(dt.dayofweek) >= 5 else 0,
+
+        # raw-message indicators
+        "raw_message_present": 1 if msg else 0,
+        "parsed_type": ((parsed.get("object") or {}).get("type")) if parsed else ""
     }
 
-def main():
 
+def main():
     snapshot_logs()
 
     rows = []
 
     for f in RAW_DIR.glob("*.json"):
-        with open(f) as fp:
-            data = json.load(fp)
+        records = load_json_records(f)
 
-        for log in data:
+        for log in records:
             row = normalize_config(log)
             if row:
                 rows.append(row)
 
     df = pd.DataFrame(rows)
+
+    if df.empty:
+        raise RuntimeError("No valid audit rows found during normalization")
+
     df = df.dropna(subset=["time"])
     df = df.sort_values("time")
-    df = df.drop_duplicates(subset=["uuid"])
+    df = df.drop_duplicates(subset=["uuid"], keep="last")
 
     OUT_FILE.parent.mkdir(parents=True, exist_ok=True)
-    df.to_parquet(OUT_FILE,index=False)
+    df.to_parquet(OUT_FILE, index=False)
 
     print("✅ ml_events.parquet created")
+
 
 if __name__ == "__main__":
     main()

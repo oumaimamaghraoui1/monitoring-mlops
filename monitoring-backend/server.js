@@ -31,7 +31,7 @@ import healthRoutes from "./src/api/health.routes.js";
 import riskExportRoutes from "./src/api/risk.export.routes.js";
 import securityExportRoutes from "./src/api/security.export.routes.js";
 import axios from "axios";
-
+import logsExportRoutes from "./src/api/logs.export.routes.js";
 // =======================
 // ✅ MONITORING ENGINE
 // =======================
@@ -85,7 +85,7 @@ app.use("/audit", auditRoutes);
 app.use("/security", securityRoutes);
 app.use("/data", dataRoutes);
 app.use("/anomaly", anomalyRoutes);
-
+app.use(logsExportRoutes);
 app.get("/", (_req, res) =>
   res.send("Monitoring Backend is running")
 );

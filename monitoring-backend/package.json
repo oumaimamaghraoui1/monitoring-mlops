@@ -14,14 +14,16 @@
   "description": "",
   "dependencies": {
     "@sap_oss/alert-notification-client": "^1.10.0",
-    "axios": "^1.14.0",
+    "axios": "^1.15.0",
     "cfenv": "^1.2.5",
+    "chartjs-node-canvas": "^5.0.0",
     "cors": "^2.8.6",
     "dotenv": "^17.3.1",
     "excel": "^1.0.1",
     "exceljs": "^4.4.0",
     "express": "^5.2.1",
     "node-cron": "^4.2.1",
+    "pdfkit": "^0.18.0",
     "python-shell": "^5.0.0"
   }
 }

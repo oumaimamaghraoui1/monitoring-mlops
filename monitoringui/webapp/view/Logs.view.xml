@@ -230,7 +230,10 @@
                     <Title id="ttlHuman" text="Human Changes" level="H2"/>
                     <ToolbarSpacer id="spHuman"/>
                     <Text id="txtHumanCount" text="{= (${logs>/human}.length || 0) + ' items'}"/>
+                    <Button text="Export Excel" press=".onExportLogsExcel"/>
+<Button text="Export PDF" press=".onExportLogsPdf"/>
                   </Toolbar>
+                  
                 </headerToolbar>
 
                 <columns>
