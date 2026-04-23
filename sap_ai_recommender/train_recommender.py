@@ -1,11 +1,13 @@
 import os
 import re
 import joblib
+import numpy as np
 import pandas as pd
 
 from scipy.sparse import hstack, save_npz
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.neighbors import NearestNeighbors
+from sentence_transformers import SentenceTransformer
 
 # ====================================================
 # CONFIG
@@ -18,26 +20,22 @@ OUT_MODEL = "artifacts/model.joblib"
 OUT_MATRIX = "artifacts/matrix.npz"
 OUT_DATA = "artifacts/transactions_model.csv"
 
+OUT_EMBED_MODEL_NAME = "artifacts/embedding_model_name.txt"
+OUT_EMBED_MATRIX = "artifacts/embedding_matrix.npy"
+
+EMBED_MODEL_NAME = "sentence-transformers/all-MiniLM-L6-v2"
+
 # ====================================================
 # LOAD DATA
 # ====================================================
 df = pd.read_csv(INPUT_PATH)
 
-required_cols = [
-    "Transaction Code",
-    "Transaction Description",
-    "Program"
-]
+required_cols = ["Transaction Code", "Transaction Description", "Program"]
 missing = [c for c in required_cols if c not in df.columns]
 if missing:
     raise ValueError(f"Missing required columns: {missing}")
 
-optional_cols = [
-    "Transaction Menu",
-    "Transaction Info",
-    "Transaction Variant Info"
-]
-
+optional_cols = ["Transaction Menu", "Transaction Info", "Transaction Variant Info"]
 for col in optional_cols:
     if col not in df.columns:
         df[col] = ""
@@ -56,7 +54,7 @@ for col in [
     "Program",
     "Transaction Menu",
     "Transaction Info",
-    "Transaction Variant Info"
+    "Transaction Variant Info",
 ]:
     df[col] = df[col].fillna("").astype(str).str.strip()
 
@@ -82,7 +80,7 @@ MANUAL_DESCRIPTION_OVERRIDES = {
     "VPN1": "Number Range for Contact Person",
 }
 
-def expand_action_terms(text_u: str) -> list:
+def expand_action_terms(text_u: str) -> list[str]:
     expansions = []
 
     if any(k in text_u for k in ["CREATE", "CREATION"]):
@@ -138,10 +136,10 @@ def expand_domain_terms(tcode: str, full_text: str, prog: str) -> str:
         ]
 
     if tcode_u.startswith("MM") or any(k in text_u for k in [
-        "MATERIAL", "PURCHASE", "STOCK", "VALUATION", "VENDOR"
+        "MATERIAL", "PURCHASE", "STOCK", "VALUATION", "VENDOR", "INVOICE"
     ]):
         expansions += [
-            "MATERIAL MANAGEMENT PURCHASE STOCK VALUATION VENDOR INVENTORY"
+            "MATERIAL MANAGEMENT PURCHASE STOCK VALUATION VENDOR INVENTORY INVOICE"
         ]
 
     if tcode_u.startswith("HR") or any(k in text_u for k in [
@@ -152,34 +150,22 @@ def expand_domain_terms(tcode: str, full_text: str, prog: str) -> str:
         ]
 
     if "SALES REPRESENTATIVE" in text_u:
-        expansions += [
-            "SALES REPRESENTATIVE PARTNER SALES EMPLOYEE REPRESENTATIVE"
-        ]
+        expansions += ["SALES REPRESENTATIVE PARTNER SALES EMPLOYEE REPRESENTATIVE"]
 
     if "CONSTRUCTION SITE" in text_u or "CONSTRUCTION SITES" in text_u:
-        expansions += [
-            "CONSTRUCTION SITE CONSTRUCTION SITES BUILDING LOCATION"
-        ]
+        expansions += ["CONSTRUCTION SITE CONSTRUCTION SITES BUILDING LOCATION"]
 
     if "NUMBER RANGE" in text_u:
-        expansions += [
-            "NUMBER RANGE INTERVAL COUNTER IDENTIFIER"
-        ]
+        expansions += ["NUMBER RANGE INTERVAL COUNTER IDENTIFIER"]
 
     if "PAYROLL AREA" in text_u or "RUN PAYROLL" in text_u:
-        expansions += [
-            "PAYROLL AREA RUN PAYROLL PAYROLL EXECUTION PAYROLL PROCESS"
-        ]
+        expansions += ["PAYROLL AREA RUN PAYROLL PAYROLL EXECUTION PAYROLL PROCESS"]
 
     if "ERROR CONFIRMATION" in text_u:
-        expansions += [
-            "ERROR CONFIRMATION ERROR CONFIRMATIONS ASSIGNMENT ADMINISTRATION"
-        ]
+        expansions += ["ERROR CONFIRMATION ERROR CONFIRMATIONS ASSIGNMENT ADMINISTRATION"]
 
     if "NOTIFICATION" in text_u:
-        expansions += [
-            "NOTIFICATION MESSAGE PROCESS PROCESSOR"
-        ]
+        expansions += ["NOTIFICATION MESSAGE PROCESS PROCESSOR"]
 
     expansions += expand_action_terms(text_u)
 
@@ -196,65 +182,63 @@ def build_weighted_text(row) -> str:
     override_desc = MANUAL_DESCRIPTION_OVERRIDES.get(tcode, "")
     override_desc_norm = normalize_text(override_desc) if override_desc else ""
 
-    full_business_text = " ".join([
-        desc,
-        menu,
-        info,
-        variant,
-        override_desc_norm
-    ]).strip()
-
+    full_business_text = " ".join([desc, menu, info, variant, override_desc_norm]).strip()
     expansions = expand_domain_terms(tcode, full_business_text, prog)
 
     parts = []
-
-    # strong boost for code
     parts.append((" ".join([tcode] * 7)).strip())
 
-    # strong boost for description
     if desc:
         parts.append((" ".join([desc] * 5)).strip())
-
-    # medium boost for menu/info/variant
     if menu:
         parts.append((" ".join([menu] * 3)).strip())
-
     if info:
         parts.append((" ".join([info] * 3)).strip())
-
     if variant:
         parts.append((" ".join([variant] * 2)).strip())
-
-    # manual business override boost
     if override_desc_norm:
         parts.append((" ".join([override_desc_norm] * 4)).strip())
-
-    # light boost for program
     if prog:
         parts.append((" ".join([prog] * 2)).strip())
 
-    # code split bonus
     split_code = re.sub(r"([A-Z]+)([0-9]+)", r"\1 \2 \1\2", tcode)
     if split_code and split_code != tcode:
         parts.append(split_code)
 
-    # expansions
     if expansions:
         parts.append(expansions)
 
     return " ".join([p for p in parts if p]).strip()
 
+def build_reranker_text(row) -> str:
+    tcode = normalize_text(row["Transaction Code"])
+    desc = normalize_text(row["Transaction Description"])
+    prog = normalize_text(row["Program"])
+    menu = normalize_text(row["Transaction Menu"])
+    info = normalize_text(row["Transaction Info"])
+    variant = normalize_text(row["Transaction Variant Info"])
+
+    parts = [
+        f"TCODE {tcode}",
+        f"DESCRIPTION {desc}" if desc else "",
+        f"PROGRAM {prog}" if prog else "",
+        f"MENU {menu}" if menu else "",
+        f"INFO {info}" if info else "",
+        f"VARIANT {variant}" if variant else "",
+    ]
+    return " ; ".join([p for p in parts if p]).strip()
+
 # ====================================================
-# BUILD TRAINING TEXT
+# BUILD TEXT
 # ====================================================
 df["combined_text"] = df.apply(build_weighted_text, axis=1)
-
+df["reranker_text"] = df.apply(build_reranker_text, axis=1)
 df["_TCODE_UP"] = df["Transaction Code"].str.upper()
 df["_DESC_UP"] = df["Transaction Description"].str.upper()
 df["_PROG_UP"] = df["Program"].str.upper()
 
 # ====================================================
-# VECTORIZATION
+# TF-IDF
 # ====================================================
 word_vectorizer = TfidfVectorizer(
     analyzer="word",
@@ -280,11 +264,11 @@ X = hstack([X_word, X_char]).tocsr()
 
 vectorizer = {
     "word_vectorizer": word_vectorizer,
-    "char_vectorizer": char_vectorizer
+    "char_vectorizer": char_vectorizer,
 }
 
 # ====================================================
-# MODEL
+# KNN
 # ====================================================
 model = NearestNeighbors(
     metric="cosine",
@@ -294,15 +278,41 @@ model = NearestNeighbors(
 model.fit(X)
 
 # ====================================================
-# SAVE ARTIFACTS
+# SEMANTIC EMBEDDINGS
+# ====================================================
+print(f"Loading embedding model: {EMBED_MODEL_NAME}")
+embedder = SentenceTransformer(EMBED_MODEL_NAME)
+
+semantic_texts = (
+    df["Transaction Code"].fillna("").astype(str).str.upper() + " " +
+    df["Transaction Description"].fillna("").astype(str) + " " +
+    df["Transaction Menu"].fillna("").astype(str) + " " +
+    df["Transaction Info"].fillna("").astype(str) + " " +
+    df["Transaction Variant Info"].fillna("").astype(str)
+).tolist()
+
+embeddings = embedder.encode(
+    semantic_texts,
+    normalize_embeddings=True,
+    convert_to_numpy=True,
+    show_progress_bar=True
+).astype("float32")
+
+# ====================================================
+# SAVE
 # ====================================================
 joblib.dump(vectorizer, OUT_VECTORIZER)
 joblib.dump(model, OUT_MODEL)
 save_npz(OUT_MATRIX, X)
+np.save(OUT_EMBED_MATRIX, embeddings)
 df.to_csv(OUT_DATA, index=False)
+
+with open(OUT_EMBED_MODEL_NAME, "w", encoding="utf-8") as f:
+    f.write(EMBED_MODEL_NAME)
 
 print("✅ MODEL TRAINED SUCCESSFULLY")
 print(f"Rows: {len(df)}")
 print(f"Word features: {X_word.shape[1]}")
 print(f"Char features: {X_char.shape[1]}")
 print(f"Final matrix shape: {X.shape}")
+print(f"Embedding matrix shape: {embeddings.shape}")

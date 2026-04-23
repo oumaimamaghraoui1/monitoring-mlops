@@ -8,6 +8,7 @@ import pandas as pd
 from scipy.sparse import load_npz, hstack
 from sklearn.metrics.pairwise import cosine_similarity
 from difflib import SequenceMatcher
+from sentence_transformers import SentenceTransformer, CrossEncoder
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -19,26 +20,58 @@ VECTORIZER_PATH = ARTIFACTS_DIR / "vectorizer.joblib"
 MODEL_PATH = ARTIFACTS_DIR / "model.joblib"
 MATRIX_PATH = ARTIFACTS_DIR / "matrix.npz"
 DATA_PATH = ARTIFACTS_DIR / "transactions_model.csv"
-EVAL_PATH = DATA_DIR / "eval_queries.csv"
+
+EMBED_MODEL_NAME_PATH = ARTIFACTS_DIR / "embedding_model_name.txt"
+EMBED_MATRIX_PATH = ARTIFACTS_DIR / "embedding_matrix.npy"
+
+EVAL_PATH = DATA_DIR / "val_queries_blind_accgo.csv"
+
+TOP_K = 5
+CANDIDATE_POOL_K = 20
+
+MIN_SCORE_EXACT = 0.22
+MIN_SCORE_NEAR = 0.30
+MIN_SCORE_TASK = 0.24
+MIN_SCORE_SEMANTIC = 0.20
+MIN_SCORE_FAMILY = 0.30
+
+CROSS_ENCODER_NAME = "cross-encoder/ms-marco-MiniLM-L-6-v2"
+
+QUERY_ALIAS_ROUTER = {
+    "CHECK PAYROLL AREA RUN PAYROLL": "HRPAY00_RPUCPA00",
+    "TOTAL PAYMENT CONFIGURATION": "HRPAYCNTPM_CONF",
+    "DISPLAY CONSTRUCTION SITES": "HRPAYDEBSA",
+    "MAINTAIN CONSTRUCTION SITES": "HRPAYDEBSP",
+    "NOTIFICATION PROCESSOR": "HRPAYDEE2PKV_PROCESS",
+    "CREATE SALES REPRESENTATIVE": "VPE1",
+    "DISPLAY SALES REPRESENTATIVE": "VPE3",
+}
+
+task_router = {
+    "CREATE MATERIAL": "MM01",
+    "CHANGE MATERIAL": "MM02",
+    "DISPLAY MATERIAL": "MM03",
+}
 
 vectorizer = joblib.load(VECTORIZER_PATH)
 model = joblib.load(MODEL_PATH)
 X = load_npz(MATRIX_PATH)
 df = pd.read_csv(DATA_PATH)
 
+embedding_matrix = np.load(EMBED_MATRIX_PATH)
+with open(EMBED_MODEL_NAME_PATH, "r", encoding="utf-8") as f:
+    EMBED_MODEL_NAME = f.read().strip()
+
+embedder = SentenceTransformer(EMBED_MODEL_NAME)
+cross_encoder = CrossEncoder(CROSS_ENCODER_NAME)
+
 df["Transaction Code"] = df["Transaction Code"].astype(str).str.strip().str.replace('"', "", regex=False).str.upper()
 df["Transaction Description"] = df["Transaction Description"].fillna("").astype(str).str.strip()
 df["Program"] = df["Program"].fillna("").astype(str).str.strip()
+df["reranker_text"] = df["reranker_text"].fillna("").astype(str)
 df["_DESC_UP"] = df["Transaction Description"].str.upper()
 df["_TCODE_UP"] = df["Transaction Code"].str.upper()
 df["_PROG_UP"] = df["Program"].str.upper()
-
-TOP_K = 5
-MIN_SCORE_EXACT = 0.22
-MIN_SCORE_NEAR = 0.30
-MIN_SCORE_TASK = 0.24
-MIN_SCORE_SEMANTIC = 0.20
-MIN_SCORE_FAMILY = 0.30
 
 def normalize_query(text: str) -> str:
     return str(text).strip().replace('"', "").upper()
@@ -97,7 +130,7 @@ def dedupe_results(results):
 def make_result(row, score: float):
     return {
         "tcode": str(row["Transaction Code"]).upper(),
-        "score": round(clamp01(score), 4)
+        "score": round(float(score), 6),
     }
 
 def build_query_vector(query: str):
@@ -106,6 +139,14 @@ def build_query_vector(query: str):
         char_vec = vectorizer["char_vectorizer"].transform([query])
         return hstack([word_vec, char_vec]).tocsr()
     return vectorizer.transform([query])
+
+def build_query_embedding(query: str):
+    emb = embedder.encode(
+        [query],
+        normalize_embeddings=True,
+        convert_to_numpy=True
+    ).astype("float32")
+    return emb[0]
 
 def query_action_tokens(query: str):
     q = normalize_query(query)
@@ -152,7 +193,7 @@ def action_alignment_bonus(query: str, row) -> float:
     r_actions = row_action_tokens(row)
     overlap = q_actions.intersection(r_actions)
     if not overlap:
-        return -0.03
+        return -0.08
     return min(0.12, 0.06 * len(overlap))
 
 def program_similarity_bonus(program_a: str, program_b: str) -> float:
@@ -247,7 +288,6 @@ def filter_results(results, min_score: float, top_k: int = TOP_K):
 def detect_cluster(row):
     tcode = str(row["Transaction Code"]).upper()
     desc = str(row["Transaction Description"]).upper()
-    prog = str(row["Program"]).upper()
     if tcode.startswith("HR") or any(k in desc for k in ["PAYROLL", "PERSONNEL", "HUMAN RESOURCES", "EMPLOYEE"]):
         return "HR / HCM"
     if "WORKBENCH" in desc:
@@ -256,11 +296,46 @@ def detect_cluster(row):
         return "Configuration"
     return "Functional Other"
 
-task_router = {
-    "CREATE MATERIAL": "MM01",
-    "CHANGE MATERIAL": "MM02",
-    "DISPLAY MATERIAL": "MM03",
-}
+def rank_alias_match(exact_code: str, query: str = "", top_k: int = TOP_K):
+    match = df[df["_TCODE_UP"] == normalize_query(exact_code)]
+    if match.empty:
+        return []
+
+    idx = match.index[0]
+    anchor_row = df.iloc[idx]
+    distances, indices = model.kneighbors(X[idx], n_neighbors=min(top_k * 5, len(df)))
+
+    exact_result = make_result(anchor_row, 1.0)
+    rescored = []
+
+    for dist, j in zip(distances[0], indices[0]):
+        if j == idx:
+            continue
+
+        row = df.iloc[j]
+        candidate_tcode = str(row["Transaction Code"]).upper()
+        anchor_tcode = str(anchor_row["Transaction Code"]).upper()
+
+        ml_score = 1 - float(dist)
+        overlap = token_overlap_score(query, row["Transaction Description"])
+        desc_lex = lexical_desc_similarity(query, row["Transaction Description"])
+        action_bonus = action_alignment_bonus(query, row)
+        family_bonus = 0.14 if same_family_code(anchor_tcode, candidate_tcode) else -0.06
+        noise_penalty = -0.12 if is_generic_user_noise(row) else 0.0
+
+        final_score = (
+            0.34 * ml_score +
+            0.20 * overlap +
+            0.14 * desc_lex +
+            family_bonus +
+            action_bonus +
+            noise_penalty
+        )
+
+        rescored.append(make_result(row, final_score))
+
+    rescored.sort(key=lambda x: (-x["score"], x["tcode"]))
+    return filter_results([exact_result] + rescored, MIN_SCORE_TASK, top_k)
 
 def rank_exact_match(idx: int, query: str = "", top_k: int = TOP_K):
     distances, indices = model.kneighbors(X[idx], n_neighbors=min(top_k * 5, len(df)))
@@ -270,6 +345,7 @@ def rank_exact_match(idx: int, query: str = "", top_k: int = TOP_K):
     anchor_cluster = detect_cluster(anchor_row)
     exact_result = make_result(anchor_row, 1.0)
     rescored = []
+
     for dist, j in zip(distances[0], indices[0]):
         if j == idx:
             continue
@@ -277,9 +353,11 @@ def rank_exact_match(idx: int, query: str = "", top_k: int = TOP_K):
         candidate_tcode = str(row["Transaction Code"]).upper()
         candidate_prog = str(row["Program"]).upper()
         candidate_cluster = detect_cluster(row)
+
         ml_score = 1 - float(dist)
         overlap = token_overlap_score(query, row["Transaction Description"])
         lex_code = lexical_similarity(anchor_tcode, candidate_tcode)
+
         final_score = (
             0.46 * ml_score +
             0.08 * overlap +
@@ -291,6 +369,7 @@ def rank_exact_match(idx: int, query: str = "", top_k: int = TOP_K):
             (-0.18 if is_generic_user_noise(row) else 0.0)
         )
         rescored.append(make_result(row, final_score))
+
     rescored.sort(key=lambda x: (-x["score"], x["tcode"]))
     return filter_results([exact_result] + rescored, MIN_SCORE_EXACT, top_k)
 
@@ -301,6 +380,7 @@ def rank_near_code_mode(query: str, top_k: int = TOP_K):
     candidates = candidates[candidates["lex_score"] >= 0.45].copy()
     if candidates.empty:
         return []
+
     def candidate_gate_score(code):
         code = str(code).upper()
         score = 0.0
@@ -315,21 +395,30 @@ def rank_near_code_mode(query: str, top_k: int = TOP_K):
         if len(q) >= 1 and len(code) >= 1 and code[0] == q[0]:
             score += 0.10
         return score
+
     candidates["gate_score"] = candidates["Transaction Code"].apply(candidate_gate_score)
     candidates = candidates[candidates["gate_score"] > 0].copy()
     if candidates.empty:
         return []
-    anchor_idx = candidates.sort_values(by=["gate_score", "lex_score", "Transaction Code"], ascending=[False, False, True]).index[0]
+
+    anchor_idx = candidates.sort_values(
+        by=["gate_score", "lex_score", "Transaction Code"],
+        ascending=[False, False, True]
+    ).index[0]
+
     anchor_row = df.loc[anchor_idx]
     anchor_tcode = str(anchor_row["Transaction Code"]).upper()
     anchor_prog = str(anchor_row["Program"]).upper()
     anchor_cluster = detect_cluster(anchor_row)
+
     sims = cosine_similarity(X[candidates.index], X[anchor_idx]).flatten()
     candidates["ml_score"] = sims
+
     def compute_score(row):
         code = str(row["Transaction Code"]).upper()
         prog = str(row["Program"]).upper()
         cluster = detect_cluster(row)
+
         final = (
             0.22 * float(row["lex_score"]) +
             0.12 * float(row["ml_score"]) +
@@ -342,11 +431,18 @@ def rank_near_code_mode(query: str, top_k: int = TOP_K):
             business_relation_bonus(anchor_tcode, code) +
             (-0.16 if is_generic_user_noise(row) else 0.0)
         )
+
         if code.startswith(q):
             final += 0.15
+
         return clamp01(final)
+
     candidates["final_score"] = candidates.apply(compute_score, axis=1)
-    candidates = candidates.sort_values(by=["final_score", "gate_score", "Transaction Code"], ascending=[False, False, True]).head(top_k * 3)
+    candidates = candidates.sort_values(
+        by=["final_score", "gate_score", "Transaction Code"],
+        ascending=[False, False, True]
+    ).head(top_k * 3)
+
     return filter_results([make_result(row, row["final_score"]) for _, row in candidates.iterrows()], MIN_SCORE_NEAR, top_k)
 
 def rank_family_mode(family_code: str, top_k: int = 20):
@@ -354,9 +450,9 @@ def rank_family_mode(family_code: str, top_k: int = 20):
     fam = df[df["_TCODE_UP"].str.startswith(fam_code)].copy()
     if fam.empty:
         return []
+
     def family_score(row):
         tcode = str(row["Transaction Code"]).upper()
-        desc = str(row["Transaction Description"]).upper()
         prog = str(row["Program"]).upper()
         score = 0.35
         if tcode.startswith(fam_code):
@@ -368,6 +464,7 @@ def rank_family_mode(family_code: str, top_k: int = 20):
         if is_generic_user_noise(row):
             score -= 0.12
         return clamp01(score)
+
     fam["final_score"] = fam.apply(family_score, axis=1)
     fam = fam.sort_values(by=["final_score", "Transaction Code"], ascending=[False, True]).head(top_k * 3)
     return filter_results([make_result(row, row["final_score"]) for _, row in fam.iterrows()], MIN_SCORE_FAMILY, top_k)
@@ -376,11 +473,14 @@ def rank_task_phrase(query: str, exact_code: str, top_k: int = TOP_K):
     match = df[df["_TCODE_UP"] == exact_code]
     if match.empty:
         return []
+
     idx = match.index[0]
     anchor_row = df.iloc[idx]
     distances, indices = model.kneighbors(X[idx], n_neighbors=min(top_k * 5, len(df)))
+
     exact_result = make_result(anchor_row, 0.99)
     rescored = []
+
     for dist, j in zip(distances[0], indices[0]):
         if j == idx:
             continue
@@ -393,6 +493,7 @@ def rank_task_phrase(query: str, exact_code: str, top_k: int = TOP_K):
             (-0.16 if is_generic_user_noise(row) else 0.0)
         )
         rescored.append(make_result(row, final_score))
+
     rescored.sort(key=lambda x: (-x["score"], x["tcode"]))
     return filter_results([exact_result] + rescored, MIN_SCORE_TASK, top_k)
 
@@ -400,12 +501,15 @@ def rank_semantic_text(query: str, top_k: int = TOP_K):
     query_vec = build_query_vector(query)
     if query_vec.nnz == 0:
         return []
+
     distances, indices = model.kneighbors(query_vec, n_neighbors=min(top_k * 7, len(df)))
     results = []
+
     for dist, j in zip(distances[0], indices[0]):
         row = df.iloc[j]
         desc_up = str(row["Transaction Description"]).upper()
         tcode_up = str(row["Transaction Code"]).upper()
+
         keyword_bonus = 0.0
         for token in tokenize(query):
             if len(token) > 2:
@@ -413,6 +517,7 @@ def rank_semantic_text(query: str, top_k: int = TOP_K):
                     keyword_bonus += 0.05
                 if token == tcode_up:
                     keyword_bonus += 0.10
+
         final_score = (
             0.42 * (1 - float(dist)) +
             0.22 * token_overlap_score(query, row["Transaction Description"]) +
@@ -421,28 +526,39 @@ def rank_semantic_text(query: str, top_k: int = TOP_K):
             action_alignment_bonus(query, row)
         )
         results.append(make_result(row, final_score))
+
     return filter_results(results, MIN_SCORE_SEMANTIC, top_k)
 
 def recommend_hybrid_engine(raw_query: str, top_k: int = TOP_K):
     query = normalize_query(raw_query)
     if not query:
         return []
+
+    alias_tcode = QUERY_ALIAS_ROUTER.get(query)
+    if alias_tcode:
+        return rank_alias_match(alias_tcode, query=query, top_k=top_k)
+
     for phrase, exact_tcode in task_router.items():
         if phrase in query:
             return rank_task_phrase(query, exact_tcode, top_k=top_k)
+
     exact = df[df["_TCODE_UP"] == query]
     if not exact.empty:
         return rank_exact_match(exact.index[0], query=query, top_k=top_k)
+
     if is_family_query(query):
         family_results = rank_family_mode(query, top_k=top_k)
         if family_results:
             return family_results
+
     if is_code_like(query) and len(query) >= 2:
         near_code_results = rank_near_code_mode(query, top_k=top_k)
         if near_code_results:
             return near_code_results
+
     if len(query) >= 3:
         return rank_semantic_text(query, top_k=top_k)
+
     return []
 
 def recommend_cosine_tfidf(raw_query: str, top_k: int = TOP_K):
@@ -453,6 +569,85 @@ def recommend_cosine_tfidf(raw_query: str, top_k: int = TOP_K):
     sims = cosine_similarity(q_vec, X).flatten()
     top_idx = np.argsort(sims)[::-1][:top_k]
     return [make_result(df.iloc[idx], sims[idx]) for idx in top_idx]
+
+def recommend_embedding_semantic(raw_query: str, top_k: int = TOP_K):
+    query = normalize_query(raw_query)
+    if not query:
+        return []
+
+    q_emb = build_query_embedding(query)
+    sims = embedding_matrix @ q_emb
+    top_idx = np.argsort(sims)[::-1][:top_k]
+    return [make_result(df.iloc[idx], sims[idx]) for idx in top_idx]
+
+def recommend_semantic_hybrid(raw_query: str, top_k: int = TOP_K):
+    query = normalize_query(raw_query)
+    if not query:
+        return []
+
+    if QUERY_ALIAS_ROUTER.get(query):
+        return recommend_hybrid_engine(query, top_k=top_k)
+
+    if is_code_like(query) or is_family_query(query):
+        return recommend_hybrid_engine(query, top_k=top_k)
+
+    tfidf_results = recommend_cosine_tfidf(query, top_k=top_k * 5)
+    embed_results = recommend_embedding_semantic(query, top_k=top_k * 5)
+    hybrid_results = recommend_hybrid_engine(query, top_k=top_k * 5)
+
+    score_map = {}
+
+    def add_scores(results, weight):
+        for rank, item in enumerate(results, start=1):
+            tcode = item["tcode"]
+            score_map.setdefault(tcode, 0.0)
+            score_map[tcode] += weight * (item["score"] + 1.0 / (rank + 1))
+
+    add_scores(tfidf_results, 0.30)
+    add_scores(embed_results, 0.45)
+    add_scores(hybrid_results, 0.25)
+
+    merged = []
+    for tcode, score in score_map.items():
+        row = df[df["_TCODE_UP"] == tcode]
+        if not row.empty:
+            merged.append(make_result(row.iloc[0], score / 2.0))
+
+    merged.sort(key=lambda x: (-x["score"], x["tcode"]))
+    return dedupe_results(merged)[:top_k]
+
+def rerank_with_cross_encoder(raw_query: str, base_results, top_k: int = TOP_K):
+    query = str(raw_query).strip()
+    if not base_results:
+        return []
+
+    pairs = []
+    rows = []
+
+    for item in base_results[:CANDIDATE_POOL_K]:
+        tcode = str(item["tcode"]).upper()
+        row = df[df["_TCODE_UP"] == tcode]
+        if row.empty:
+            continue
+        r = row.iloc[0]
+        rows.append(r)
+        pairs.append([query, str(r["reranker_text"])])
+
+    if not pairs:
+        return base_results[:top_k]
+
+    scores = cross_encoder.predict(pairs)
+
+    reranked = []
+    for r, score in zip(rows, scores):
+        reranked.append(make_result(r, float(score)))
+
+    reranked.sort(key=lambda x: (-x["score"], x["tcode"]))
+    return reranked[:top_k]
+
+def recommend_semantic_hybrid_reranked(raw_query: str, top_k: int = TOP_K):
+    base = recommend_semantic_hybrid(raw_query, top_k=max(CANDIDATE_POOL_K, top_k))
+    return rerank_with_cross_encoder(raw_query, base, top_k=top_k)
 
 def recommend_lexical_baseline(raw_query: str, top_k: int = TOP_K):
     query = normalize_query(raw_query)
@@ -479,14 +674,22 @@ def evaluate_method(method_name, eval_df):
     for _, row in eval_df.iterrows():
         query = str(row["query"])
         expected = str(row["expected_tcode"]).strip().upper()
+
         if method_name == "hybrid_engine":
             results = recommend_hybrid_engine(query, top_k=TOP_K)
         elif method_name == "cosine_tfidf":
             results = recommend_cosine_tfidf(query, top_k=TOP_K)
+        elif method_name == "embedding_semantic":
+            results = recommend_embedding_semantic(query, top_k=TOP_K)
+        elif method_name == "semantic_hybrid":
+            results = recommend_semantic_hybrid(query, top_k=TOP_K)
+        elif method_name == "semantic_hybrid_reranked":
+            results = recommend_semantic_hybrid_reranked(query, top_k=TOP_K)
         elif method_name == "lexical_baseline":
             results = recommend_lexical_baseline(query, top_k=TOP_K)
         else:
             raise ValueError(f"Unknown method: {method_name}")
+
         rows.append({
             "query": query,
             "expected_tcode": expected,
@@ -494,8 +697,9 @@ def evaluate_method(method_name, eval_df):
             "top3_hit": hit_at_k(results, expected, 3),
             "top5_hit": hit_at_k(results, expected, 5),
             "reciprocal_rank": reciprocal_rank(results, expected),
-            "top5_results": ", ".join([r["tcode"] for r in results])
+            "top5_results": ", ".join([r["tcode"] for r in results]),
         })
+
     details_df = pd.DataFrame(rows)
     summary = {
         "method": method_name,
@@ -510,21 +714,34 @@ def evaluate_method(method_name, eval_df):
 def main():
     if OUT_DIR.exists():
         shutil.rmtree(OUT_DIR)
+
     OUT_DIR.mkdir(parents=True, exist_ok=True)
+
     eval_df = pd.read_csv(EVAL_PATH)
-    methods = ["hybrid_engine", "cosine_tfidf", "lexical_baseline"]
+    methods = [
+        "hybrid_engine",
+        "cosine_tfidf",
+        "embedding_semantic",
+        "semantic_hybrid",
+        "semantic_hybrid_reranked",
+        "lexical_baseline",
+    ]
     summary_rows = []
+
     for method in methods:
         print(f"\n=== Evaluating {method} ===")
         details_df, summary = evaluate_method(method, eval_df)
         details_df.to_csv(OUT_DIR / f"{method}_details.csv", index=False)
         summary_rows.append(summary)
         print(summary)
+
     summary_df = pd.DataFrame(summary_rows).sort_values(
         by=["top1_accuracy", "mrr", "top3_accuracy", "top5_accuracy"],
         ascending=False
     )
+
     summary_df.to_csv(OUT_DIR / "recommender_comparison_summary.csv", index=False)
+
     print("\n=== Final comparison summary ===")
     print(summary_df.to_string(index=False))
     print(f"\n✅ Recommender comparison regenerated in: {OUT_DIR}")
