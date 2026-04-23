@@ -3,3 +3,4 @@ pyarrow
 numpy
 scikit-learn
 joblib
+matplotlib

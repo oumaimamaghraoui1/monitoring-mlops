@@ -84,4 +84,3 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     main(args.model_dir, code=args.code, text=args.text, top_k=args.top_k)
-``

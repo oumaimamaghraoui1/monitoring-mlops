@@ -1,78 +1,45 @@
-from flask import Flask, request, jsonify
-from flask_cors import CORS
+from pathlib import Path
+import re
+import shutil
 import joblib
+import numpy as np
 import pandas as pd
+
 from scipy.sparse import load_npz, hstack
 from sklearn.metrics.pairwise import cosine_similarity
 from difflib import SequenceMatcher
-import traceback
-import re
-import os
 
-app = Flask(__name__)
-CORS(app)
+BASE_DIR = Path(__file__).resolve().parent
 
-# =========================
-# CONFIG
-# =========================
-TOP_K = 15
+ARTIFACTS_DIR = BASE_DIR / "artifacts"
+DATA_DIR = BASE_DIR / "data"
+OUT_DIR = ARTIFACTS_DIR / "comparison"
+
+VECTORIZER_PATH = ARTIFACTS_DIR / "vectorizer.joblib"
+MODEL_PATH = ARTIFACTS_DIR / "model.joblib"
+MATRIX_PATH = ARTIFACTS_DIR / "matrix.npz"
+DATA_PATH = ARTIFACTS_DIR / "transactions_model.csv"
+EVAL_PATH = DATA_DIR / "eval_queries.csv"
+
+vectorizer = joblib.load(VECTORIZER_PATH)
+model = joblib.load(MODEL_PATH)
+X = load_npz(MATRIX_PATH)
+df = pd.read_csv(DATA_PATH)
+
+df["Transaction Code"] = df["Transaction Code"].astype(str).str.strip().str.replace('"', "", regex=False).str.upper()
+df["Transaction Description"] = df["Transaction Description"].fillna("").astype(str).str.strip()
+df["Program"] = df["Program"].fillna("").astype(str).str.strip()
+df["_DESC_UP"] = df["Transaction Description"].str.upper()
+df["_TCODE_UP"] = df["Transaction Code"].str.upper()
+df["_PROG_UP"] = df["Program"].str.upper()
+
+TOP_K = 5
 MIN_SCORE_EXACT = 0.22
 MIN_SCORE_NEAR = 0.30
 MIN_SCORE_TASK = 0.24
 MIN_SCORE_SEMANTIC = 0.20
 MIN_SCORE_FAMILY = 0.30
 
-# =========================
-# LOAD ARTIFACTS
-# =========================
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-ARTIFACTS_DIR = os.path.join(BASE_DIR, "artifacts")
-
-vectorizer = joblib.load(os.path.join(ARTIFACTS_DIR, "vectorizer.joblib"))
-model = joblib.load(os.path.join(ARTIFACTS_DIR, "model.joblib"))
-X = load_npz(os.path.join(ARTIFACTS_DIR, "matrix.npz"))
-df = pd.read_csv(os.path.join(ARTIFACTS_DIR, "transactions_model.csv"))
-
-# =========================
-# NORMALIZE DATASET
-# =========================
-df["Transaction Code"] = (
-    df["Transaction Code"]
-    .astype(str)
-    .str.strip()
-    .str.replace('"', "", regex=False)
-    .str.upper()
-)
-
-df["Transaction Description"] = (
-    df["Transaction Description"]
-    .fillna("")
-    .astype(str)
-    .str.strip()
-)
-
-df["Program"] = (
-    df["Program"]
-    .fillna("")
-    .astype(str)
-    .str.strip()
-)
-
-df["_DESC_UP"] = df["Transaction Description"].str.upper()
-df["_TCODE_UP"] = df["Transaction Code"].str.upper()
-df["_PROG_UP"] = df["Program"].str.upper()
-QUERY_ALIAS_ROUTER = {
-    "CHECK PAYROLL AREA RUN PAYROLL": "HRPAY00_RPUCPA00",
-    "TOTAL PAYMENT CONFIGURATION": "HRPAYCNTPM_CONF",
-    "DISPLAY CONSTRUCTION SITES": "HRPAYDEBSA",
-    "MAINTAIN CONSTRUCTION SITES": "HRPAYDEBSP",
-    "NOTIFICATION PROCESSOR": "HRPAYDEE2PKV_PROCESS",
-    "CREATE SALES REPRESENTATIVE": "VPE1",
-    "DISPLAY SALES REPRESENTATIVE": "VPE3",
-}
-# =========================
-# HELPERS
-# =========================
 def normalize_query(text: str) -> str:
     return str(text).strip().replace('"', "").upper()
 
@@ -117,13 +84,6 @@ def get_family_prefix(tcode: str) -> str:
 def same_family_code(a: str, b: str) -> bool:
     return get_family_prefix(a) == get_family_prefix(b)
 
-def score_confidence(score: float) -> str:
-    if score >= 0.75:
-        return "high"
-    if score >= 0.45:
-        return "medium"
-    return "low"
-
 def dedupe_results(results):
     seen = set()
     unique = []
@@ -134,6 +94,12 @@ def dedupe_results(results):
             unique.append(item)
     return unique
 
+def make_result(row, score: float):
+    return {
+        "tcode": str(row["Transaction Code"]).upper(),
+        "score": round(clamp01(score), 4)
+    }
+
 def build_query_vector(query: str):
     if isinstance(vectorizer, dict):
         word_vec = vectorizer["word_vectorizer"].transform([query])
@@ -143,7 +109,6 @@ def build_query_vector(query: str):
 
 def query_action_tokens(query: str):
     q = normalize_query(query)
-
     action_map = {
         "CREATE": {"CREATE", "NEW", "ADD", "GENERATE"},
         "CHANGE": {"CHANGE", "MODIFY", "EDIT", "UPDATE", "MAINTAIN", "MAINTENANCE"},
@@ -154,9 +119,8 @@ def query_action_tokens(query: str):
         "LIST": {"LIST", "OVERVIEW"},
         "REPORT": {"REPORT", "REPORTING"},
     }
-
-    found = set()
     q_tokens = set(tokenize(q))
+    found = set()
     for label, variants in action_map.items():
         if q_tokens.intersection(variants):
             found.add(label)
@@ -165,7 +129,6 @@ def query_action_tokens(query: str):
 def row_action_tokens(row) -> set:
     desc = str(row["Transaction Description"]).upper()
     d_tokens = set(tokenize(desc))
-
     action_map = {
         "CREATE": {"CREATE", "NEW", "ADD", "GENERATE"},
         "CHANGE": {"CHANGE", "MODIFY", "EDIT", "UPDATE", "MAINTAIN", "MAINTENANCE"},
@@ -176,7 +139,6 @@ def row_action_tokens(row) -> set:
         "LIST": {"LIST", "OVERVIEW"},
         "REPORT": {"REPORT", "REPORTING"},
     }
-
     found = set()
     for label, variants in action_map.items():
         if d_tokens.intersection(variants):
@@ -187,19 +149,15 @@ def action_alignment_bonus(query: str, row) -> float:
     q_actions = query_action_tokens(query)
     if not q_actions:
         return 0.0
-
     r_actions = row_action_tokens(row)
     overlap = q_actions.intersection(r_actions)
-
     if not overlap:
         return -0.03
-
     return min(0.12, 0.06 * len(overlap))
 
 def program_similarity_bonus(program_a: str, program_b: str) -> float:
     a = str(program_a).upper().strip()
     b = str(program_b).upper().strip()
-
     if not a or not b:
         return 0.0
     if a == b:
@@ -213,53 +171,35 @@ def program_similarity_bonus(program_a: str, program_b: str) -> float:
 def is_generic_user_noise(row) -> bool:
     desc = str(row["Transaction Description"]).upper()
     tcode = str(row["Transaction Code"]).upper()
-
     generic_patterns = [
-        "USER NAME FOR USER FIELD",
-        "USER FIELD 1",
-        "USER FIELD 2",
-        "USER FIELD 3",
-        "USER FIELD 4",
-        "USER FIELD 5",
-        "USER FIELD 6",
-        "USER FIELD 7",
-        "USER FIELD 8",
-        "USER FIELD 9",
-        "USER FIELD 10",
-        "USER FIELD 11",
-        "USER FIELD 12",
-        "NAME FOR USER FIELD"
+        "USER NAME FOR USER FIELD", "USER FIELD 1", "USER FIELD 2", "USER FIELD 3",
+        "USER FIELD 4", "USER FIELD 5", "USER FIELD 6", "USER FIELD 7",
+        "USER FIELD 8", "USER FIELD 9", "USER FIELD 10", "USER FIELD 11",
+        "USER FIELD 12", "NAME FOR USER FIELD"
     ]
-
     if tcode.startswith("OITM"):
         return True
-
     return any(p in desc for p in generic_patterns)
 
 def business_relation_bonus(anchor_tcode: str, candidate_tcode: str) -> float:
     anchor = str(anchor_tcode).upper()
     candidate = str(candidate_tcode).upper()
-
     business_relations = {
         "MM01": {"MM02", "MM03", "MM17", "MM50"},
         "SU01": {"SU10", "SUIM", "PFCG"},
         "SE38": {"SE80", "SE37", "SE11"},
         "SE11": {"SE16", "SE16N", "SE80"},
     }
-
     if anchor == candidate:
         return 0.25
-
     related = business_relations.get(anchor, set())
     if candidate in related:
         return 0.18
-
     return 0.0
 
 def exact_prefix_match_bonus(query: str, code: str) -> float:
     q = normalize_query(query)
     c = normalize_query(code)
-
     if not q or not c:
         return 0.0
     if c == q:
@@ -275,67 +215,39 @@ def exact_prefix_match_bonus(query: str, code: str) -> float:
 def positional_code_similarity(query: str, code: str) -> float:
     q = normalize_query(query)
     c = normalize_query(code)
-
     if not q or not c:
         return 0.0
-
     max_len = max(len(q), len(c))
     score = 0.0
-
     for i in range(min(len(q), len(c))):
         if q[i] == c[i]:
-            if i == 0:
-                score += 0.30
-            elif i == 1:
-                score += 0.25
-            elif i == 2:
-                score += 0.20
-            else:
-                score += 0.10
+            score += 0.30 if i == 0 else 0.25 if i == 1 else 0.20 if i == 2 else 0.10
         else:
-            if i == 0:
-                score -= 0.35
-            elif i == 1:
-                score -= 0.25
-            else:
-                score -= 0.08
-
+            score -= 0.35 if i == 0 else 0.25 if i == 1 else 0.08
     if abs(len(c) - len(q)) <= 1:
         score += 0.08
     elif abs(len(c) - len(q)) <= 2:
         score += 0.03
-
     score = score / max(max_len, 1)
     return max(-0.30, min(0.35, score))
 
 def filter_results(results, min_score: float, top_k: int = TOP_K):
-    filtered = [r for r in results if float(r["similarity"]) >= min_score]
+    filtered = [r for r in results if float(r["score"]) >= min_score]
     filtered = dedupe_results(filtered)
-    filtered.sort(key=lambda x: (-x["similarity"], x["tcode"]))
-
+    filtered.sort(key=lambda x: (-x["score"], x["tcode"]))
     cleaned = []
     for item in filtered:
         tcode = str(item["tcode"]).upper()
-        sim = float(item["similarity"])
-
-        if tcode.startswith("OITM") and sim < 0.40:
+        score = float(item["score"])
+        if tcode.startswith("OITM") and score < 0.40:
             continue
-
         cleaned.append(item)
-
-    for i, item in enumerate(cleaned, start=1):
-        item["rank"] = i
-        item["confidence"] = score_confidence(float(item["similarity"]))
-
     return cleaned[:top_k]
 
-# =========================
-# CLUSTER DETECTOR
-# =========================
 def detect_cluster(row):
     tcode = str(row["Transaction Code"]).upper()
     desc = str(row["Transaction Description"]).upper()
-
+    prog = str(row["Program"]).upper()
     if tcode.startswith("HR") or any(k in desc for k in ["PAYROLL", "PERSONNEL", "HUMAN RESOURCES", "EMPLOYEE"]):
         return "HR / HCM"
     if "WORKBENCH" in desc:
@@ -344,57 +256,30 @@ def detect_cluster(row):
         return "Configuration"
     return "Functional Other"
 
-# =========================
-# ROUTERS
-# =========================
 task_router = {
     "CREATE MATERIAL": "MM01",
     "CHANGE MATERIAL": "MM02",
     "DISPLAY MATERIAL": "MM03",
 }
 
-# =========================
-# RESULT FORMATTER
-# =========================
-def make_result(rank: int, row, score: float):
-    score = round(clamp01(float(score)), 4)
-    return {
-        "rank": rank,
-        "tcode": str(row["Transaction Code"]),
-        "program": str(row["Program"]),
-        "desc": str(row["Transaction Description"]),
-        "similarity": score,
-        "cluster": detect_cluster(row),
-        "confidence": score_confidence(score)
-    }
-
-# =========================
-# RANKERS
-# =========================
 def rank_exact_match(idx: int, query: str = "", top_k: int = TOP_K):
     distances, indices = model.kneighbors(X[idx], n_neighbors=min(top_k * 5, len(df)))
-
     anchor_row = df.iloc[idx]
     anchor_tcode = str(anchor_row["Transaction Code"]).upper()
     anchor_prog = str(anchor_row["Program"]).upper()
     anchor_cluster = detect_cluster(anchor_row)
-
-    exact_result = make_result(1, anchor_row, 1.0)
+    exact_result = make_result(anchor_row, 1.0)
     rescored = []
-
     for dist, j in zip(distances[0], indices[0]):
         if j == idx:
             continue
-
         row = df.iloc[j]
         candidate_tcode = str(row["Transaction Code"]).upper()
         candidate_prog = str(row["Program"]).upper()
         candidate_cluster = detect_cluster(row)
-
         ml_score = 1 - float(dist)
         overlap = token_overlap_score(query, row["Transaction Description"])
         lex_code = lexical_similarity(anchor_tcode, candidate_tcode)
-
         final_score = (
             0.46 * ml_score +
             0.08 * overlap +
@@ -405,24 +290,17 @@ def rank_exact_match(idx: int, query: str = "", top_k: int = TOP_K):
             0.18 * lex_code +
             (-0.18 if is_generic_user_noise(row) else 0.0)
         )
-
-        rescored.append(make_result(0, row, final_score))
-
-    rescored.sort(key=lambda x: (-x["similarity"], x["tcode"]))
+        rescored.append(make_result(row, final_score))
+    rescored.sort(key=lambda x: (-x["score"], x["tcode"]))
     return filter_results([exact_result] + rescored, MIN_SCORE_EXACT, top_k)
 
 def rank_near_code_mode(query: str, top_k: int = TOP_K):
     q = normalize_query(query)
     candidates = df.copy()
-
-    candidates["lex_score"] = candidates["Transaction Code"].apply(
-        lambda x: lexical_similarity(q, str(x))
-    )
+    candidates["lex_score"] = candidates["Transaction Code"].apply(lambda x: lexical_similarity(q, str(x)))
     candidates = candidates[candidates["lex_score"] >= 0.45].copy()
-
     if candidates.empty:
         return []
-
     def candidate_gate_score(code):
         code = str(code).upper()
         score = 0.0
@@ -437,31 +315,21 @@ def rank_near_code_mode(query: str, top_k: int = TOP_K):
         if len(q) >= 1 and len(code) >= 1 and code[0] == q[0]:
             score += 0.10
         return score
-
     candidates["gate_score"] = candidates["Transaction Code"].apply(candidate_gate_score)
     candidates = candidates[candidates["gate_score"] > 0].copy()
-
     if candidates.empty:
         return []
-
-    anchor_idx = candidates.sort_values(
-        by=["gate_score", "lex_score", "Transaction Code"],
-        ascending=[False, False, True]
-    ).index[0]
-
+    anchor_idx = candidates.sort_values(by=["gate_score", "lex_score", "Transaction Code"], ascending=[False, False, True]).index[0]
     anchor_row = df.loc[anchor_idx]
     anchor_tcode = str(anchor_row["Transaction Code"]).upper()
     anchor_prog = str(anchor_row["Program"]).upper()
     anchor_cluster = detect_cluster(anchor_row)
-
     sims = cosine_similarity(X[candidates.index], X[anchor_idx]).flatten()
     candidates["ml_score"] = sims
-
     def compute_score(row):
         code = str(row["Transaction Code"]).upper()
         prog = str(row["Program"]).upper()
         cluster = detect_cluster(row)
-
         final = (
             0.22 * float(row["lex_score"]) +
             0.12 * float(row["ml_score"]) +
@@ -474,36 +342,22 @@ def rank_near_code_mode(query: str, top_k: int = TOP_K):
             business_relation_bonus(anchor_tcode, code) +
             (-0.16 if is_generic_user_noise(row) else 0.0)
         )
-
         if code.startswith(q):
             final += 0.15
-
         return clamp01(final)
-
     candidates["final_score"] = candidates.apply(compute_score, axis=1)
-
-    candidates = candidates.sort_values(
-        by=["final_score", "gate_score", "Transaction Code"],
-        ascending=[False, False, True]
-    ).head(top_k * 3)
-
-    results = []
-    for rank, (_, row) in enumerate(candidates.iterrows(), start=1):
-        results.append(make_result(rank, row, float(row["final_score"])))
-
-    return filter_results(results, MIN_SCORE_NEAR, top_k)
+    candidates = candidates.sort_values(by=["final_score", "gate_score", "Transaction Code"], ascending=[False, False, True]).head(top_k * 3)
+    return filter_results([make_result(row, row["final_score"]) for _, row in candidates.iterrows()], MIN_SCORE_NEAR, top_k)
 
 def rank_family_mode(family_code: str, top_k: int = 20):
     fam_code = normalize_query(family_code)
     fam = df[df["_TCODE_UP"].str.startswith(fam_code)].copy()
-
     if fam.empty:
         return []
-
     def family_score(row):
         tcode = str(row["Transaction Code"]).upper()
+        desc = str(row["Transaction Description"]).upper()
         prog = str(row["Program"]).upper()
-
         score = 0.35
         if tcode.startswith(fam_code):
             score += 0.20
@@ -514,39 +368,23 @@ def rank_family_mode(family_code: str, top_k: int = 20):
         if is_generic_user_noise(row):
             score -= 0.12
         return clamp01(score)
-
     fam["final_score"] = fam.apply(family_score, axis=1)
-
-    fam = fam.sort_values(
-        by=["final_score", "Transaction Code"],
-        ascending=[False, True]
-    ).head(top_k * 3)
-
-    results = []
-    for rank, (_, row) in enumerate(fam.iterrows(), start=1):
-        results.append(make_result(rank, row, float(row["final_score"])))
-
-    return filter_results(results, MIN_SCORE_FAMILY, top_k)
+    fam = fam.sort_values(by=["final_score", "Transaction Code"], ascending=[False, True]).head(top_k * 3)
+    return filter_results([make_result(row, row["final_score"]) for _, row in fam.iterrows()], MIN_SCORE_FAMILY, top_k)
 
 def rank_task_phrase(query: str, exact_code: str, top_k: int = TOP_K):
     match = df[df["_TCODE_UP"] == exact_code]
     if match.empty:
         return []
-
     idx = match.index[0]
     anchor_row = df.iloc[idx]
-
     distances, indices = model.kneighbors(X[idx], n_neighbors=min(top_k * 5, len(df)))
-
-    exact_result = make_result(1, anchor_row, 0.99)
+    exact_result = make_result(anchor_row, 0.99)
     rescored = []
-
     for dist, j in zip(distances[0], indices[0]):
         if j == idx:
             continue
-
         row = df.iloc[j]
-
         final_score = (
             0.38 * (1 - float(dist)) +
             0.22 * token_overlap_score(query, row["Transaction Description"]) +
@@ -554,26 +392,20 @@ def rank_task_phrase(query: str, exact_code: str, top_k: int = TOP_K):
             action_alignment_bonus(query, row) +
             (-0.16 if is_generic_user_noise(row) else 0.0)
         )
-
-        rescored.append(make_result(0, row, final_score))
-
-    rescored.sort(key=lambda x: (-x["similarity"], x["tcode"]))
+        rescored.append(make_result(row, final_score))
+    rescored.sort(key=lambda x: (-x["score"], x["tcode"]))
     return filter_results([exact_result] + rescored, MIN_SCORE_TASK, top_k)
 
 def rank_semantic_text(query: str, top_k: int = TOP_K):
     query_vec = build_query_vector(query)
-
     if query_vec.nnz == 0:
         return []
-
     distances, indices = model.kneighbors(query_vec, n_neighbors=min(top_k * 7, len(df)))
     results = []
-
-    for rank, (dist, j) in enumerate(zip(distances[0], indices[0]), start=1):
+    for dist, j in zip(distances[0], indices[0]):
         row = df.iloc[j]
         desc_up = str(row["Transaction Description"]).upper()
         tcode_up = str(row["Transaction Code"]).upper()
-
         keyword_bonus = 0.0
         for token in tokenize(query):
             if len(token) > 2:
@@ -581,7 +413,6 @@ def rank_semantic_text(query: str, top_k: int = TOP_K):
                     keyword_bonus += 0.05
                 if token == tcode_up:
                     keyword_bonus += 0.10
-
         final_score = (
             0.42 * (1 - float(dist)) +
             0.22 * token_overlap_score(query, row["Transaction Description"]) +
@@ -589,99 +420,114 @@ def rank_semantic_text(query: str, top_k: int = TOP_K):
             min(keyword_bonus, 0.20) +
             action_alignment_bonus(query, row)
         )
-
-        results.append(make_result(rank, row, final_score))
-
+        results.append(make_result(row, final_score))
     return filter_results(results, MIN_SCORE_SEMANTIC, top_k)
 
-# =========================
-# API
-# =========================
-@app.route("/", methods=["GET"])
-def health():
-    return jsonify({"status": "ok"}), 200
+def recommend_hybrid_engine(raw_query: str, top_k: int = TOP_K):
+    query = normalize_query(raw_query)
+    if not query:
+        return []
+    for phrase, exact_tcode in task_router.items():
+        if phrase in query:
+            return rank_task_phrase(query, exact_tcode, top_k=top_k)
+    exact = df[df["_TCODE_UP"] == query]
+    if not exact.empty:
+        return rank_exact_match(exact.index[0], query=query, top_k=top_k)
+    if is_family_query(query):
+        family_results = rank_family_mode(query, top_k=top_k)
+        if family_results:
+            return family_results
+    if is_code_like(query) and len(query) >= 2:
+        near_code_results = rank_near_code_mode(query, top_k=top_k)
+        if near_code_results:
+            return near_code_results
+    if len(query) >= 3:
+        return rank_semantic_text(query, top_k=top_k)
+    return []
 
-@app.route("/recommend", methods=["POST"])
-def recommend():
-    try:
-        data = request.get_json(silent=True) or {}
-        raw_query = data.get("tcode", "")
-        query = normalize_query(raw_query)
+def recommend_cosine_tfidf(raw_query: str, top_k: int = TOP_K):
+    query = normalize_query(raw_query)
+    q_vec = build_query_vector(query)
+    if q_vec.nnz == 0:
+        return []
+    sims = cosine_similarity(q_vec, X).flatten()
+    top_idx = np.argsort(sims)[::-1][:top_k]
+    return [make_result(df.iloc[idx], sims[idx]) for idx in top_idx]
 
-        if not query:
-            return jsonify({
-                "query": "",
-                "mode": "empty",
-                "resolved": "",
-                "results": []
-            }), 200
+def recommend_lexical_baseline(raw_query: str, top_k: int = TOP_K):
+    query = normalize_query(raw_query)
+    candidates = df.copy()
+    candidates["code_score"] = candidates["Transaction Code"].apply(lambda x: lexical_similarity(query, x))
+    candidates["desc_score"] = candidates["Transaction Description"].apply(lambda x: lexical_similarity(query, x))
+    candidates["final_score"] = 0.6 * candidates["code_score"] + 0.4 * candidates["desc_score"]
+    candidates = candidates.sort_values(by=["final_score", "Transaction Code"], ascending=[False, True]).head(top_k)
+    return [make_result(row, row["final_score"]) for _, row in candidates.iterrows()]
 
-        for phrase, exact_tcode in task_router.items():
-            if phrase in query:
-                results = rank_task_phrase(query, exact_tcode, top_k=TOP_K)
-                return jsonify({
-                    "query": query,
-                    "mode": "task",
-                    "resolved": exact_tcode,
-                    "results": results
-                }), 200
+def hit_at_k(results, expected_tcode, k):
+    expected_tcode = normalize_query(expected_tcode)
+    return int(any(normalize_query(item["tcode"]) == expected_tcode for item in results[:k]))
 
-        exact = df[df["_TCODE_UP"] == query]
-        if not exact.empty:
-            idx = exact.index[0]
-            results = rank_exact_match(idx, query=query, top_k=TOP_K)
-            return jsonify({
-                "query": query,
-                "mode": "exact",
-                "resolved": query,
-                "results": results
-            }), 200
+def reciprocal_rank(results, expected_tcode):
+    expected_tcode = normalize_query(expected_tcode)
+    for rank, item in enumerate(results, start=1):
+        if normalize_query(item["tcode"]) == expected_tcode:
+            return 1.0 / rank
+    return 0.0
 
-        if is_family_query(query):
-            family_results = rank_family_mode(query, top_k=20)
-            if family_results:
-                return jsonify({
-                    "query": query,
-                    "mode": "family",
-                    "resolved": query,
-                    "results": family_results
-                }), 200
-
-        if is_code_like(query) and len(query) >= 2:
-            near_code_results = rank_near_code_mode(query, top_k=TOP_K)
-            if near_code_results:
-                return jsonify({
-                    "query": query,
-                    "mode": "near-code",
-                    "resolved": query,
-                    "results": near_code_results
-                }), 200
-
-        if len(query) >= 3:
-            results = rank_semantic_text(query, top_k=TOP_K)
-            return jsonify({
-                "query": query,
-                "mode": "semantic",
-                "resolved": query,
-                "results": results
-            }), 200
-
-        return jsonify({
+def evaluate_method(method_name, eval_df):
+    rows = []
+    for _, row in eval_df.iterrows():
+        query = str(row["query"])
+        expected = str(row["expected_tcode"]).strip().upper()
+        if method_name == "hybrid_engine":
+            results = recommend_hybrid_engine(query, top_k=TOP_K)
+        elif method_name == "cosine_tfidf":
+            results = recommend_cosine_tfidf(query, top_k=TOP_K)
+        elif method_name == "lexical_baseline":
+            results = recommend_lexical_baseline(query, top_k=TOP_K)
+        else:
+            raise ValueError(f"Unknown method: {method_name}")
+        rows.append({
             "query": query,
-            "mode": "none",
-            "resolved": "",
-            "results": []
-        }), 200
+            "expected_tcode": expected,
+            "top1_hit": hit_at_k(results, expected, 1),
+            "top3_hit": hit_at_k(results, expected, 3),
+            "top5_hit": hit_at_k(results, expected, 5),
+            "reciprocal_rank": reciprocal_rank(results, expected),
+            "top5_results": ", ".join([r["tcode"] for r in results])
+        })
+    details_df = pd.DataFrame(rows)
+    summary = {
+        "method": method_name,
+        "n_queries": int(len(details_df)),
+        "top1_accuracy": round(float(details_df["top1_hit"].mean()), 4),
+        "top3_accuracy": round(float(details_df["top3_hit"].mean()), 4),
+        "top5_accuracy": round(float(details_df["top5_hit"].mean()), 4),
+        "mrr": round(float(details_df["reciprocal_rank"].mean()), 4),
+    }
+    return details_df, summary
 
-    except Exception as e:
-        traceback.print_exc()
-        return jsonify({
-            "query": "",
-            "mode": "error",
-            "resolved": "",
-            "results": [],
-            "message": str(e)
-        }), 200
+def main():
+    if OUT_DIR.exists():
+        shutil.rmtree(OUT_DIR)
+    OUT_DIR.mkdir(parents=True, exist_ok=True)
+    eval_df = pd.read_csv(EVAL_PATH)
+    methods = ["hybrid_engine", "cosine_tfidf", "lexical_baseline"]
+    summary_rows = []
+    for method in methods:
+        print(f"\n=== Evaluating {method} ===")
+        details_df, summary = evaluate_method(method, eval_df)
+        details_df.to_csv(OUT_DIR / f"{method}_details.csv", index=False)
+        summary_rows.append(summary)
+        print(summary)
+    summary_df = pd.DataFrame(summary_rows).sort_values(
+        by=["top1_accuracy", "mrr", "top3_accuracy", "top5_accuracy"],
+        ascending=False
+    )
+    summary_df.to_csv(OUT_DIR / "recommender_comparison_summary.csv", index=False)
+    print("\n=== Final comparison summary ===")
+    print(summary_df.to_string(index=False))
+    print(f"\n✅ Recommender comparison regenerated in: {OUT_DIR}")
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=9090)
+    main()
