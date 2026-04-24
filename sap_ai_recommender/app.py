@@ -48,7 +48,7 @@ ARTIFACTS_DIR = os.path.join(BASE_DIR, "artifacts")
 vectorizer = joblib.load(os.path.join(ARTIFACTS_DIR, "vectorizer.joblib"))
 model = joblib.load(os.path.join(ARTIFACTS_DIR, "model.joblib"))
 X = load_npz(os.path.join(ARTIFACTS_DIR, "matrix.npz"))
-df = pd.read_csv(os.path.join(ARTIFACTS_DIR, "transactions_model.csv"))
+df = pd.read_csv(os.path.join(ARTIFACTS_DIR, "transactions_model.csv"), low_memory=False)
 
 embedding_matrix = np.load(os.path.join(ARTIFACTS_DIR, "embedding_matrix.npy"))
 embed_name_path = os.path.join(ARTIFACTS_DIR, "embedding_model_name.txt")
@@ -697,6 +697,7 @@ def rerank_with_cross_encoder(raw_query: str, base_results, top_k: int = TOP_K):
 
     pairs = []
     rows = []
+    base_score_map = {}
 
     for item in base_results[:CANDIDATE_POOL_K]:
         tcode = str(item["tcode"]).upper()
@@ -706,15 +707,38 @@ def rerank_with_cross_encoder(raw_query: str, base_results, top_k: int = TOP_K):
         r = row.iloc[0]
         rows.append(r)
         pairs.append([query, str(r["reranker_text"])])
+        base_score_map[tcode] = float(item["similarity"])
 
     if not pairs:
         return base_results[:top_k]
 
-    scores = cross_encoder.predict(pairs)
+    cross_scores = cross_encoder.predict(pairs)
 
     reranked = []
-    for rank, (r, score) in enumerate(sorted(zip(rows, scores), key=lambda x: -float(x[1])), start=1):
-        reranked.append(make_result(rank, r, clamp01(score)))
+    for r, cross_score in zip(rows, cross_scores):
+        tcode = str(r["Transaction Code"]).upper()
+        base_score = base_score_map.get(tcode, 0.0)
+
+        desc_lex = lexical_desc_similarity(query, r["Transaction Description"])
+        overlap = token_overlap_score(query, r["Transaction Description"])
+        action_bonus = action_alignment_bonus(query, r)
+
+        final_score = (
+            0.60 * clamp01(cross_score) +
+            0.20 * clamp01(base_score) +
+            0.12 * desc_lex +
+            0.08 * overlap +
+            action_bonus
+        )
+
+        reranked.append(make_result(0, r, final_score))
+
+    reranked = dedupe_results(reranked)
+    reranked.sort(key=lambda x: (-x["similarity"], x["tcode"]))
+
+    for i, item in enumerate(reranked, start=1):
+        item["rank"] = i
+        item["confidence"] = score_confidence(float(item["similarity"]))
 
     return reranked[:top_k]
 

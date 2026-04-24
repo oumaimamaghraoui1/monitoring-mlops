@@ -8,7 +8,6 @@ import pandas as pd
 from scipy.sparse import load_npz, hstack
 from sklearn.metrics.pairwise import cosine_similarity
 from difflib import SequenceMatcher
-from sentence_transformers import SentenceTransformer, CrossEncoder
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -21,21 +20,15 @@ MODEL_PATH = ARTIFACTS_DIR / "model.joblib"
 MATRIX_PATH = ARTIFACTS_DIR / "matrix.npz"
 DATA_PATH = ARTIFACTS_DIR / "transactions_model.csv"
 
-EMBED_MODEL_NAME_PATH = ARTIFACTS_DIR / "embedding_model_name.txt"
-EMBED_MATRIX_PATH = ARTIFACTS_DIR / "embedding_matrix.npy"
-
-EVAL_PATH = DATA_DIR / "val_queries_blind_accgo.csv"
+EVAL_PATH = DATA_DIR / "eval_queries_blind_mir_pc.csv"
 
 TOP_K = 5
-CANDIDATE_POOL_K = 20
 
 MIN_SCORE_EXACT = 0.22
 MIN_SCORE_NEAR = 0.30
 MIN_SCORE_TASK = 0.24
 MIN_SCORE_SEMANTIC = 0.20
 MIN_SCORE_FAMILY = 0.30
-
-CROSS_ENCODER_NAME = "cross-encoder/ms-marco-MiniLM-L-6-v2"
 
 QUERY_ALIAS_ROUTER = {
     "CHECK PAYROLL AREA RUN PAYROLL": "HRPAY00_RPUCPA00",
@@ -56,19 +49,11 @@ task_router = {
 vectorizer = joblib.load(VECTORIZER_PATH)
 model = joblib.load(MODEL_PATH)
 X = load_npz(MATRIX_PATH)
-df = pd.read_csv(DATA_PATH)
-
-embedding_matrix = np.load(EMBED_MATRIX_PATH)
-with open(EMBED_MODEL_NAME_PATH, "r", encoding="utf-8") as f:
-    EMBED_MODEL_NAME = f.read().strip()
-
-embedder = SentenceTransformer(EMBED_MODEL_NAME)
-cross_encoder = CrossEncoder(CROSS_ENCODER_NAME)
+df = pd.read_csv(DATA_PATH, low_memory=False)
 
 df["Transaction Code"] = df["Transaction Code"].astype(str).str.strip().str.replace('"', "", regex=False).str.upper()
 df["Transaction Description"] = df["Transaction Description"].fillna("").astype(str).str.strip()
 df["Program"] = df["Program"].fillna("").astype(str).str.strip()
-df["reranker_text"] = df["reranker_text"].fillna("").astype(str)
 df["_DESC_UP"] = df["Transaction Description"].str.upper()
 df["_TCODE_UP"] = df["Transaction Code"].str.upper()
 df["_PROG_UP"] = df["Program"].str.upper()
@@ -139,14 +124,6 @@ def build_query_vector(query: str):
         char_vec = vectorizer["char_vectorizer"].transform([query])
         return hstack([word_vec, char_vec]).tocsr()
     return vectorizer.transform([query])
-
-def build_query_embedding(query: str):
-    emb = embedder.encode(
-        [query],
-        normalize_embeddings=True,
-        convert_to_numpy=True
-    ).astype("float32")
-    return emb[0]
 
 def query_action_tokens(query: str):
     q = normalize_query(query)
@@ -570,17 +547,7 @@ def recommend_cosine_tfidf(raw_query: str, top_k: int = TOP_K):
     top_idx = np.argsort(sims)[::-1][:top_k]
     return [make_result(df.iloc[idx], sims[idx]) for idx in top_idx]
 
-def recommend_embedding_semantic(raw_query: str, top_k: int = TOP_K):
-    query = normalize_query(raw_query)
-    if not query:
-        return []
-
-    q_emb = build_query_embedding(query)
-    sims = embedding_matrix @ q_emb
-    top_idx = np.argsort(sims)[::-1][:top_k]
-    return [make_result(df.iloc[idx], sims[idx]) for idx in top_idx]
-
-def recommend_semantic_hybrid(raw_query: str, top_k: int = TOP_K):
+def recommend_lightweight_hybrid(raw_query: str, top_k: int = TOP_K):
     query = normalize_query(raw_query)
     if not query:
         return []
@@ -592,7 +559,6 @@ def recommend_semantic_hybrid(raw_query: str, top_k: int = TOP_K):
         return recommend_hybrid_engine(query, top_k=top_k)
 
     tfidf_results = recommend_cosine_tfidf(query, top_k=top_k * 5)
-    embed_results = recommend_embedding_semantic(query, top_k=top_k * 5)
     hybrid_results = recommend_hybrid_engine(query, top_k=top_k * 5)
 
     score_map = {}
@@ -603,9 +569,8 @@ def recommend_semantic_hybrid(raw_query: str, top_k: int = TOP_K):
             score_map.setdefault(tcode, 0.0)
             score_map[tcode] += weight * (item["score"] + 1.0 / (rank + 1))
 
-    add_scores(tfidf_results, 0.30)
-    add_scores(embed_results, 0.45)
-    add_scores(hybrid_results, 0.25)
+    add_scores(tfidf_results, 0.55)
+    add_scores(hybrid_results, 0.45)
 
     merged = []
     for tcode, score in score_map.items():
@@ -615,48 +580,6 @@ def recommend_semantic_hybrid(raw_query: str, top_k: int = TOP_K):
 
     merged.sort(key=lambda x: (-x["score"], x["tcode"]))
     return dedupe_results(merged)[:top_k]
-
-def rerank_with_cross_encoder(raw_query: str, base_results, top_k: int = TOP_K):
-    query = str(raw_query).strip()
-    if not base_results:
-        return []
-
-    pairs = []
-    rows = []
-
-    for item in base_results[:CANDIDATE_POOL_K]:
-        tcode = str(item["tcode"]).upper()
-        row = df[df["_TCODE_UP"] == tcode]
-        if row.empty:
-            continue
-        r = row.iloc[0]
-        rows.append(r)
-        pairs.append([query, str(r["reranker_text"])])
-
-    if not pairs:
-        return base_results[:top_k]
-
-    scores = cross_encoder.predict(pairs)
-
-    reranked = []
-    for r, score in zip(rows, scores):
-        reranked.append(make_result(r, float(score)))
-
-    reranked.sort(key=lambda x: (-x["score"], x["tcode"]))
-    return reranked[:top_k]
-
-def recommend_semantic_hybrid_reranked(raw_query: str, top_k: int = TOP_K):
-    base = recommend_semantic_hybrid(raw_query, top_k=max(CANDIDATE_POOL_K, top_k))
-    return rerank_with_cross_encoder(raw_query, base, top_k=top_k)
-
-def recommend_lexical_baseline(raw_query: str, top_k: int = TOP_K):
-    query = normalize_query(raw_query)
-    candidates = df.copy()
-    candidates["code_score"] = candidates["Transaction Code"].apply(lambda x: lexical_similarity(query, x))
-    candidates["desc_score"] = candidates["Transaction Description"].apply(lambda x: lexical_similarity(query, x))
-    candidates["final_score"] = 0.6 * candidates["code_score"] + 0.4 * candidates["desc_score"]
-    candidates = candidates.sort_values(by=["final_score", "Transaction Code"], ascending=[False, True]).head(top_k)
-    return [make_result(row, row["final_score"]) for _, row in candidates.iterrows()]
 
 def hit_at_k(results, expected_tcode, k):
     expected_tcode = normalize_query(expected_tcode)
@@ -679,14 +602,8 @@ def evaluate_method(method_name, eval_df):
             results = recommend_hybrid_engine(query, top_k=TOP_K)
         elif method_name == "cosine_tfidf":
             results = recommend_cosine_tfidf(query, top_k=TOP_K)
-        elif method_name == "embedding_semantic":
-            results = recommend_embedding_semantic(query, top_k=TOP_K)
-        elif method_name == "semantic_hybrid":
-            results = recommend_semantic_hybrid(query, top_k=TOP_K)
-        elif method_name == "semantic_hybrid_reranked":
-            results = recommend_semantic_hybrid_reranked(query, top_k=TOP_K)
-        elif method_name == "lexical_baseline":
-            results = recommend_lexical_baseline(query, top_k=TOP_K)
+        elif method_name == "lightweight_hybrid":
+            results = recommend_lightweight_hybrid(query, top_k=TOP_K)
         else:
             raise ValueError(f"Unknown method: {method_name}")
 
@@ -721,10 +638,7 @@ def main():
     methods = [
         "hybrid_engine",
         "cosine_tfidf",
-        "embedding_semantic",
-        "semantic_hybrid",
-        "semantic_hybrid_reranked",
-        "lexical_baseline",
+        "lightweight_hybrid",
     ]
     summary_rows = []
 
