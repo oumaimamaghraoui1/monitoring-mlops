@@ -1,13 +1,11 @@
 import os
 import re
 import joblib
-import numpy as np
 import pandas as pd
 
 from scipy.sparse import hstack, save_npz
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.neighbors import NearestNeighbors
-from sentence_transformers import SentenceTransformer
 
 # ====================================================
 # CONFIG
@@ -19,11 +17,6 @@ OUT_VECTORIZER = "artifacts/vectorizer.joblib"
 OUT_MODEL = "artifacts/model.joblib"
 OUT_MATRIX = "artifacts/matrix.npz"
 OUT_DATA = "artifacts/transactions_model.csv"
-
-OUT_EMBED_MODEL_NAME = "artifacts/embedding_model_name.txt"
-OUT_EMBED_MATRIX = "artifacts/embedding_matrix.npy"
-
-EMBED_MODEL_NAME = "sentence-transformers/all-MiniLM-L6-v2"
 
 # ====================================================
 # LOAD DATA
@@ -68,6 +61,7 @@ def normalize_text(text: str) -> str:
     text = re.sub(r"\s+", " ", text).strip()
     return text
 
+
 MANUAL_DESCRIPTION_OVERRIDES = {
     "HRPAY00_RPUCPA00": "Check Payroll Area for Run Payroll RPUCPA00",
     "HRPAYCNTPM_CONF": "Total Payment Configuration",
@@ -80,29 +74,61 @@ MANUAL_DESCRIPTION_OVERRIDES = {
     "VPN1": "Number Range for Contact Person",
 }
 
-def expand_action_terms(text_u: str) -> list[str]:
+
+def split_code_tokens(tcode: str) -> str:
+    t = normalize_text(tcode)
+    if not t:
+        return ""
+
+    tokens = [t]
+
+    # MM01 -> MM 01 MM01
+    split_basic = re.sub(r"([A-Z]+)([0-9]+)", r"\1 \2 \1\2", t)
+    if split_basic and split_basic != t:
+        tokens.append(split_basic)
+
+    # /ACCGO/CAK_TYP -> ACCGO CAK TYP ACCGO CAK_TYP CAK TYP
+    slash_parts = [p for p in t.split("/") if p]
+    if slash_parts:
+        tokens.append(" ".join(slash_parts))
+        for part in slash_parts:
+            tokens.append(part)
+            tokens.append(part.replace("_", " "))
+            subparts = [x for x in part.split("_") if x]
+            if subparts:
+                tokens.append(" ".join(subparts))
+
+    # code family prefixes
+    if len(t) >= 2:
+        tokens.append(t[:2])
+    if len(t) >= 3:
+        tokens.append(t[:3])
+
+    return " ".join([x for x in tokens if x]).strip()
+
+
+def expand_action_terms(text_u: str):
     expansions = []
 
-    if any(k in text_u for k in ["CREATE", "CREATION"]):
+    if any(k in text_u for k in ["CREATE", "CREATION", "NEW", "ADD"]):
         expansions += ["CREATE NEW ADD INSERT GENERATE"]
-    if any(k in text_u for k in ["CHANGE", "MODIFY", "EDIT"]):
-        expansions += ["CHANGE MODIFY EDIT UPDATE MAINTAIN"]
-    if any(k in text_u for k in ["DISPLAY", "VIEW", "SHOW"]):
+    if any(k in text_u for k in ["CHANGE", "MODIFY", "EDIT", "UPDATE", "MAINTAIN", "MANAGE"]):
+        expansions += ["CHANGE MODIFY EDIT UPDATE MAINTAIN MANAGE"]
+    if any(k in text_u for k in ["DISPLAY", "VIEW", "SHOW", "READ"]):
         expansions += ["DISPLAY SHOW VIEW READ"]
-    if any(k in text_u for k in ["MAINTAIN", "MAINTENANCE"]):
-        expansions += ["MAINTAIN MAINTENANCE ADMINISTRATION UPDATE CONFIGURATION"]
-    if any(k in text_u for k in ["CONFIGURATION", "CONFIG", "SETUP", "CUSTOMIZING"]):
-        expansions += ["CONFIGURATION CONFIG SETUP CUSTOMIZING MAINTAIN"]
-    if any(k in text_u for k in ["PROCESS", "PROCESSOR", "PROCESSING"]):
-        expansions += ["PROCESS PROCESSOR PROCESSING EXECUTION HANDLING"]
-    if "LIST" in text_u:
-        expansions += ["LIST OVERVIEW DIRECTORY"]
-    if "REPORT" in text_u:
-        expansions += ["REPORT REPORTING ANALYSIS"]
+    if any(k in text_u for k in ["CONFIGURATION", "CONFIG", "SETUP", "CUSTOMIZING", "CONFIGURE"]):
+        expansions += ["CONFIGURATION CONFIG SETUP CUSTOMIZING CONFIGURE"]
+    if any(k in text_u for k in ["PROCESS", "PROCESSOR", "PROCESSING", "RUN", "EXECUTE", "TEST"]):
+        expansions += ["PROCESS PROCESSOR PROCESSING RUN EXECUTE TEST"]
+    if "LIST" in text_u or "OVERVIEW" in text_u:
+        expansions += ["LIST OVERVIEW DIRECTORY HISTORY"]
+    if "REPORT" in text_u or "LOG" in text_u:
+        expansions += ["REPORT REPORTING ANALYSIS LOG"]
     if "WORKBENCH" in text_u:
         expansions += ["WORKBENCH TOOL WORKSPACE"]
 
     return expansions
+
 
 def expand_domain_terms(tcode: str, full_text: str, prog: str) -> str:
     tcode_u = normalize_text(tcode)
@@ -113,7 +139,7 @@ def expand_domain_terms(tcode: str, full_text: str, prog: str) -> str:
 
     if tcode_u.startswith("SU") or any(k in text_u for k in ["USER", "AUTH", "ROLE", "PROFILE", "LOGIN"]):
         expansions += [
-            "USER ADMINISTRATION AUTHORIZATION ROLE PROFILE LOGIN SECURITY USER MAINTENANCE"
+            "USER ADMINISTRATION AUTHORIZATION ROLE PROFILE LOGIN SECURITY USER MAINTENANCE USER DISPLAY"
         ]
 
     if tcode_u.startswith("SM") or any(k in text_u for k in [
@@ -139,14 +165,14 @@ def expand_domain_terms(tcode: str, full_text: str, prog: str) -> str:
         "MATERIAL", "PURCHASE", "STOCK", "VALUATION", "VENDOR", "INVOICE"
     ]):
         expansions += [
-            "MATERIAL MANAGEMENT PURCHASE STOCK VALUATION VENDOR INVENTORY INVOICE"
+            "MATERIAL MANAGEMENT PURCHASE STOCK VALUATION VENDOR INVENTORY INVOICE PROCUREMENT PRODUCT ITEM"
         ]
 
     if tcode_u.startswith("HR") or any(k in text_u for k in [
         "PAYROLL", "PERSONNEL", "HUMAN RESOURCES", "EMPLOYEE", "EMPLOYMENT"
     ]):
         expansions += [
-            "HUMAN RESOURCES PAYROLL PERSONNEL EMPLOYEE HR ADMINISTRATION"
+            "HUMAN RESOURCES PAYROLL PERSONNEL EMPLOYEE HR ADMINISTRATION STAFF WORKER"
         ]
 
     if "SALES REPRESENTATIVE" in text_u:
@@ -167,9 +193,25 @@ def expand_domain_terms(tcode: str, full_text: str, prog: str) -> str:
     if "NOTIFICATION" in text_u:
         expansions += ["NOTIFICATION MESSAGE PROCESS PROCESSOR"]
 
+    if "CONTRACT" in text_u:
+        expansions += ["CONTRACT AGREEMENT"]
+    if "VENDOR" in text_u:
+        expansions += ["VENDOR SUPPLIER"]
+    if "CUSTOMER" in text_u:
+        expansions += ["CUSTOMER CLIENT BUSINESS PARTNER"]
+    if "INVOICE" in text_u:
+        expansions += ["INVOICE BILLING"]
+    if "PAYMENT" in text_u:
+        expansions += ["PAYMENT PAY"]
+    if "SETTLEMENT" in text_u:
+        expansions += ["SETTLEMENT CLOSING"]
+    if "SNAPSHOT" in text_u:
+        expansions += ["SNAPSHOT HISTORY"]
+
     expansions += expand_action_terms(text_u)
 
     return " ".join(expansions).strip()
+
 
 def build_weighted_text(row) -> str:
     tcode = normalize_text(row["Transaction Code"])
@@ -182,33 +224,41 @@ def build_weighted_text(row) -> str:
     override_desc = MANUAL_DESCRIPTION_OVERRIDES.get(tcode, "")
     override_desc_norm = normalize_text(override_desc) if override_desc else ""
 
+    code_tokens = split_code_tokens(tcode)
+
     full_business_text = " ".join([desc, menu, info, variant, override_desc_norm]).strip()
     expansions = expand_domain_terms(tcode, full_business_text, prog)
 
     parts = []
-    parts.append((" ".join([tcode] * 7)).strip())
 
+    # Strong code emphasis
+    if tcode:
+        parts.append((" ".join([tcode] * 10)).strip())
+    if code_tokens:
+        parts.append((" ".join([code_tokens] * 4)).strip())
+
+    # Description emphasis
     if desc:
         parts.append((" ".join([desc] * 5)).strip())
+
+    # Business metadata
     if menu:
-        parts.append((" ".join([menu] * 3)).strip())
+        parts.append((" ".join([menu] * 2)).strip())
     if info:
-        parts.append((" ".join([info] * 3)).strip())
+        parts.append((" ".join([info] * 2)).strip())
     if variant:
-        parts.append((" ".join([variant] * 2)).strip())
+        parts.append(variant)
     if override_desc_norm:
-        parts.append((" ".join([override_desc_norm] * 4)).strip())
+        parts.append((" ".join([override_desc_norm] * 3)).strip())
     if prog:
-        parts.append((" ".join([prog] * 2)).strip())
+        parts.append(prog)
 
-    split_code = re.sub(r"([A-Z]+)([0-9]+)", r"\1 \2 \1\2", tcode)
-    if split_code and split_code != tcode:
-        parts.append(split_code)
-
+    # Synonym/domain expansions
     if expansions:
         parts.append(expansions)
 
     return " ".join([p for p in parts if p]).strip()
+
 
 def build_reranker_text(row) -> str:
     tcode = normalize_text(row["Transaction Code"])
@@ -251,7 +301,7 @@ word_vectorizer = TfidfVectorizer(
 
 char_vectorizer = TfidfVectorizer(
     analyzer="char_wb",
-    ngram_range=(3, 5),
+    ngram_range=(2, 5),
     min_df=1,
     sublinear_tf=True,
     lowercase=False,
@@ -278,41 +328,16 @@ model = NearestNeighbors(
 model.fit(X)
 
 # ====================================================
-# SEMANTIC EMBEDDINGS
-# ====================================================
-print(f"Loading embedding model: {EMBED_MODEL_NAME}")
-embedder = SentenceTransformer(EMBED_MODEL_NAME)
-
-semantic_texts = (
-    df["Transaction Code"].fillna("").astype(str).str.upper() + " " +
-    df["Transaction Description"].fillna("").astype(str) + " " +
-    df["Transaction Menu"].fillna("").astype(str) + " " +
-    df["Transaction Info"].fillna("").astype(str) + " " +
-    df["Transaction Variant Info"].fillna("").astype(str)
-).tolist()
-
-embeddings = embedder.encode(
-    semantic_texts,
-    normalize_embeddings=True,
-    convert_to_numpy=True,
-    show_progress_bar=True
-).astype("float32")
-
-# ====================================================
 # SAVE
 # ====================================================
 joblib.dump(vectorizer, OUT_VECTORIZER)
 joblib.dump(model, OUT_MODEL)
 save_npz(OUT_MATRIX, X)
-np.save(OUT_EMBED_MATRIX, embeddings)
 df.to_csv(OUT_DATA, index=False)
-
-with open(OUT_EMBED_MODEL_NAME, "w", encoding="utf-8") as f:
-    f.write(EMBED_MODEL_NAME)
 
 print("✅ MODEL TRAINED SUCCESSFULLY")
 print(f"Rows: {len(df)}")
 print(f"Word features: {X_word.shape[1]}")
 print(f"Char features: {X_char.shape[1]}")
 print(f"Final matrix shape: {X.shape}")
-print(f"Embedding matrix shape: {embeddings.shape}")
+print("✅ No sentence-transformers embeddings saved")
