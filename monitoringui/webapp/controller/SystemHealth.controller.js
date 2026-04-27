@@ -106,6 +106,9 @@ onGoSecurity: function () {
       .navTo("security", {}, false);
 
 },
+goKmeans: function () {
+      this.getOwnerComponent().getRouter().navTo("kmeans", {}, false);
+    },
       onExit: function () {
         if (this._interval) {
           clearInterval(this._interval);

@@ -4,204 +4,288 @@
   xmlns="sap.m"
   xmlns:core="sap.ui.core"
   xmlns:viz="sap.viz.ui5.controls"
-  xmlns:viz.data="sap.viz.ui5.data"
-  xmlns:viz.feeds="sap.viz.ui5.controls.common.feeds"
+  xmlns:vizData="sap.viz.ui5.data"
+  xmlns:vizFeeds="sap.viz.ui5.controls.common.feeds"
   xmlns:l="sap.ui.layout">
 
-<Page title="AI Risk Monitoring">
+  <Page
+    title="AI Risk Monitoring"
+    showNavButton="true"
+    navButtonPress=".onBack">
 
-<headerContent>
-  <Button text="Refresh" press=".onRefresh"/>
-  <Button text="Security Events" press=".onGoSecurity"/>
-  <!--<Button text="Data Changes" press=".onGoDataChanges"/>-->
-  <Button text="System Health" press=".onGoSystemHealth"/>
-</headerContent>
+    <headerContent>
+      <Button text="Refresh" icon="sap-icon://refresh" type="Emphasized" press=".onRefresh"/>
+      <Button text="Security Events" icon="sap-icon://shield" press=".onGoSecurity"/>
+      <Button text="System Health" icon="sap-icon://sys-monitor" press=".onGoSystemHealth"/>
+      <Button
+    text="AI Recommendation"
+    icon="sap-icon://lightbulb"
+    type="Accept"
+    press=".goKmeans"/>
+    </headerContent>
 
-<content>
+    <content>
+      <VBox class="sapUiContentPadding">
 
-<!-- ================= KPI ================= -->
+        <!-- Intro -->
+        <MessageStrip
+          text="Monitor AI-related operational risk levels, weekly trends, anomaly distribution, and affected role/activity patterns."
+          type="Information"
+          showIcon="true"
+          class="sapUiSmallMarginBottom"/>
 
-<l:Grid
- defaultSpan="XL3 L3 M6 S12"
- hSpacing="1"
- vSpacing="1"
- class="sapUiMediumMarginBottom">
+        <!-- ================= KPI ================= -->
+        <HBox
+          width="100%"
+          justifyContent="SpaceAround"
+          wrap="Wrap"
+          class="sapUiMediumMarginBottom">
 
-  <GenericTile header="High Risk" press=".onRiskFilter">
-    <customData>
-      <core:CustomData key="risk" value="High"/>
-    </customData>
-    <TileContent>
-      <NumericContent value="{logs>/highCount}" valueColor="Error"/>
-    </TileContent>
-  </GenericTile>
+          <!-- High -->
+          <VBox class="kpiCard kpiHigh" alignItems="Center" justifyContent="Center">
+            <customData>
+              <core:CustomData key="risk" value="High"/>
+            </customData>
+            <core:Icon src="sap-icon://warning2" size="1.6rem" class="kpiIcon"/>
+            <Title text="High Risk" level="H6" class="kpiTitle"/>
+            <ObjectNumber
+              number="{logs>/highCount}"
+              state="Error"
+              class="kpiNumber"/>
+          </VBox>
 
-  <GenericTile header="Medium Risk" press=".onRiskFilter">
-    <customData>
-      <core:CustomData key="risk" value="Medium"/>
-    </customData>
-    <TileContent>
-      <NumericContent value="{logs>/mediumCount}" valueColor="Critical"/>
-    </TileContent>
-  </GenericTile>
+          <!-- Medium -->
+          <VBox class="kpiCard kpiMedium" alignItems="Center" justifyContent="Center">
+            <customData>
+              <core:CustomData key="risk" value="Medium"/>
+            </customData>
+            <core:Icon src="sap-icon://alert" size="1.6rem" class="kpiIcon"/>
+            <Title text="Medium Risk" level="H6" class="kpiTitle"/>
+            <ObjectNumber
+              number="{logs>/mediumCount}"
+              state="Warning"
+              class="kpiNumber"/>
+          </VBox>
 
-  <GenericTile header="Low Risk" press=".onRiskFilter">
-    <customData>
-      <core:CustomData key="risk" value="Low"/>
-    </customData>
-    <TileContent>
-      <NumericContent value="{logs>/lowCount}" valueColor="Neutral"/>
-    </TileContent>
-  </GenericTile>
+          <!-- Low -->
+          <VBox class="kpiCard kpiLow" alignItems="Center" justifyContent="Center">
+            <customData>
+              <core:CustomData key="risk" value="Low"/>
+            </customData>
+            <core:Icon src="sap-icon://activity-individual" size="1.6rem" class="kpiIcon"/>
+            <Title text="Low Risk" level="H6" class="kpiTitle"/>
+            <ObjectNumber
+              number="{logs>/lowCount}"
+              state="Information"
+              class="kpiNumber"/>
+          </VBox>
 
-  <GenericTile header="Normal" press=".onRiskFilter">
-    <customData>
-      <core:CustomData key="risk" value="Normal"/>
-    </customData>
-    <TileContent>
-      <NumericContent value="{logs>/normalCount}" valueColor="Good"/>
-    </TileContent>
-  </GenericTile>
+          <!-- Normal -->
+          <VBox class="kpiCard kpiNormal" alignItems="Center" justifyContent="Center">
+            <customData>
+              <core:CustomData key="risk" value="Normal"/>
+            </customData>
+            <core:Icon src="sap-icon://accept" size="1.6rem" class="kpiIcon"/>
+            <Title text="Normal" level="H6" class="kpiTitle"/>
+            <ObjectNumber
+              number="{logs>/normalCount}"
+              state="Success"
+              class="kpiNumber"/>
+          </VBox>
 
-</l:Grid>
+        </HBox>
 
-<!-- ================= CHARTS ================= -->
+        <!-- ================= CHARTS ================= -->
+        <FlexBox
+          width="100%"
+          renderType="Bare"
+          wrap="Wrap"
+          justifyContent="SpaceBetween"
+          class="sapUiMediumMarginBottom">
 
-<l:Grid class="sapUiMediumMarginTop"
- hSpacing="1"
- vSpacing="1">
+          <!-- LINE PANEL -->
+          <Panel class="styledPanel chartPanel">
+            <layoutData>
+              <FlexItemData growFactor="2" baseSize="64%"/>
+            </layoutData>
 
-  <!-- LINE -->
-  <viz:VizFrame
-    id="riskChart"
-    vizType="line"
-    width="100%"
-    height="280px"
-    vizProperties="{
-      title:{visible:true,text:'Weekly Risk Trend'},
-      interaction:{selectability:{mode:'single'}},
-      valueAxis:{title:{visible:true,text:'Log Count'}},
-      categoryAxis:{title:{visible:true,text:'ISO Week'}},
-      plotArea:{dataLabel:{visible:false}}
-    }">
+            <VBox class="sapUiMediumMargin">
+              <HBox alignItems="Center" class="sapUiSmallMarginBottom">
+                <core:Icon src="sap-icon://line-chart" size="1.1rem" class="cardIconBlue sapUiTinyMarginEnd"/>
+                <Title text="Weekly Risk Trend" level="H5"/>
+              </HBox>
 
-    <viz:layoutData>
-      <l:GridData span="XL8 L8 M12 S12"/>
-    </viz:layoutData>
+              <Text
+                text="Track the weekly evolution of High, Medium, Low, and Normal AI risk events."
+                class="subtleText sapUiTinyMarginBottom"/>
 
-    <viz:dataset>
-      <viz.data:FlattenedDataset data="{logs>/trendData}">
-        <viz.data:dimensions>
-          <viz.data:DimensionDefinition name="Week" value="{logs>week}"/>
-        </viz.data:dimensions>
-        <viz.data:measures>
-          <viz.data:MeasureDefinition name="High" value="{logs>High}"/>
-          <viz.data:MeasureDefinition name="Medium" value="{logs>Medium}"/>
-          <viz.data:MeasureDefinition name="Low" value="{logs>Low}"/>
-          <viz.data:MeasureDefinition name="Normal" value="{logs>Normal}"/>
-        </viz.data:measures>
-      </viz.data:FlattenedDataset>
-    </viz:dataset>
+              <viz:VizFrame
+                id="riskChart"
+                vizType="line"
+                width="100%"
+                height="360px"
+                uiConfig="{applicationSet:'fiori'}"
+                vizProperties='{
+                  "plotArea":{
+                    "dataLabel":{"visible":false},
+                    "colorPalette":["#dc2626","#d97706","#2563eb","#059669"]
+                  },
+                  "legend":{
+                    "visible":true,
+                    "layout":{"position":"bottom"}
+                  },
+                  "valueAxis":{"title":{"visible":true,"text":"Log Count"}},
+                  "categoryAxis":{"title":{"visible":true,"text":"ISO Week"}},
+                  "title":{"visible":false}
+                }'>
 
-    <viz:feeds>
-      <viz.feeds:FeedItem uid="valueAxis"
-        type="Measure"
-        values="High,Medium,Low,Normal"/>
-      <viz.feeds:FeedItem uid="categoryAxis"
-        type="Dimension"
-        values="Week"/>
-    </viz:feeds>
+                <viz:dataset>
+                  <vizData:FlattenedDataset data="{logs>/trendData}">
+                    <vizData:dimensions>
+                      <vizData:DimensionDefinition name="Week" value="{logs>week}"/>
+                    </vizData:dimensions>
+                    <vizData:measures>
+                      <vizData:MeasureDefinition name="High" value="{logs>High}"/>
+                      <vizData:MeasureDefinition name="Medium" value="{logs>Medium}"/>
+                      <vizData:MeasureDefinition name="Low" value="{logs>Low}"/>
+                      <vizData:MeasureDefinition name="Normal" value="{logs>Normal}"/>
+                    </vizData:measures>
+                  </vizData:FlattenedDataset>
+                </viz:dataset>
 
-  </viz:VizFrame>
+                <viz:feeds>
+                  <vizFeeds:FeedItem uid="valueAxis" type="Measure" values="High,Medium,Low,Normal"/>
+                  <vizFeeds:FeedItem uid="categoryAxis" type="Dimension" values="Week"/>
+                </viz:feeds>
+              </viz:VizFrame>
+            </VBox>
+          </Panel>
 
-  <!-- DONUT -->
-  <viz:VizFrame
-    vizType="donut"
-    width="100%"
-    height="280px"
-    vizProperties="{
-      title:{visible:true,text:'Risk Composition'},
-      plotArea:{
-        dataLabel:{visible:false},
-        dataPointSize:{min:2}
-      }
-    }">
+          <!-- DONUT PANEL -->
+          <Panel class="styledPanel chartPanel">
+            <layoutData>
+              <FlexItemData growFactor="1" baseSize="33%"/>
+            </layoutData>
 
-    <viz:layoutData>
-      <l:GridData span="XL4 L4 M12 S12"/>
-    </viz:layoutData>
+            <VBox class="sapUiMediumMargin">
+              <HBox alignItems="Center" class="sapUiSmallMarginBottom">
+                <core:Icon src="sap-icon://donut-chart" size="1.1rem" class="cardIconPurple sapUiTinyMarginEnd"/>
+                <Title text="Risk Composition" level="H5"/>
+              </HBox>
 
-    <viz:dataset>
-      <viz.data:FlattenedDataset data="{logs>/pieData}">
-        <viz.data:dimensions>
-          <viz.data:DimensionDefinition
-            name="Risk"
-            value="{logs>risk}"/>
-        </viz.data:dimensions>
-        <viz.data:measures>
-          <viz.data:MeasureDefinition
-            name="%"
-            value="{logs>value}"/>
-        </viz.data:measures>
-      </viz.data:FlattenedDataset>
-    </viz:dataset>
+              <Text
+                text="Visual distribution of current AI risk composition across all monitored events."
+                class="subtleText sapUiTinyMarginBottom"/>
 
-    <viz:feeds>
-      <viz.feeds:FeedItem uid="size"
-        type="Measure"
-        values="%"/>
-      <viz.feeds:FeedItem uid="color"
-        type="Dimension"
-        values="Risk"/>
-    </viz:feeds>
+              <viz:VizFrame
+                id="riskDonut"
+                vizType="donut"
+                width="100%"
+                height="360px"
+                uiConfig="{applicationSet:'fiori'}"
+                vizProperties='{
+                  "plotArea":{
+                    "dataLabel":{"visible":true},
+                    "colorPalette":["#dc2626","#d97706","#2563eb","#059669"]
+                  },
+                  "legend":{
+                    "visible":true,
+                    "layout":{"position":"bottom"}
+                  },
+                  "title":{"visible":false}
+                }'>
 
-  </viz:VizFrame>
+                <viz:dataset>
+                  <vizData:FlattenedDataset data="{logs>/pieData}">
+                    <vizData:dimensions>
+                      <vizData:DimensionDefinition name="Risk" value="{logs>risk}"/>
+                    </vizData:dimensions>
+                    <vizData:measures>
+                      <vizData:MeasureDefinition name="Percentage" value="{logs>value}"/>
+                    </vizData:measures>
+                  </vizData:FlattenedDataset>
+                </viz:dataset>
 
-</l:Grid>
+                <viz:feeds>
+                  <vizFeeds:FeedItem uid="size" type="Measure" values="Percentage"/>
+                  <vizFeeds:FeedItem uid="color" type="Dimension" values="Risk"/>
+                </viz:feeds>
+              </viz:VizFrame>
+            </VBox>
+          </Panel>
 
-<!-- ================= LAST AUDIT ================= -->
+        </FlexBox>
 
-<ObjectStatus
-  class="sapUiSmallMarginTop"
-  title="Last Audit Event Available"
-  text="{logs>/lastAuditDate}"/>
-<HBox
- justifyContent="End"
- class="sapUiSmallMarginEnd sapUiSmallMarginBottom">
+        <!-- ================= ACTIONS / AUDIT ================= -->
+        <HBox
+          width="100%"
+          justifyContent="SpaceBetween"
+          alignItems="Center"
+          class="sapUiSmallMarginBottom sapUiSmallMarginTop">
 
- <Button
-  text="Export to Excel"
-  icon="sap-icon://excel-attachment"
-  type="Emphasized"
-  press=".onExportExcel"/>
+          <ObjectStatus
+            title="Last Audit Event Available"
+            text="{logs>/lastAuditDate}"
+            state="Success"
+            icon="sap-icon://history"/>
 
-</HBox>
-<!-- ================= TABLE ================= -->
+          <Button
+            text="Export to Excel"
+            icon="sap-icon://excel-attachment"
+            type="Emphasized"
+            press=".onExportExcel"/>
+        </HBox>
 
-<Table
-  id="riskTable"
-  items="{logs>/logs}"
-  growing="true"
-  growingThreshold="20">
-  <columns>
-    <Column width="40%"><Text text="Role / Operation"/></Column>
-    <Column width="20%"><Text text="Score"/></Column>
-    <Column width="20%"><Text text="Risk"/></Column>
-  </columns>
+        <!-- ================= TABLE PANEL ================= -->
+        <Panel class="styledPanel">
+          <VBox class="sapUiMediumMargin">
+            <HBox alignItems="Center" class="sapUiSmallMarginBottom">
+              <core:Icon src="sap-icon://table-view" size="1.1rem" class="cardIconGreen sapUiTinyMarginEnd"/>
+              <Title text="AI Risk Events Table" level="H5"/>
+            </HBox>
 
-  <items>
-    <ColumnListItem>
-      <cells>
-        <Text text="{path:'logs>details',formatter:'.formatOperation'}"/>
-        <ObjectNumber
-          number="{path:'logs>anomalyScore',formatter:'.formatScore'}"/>
-        <ObjectStatus text="{logs>risk}" state="{logs>riskState}"/>
-      </cells>
-    </ColumnListItem>
-  </items>
-</Table>
+            <Text
+              text="Detailed view of operations, anomaly score, and associated risk classification."
+              class="subtleText sapUiSmallMarginBottom"/>
 
-</content>
+            <Table
+              id="riskTable"
+              items="{logs>/logs}"
+              growing="true"
+              growingThreshold="20"
+              class="niceTable">
 
-</Page>
+              <columns>
+                <Column width="55%">
+                  <Text text="Role / Operation"/>
+                </Column>
+                <Column width="20%" hAlign="End">
+                  <Text text="Score"/>
+                </Column>
+                <Column width="25%">
+                  <Text text="Risk"/>
+                </Column>
+              </columns>
+
+              <items>
+                <ColumnListItem class="tableRowHover">
+                  <cells>
+                    <Text text="{path:'logs>details', formatter:'.formatOperation'}" wrapping="true"/>
+                    <ObjectNumber
+                      number="{path:'logs>anomalyScore', formatter:'.formatScore'}"
+                      emphasized="false"/>
+                    <ObjectStatus
+                      text="{logs>risk}"
+                      state="{logs>riskState}"/>
+                  </cells>
+                </ColumnListItem>
+              </items>
+            </Table>
+          </VBox>
+        </Panel>
+
+      </VBox>
+    </content>
+
+  </Page>
 </mvc:View>

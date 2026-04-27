@@ -2,6 +2,7 @@
   controllerName="pwc.monitoring.monitoringui.controller.Logs"
   xmlns:mvc="sap.ui.core.mvc"
   xmlns="sap.m"
+  xmlns:core="sap.ui.core"
   xmlns:viz="sap.viz.ui5.controls"
   xmlns:viz.data="sap.viz.ui5.data"
   xmlns:viz.feeds="sap.viz.ui5.controls.common.feeds">
@@ -9,15 +10,39 @@
   <Page id="logsPage" title="Configuration Audit Logs">
 
     <headerContent>
-      <Button id="btnRefresh" text="Refresh" press=".onRefresh"/>
-      <Button id="btnGoSecurity" text="Security Events" press=".onGoSecurity"/>
-      <Button text="System Health" press=".onGoSystemHealth"/>
-      <Button text="AI Risk Monitor" press=".goRisk"/>
-      <Button text="Data Changes" press=".onGoDataChanges"/>
+      <Button
+        id="btnRefresh"
+        text="Refresh"
+        icon="sap-icon://refresh"
+        type="Emphasized"
+        press=".onRefresh"/>
+
+      <Button
+        id="btnGoSecurity"
+        text="Security Events"
+        icon="sap-icon://shield"
+        press=".onGoSecurity"/>
+
+      <Button
+        text="System Health"
+        icon="sap-icon://sys-monitor"
+        press=".onGoSystemHealth"/>
+
+      <Button
+        text="AI Risk Monitor"
+        icon="sap-icon://ai"
+        press=".goRisk"/>
+
+      <Button
+        text="Data Changes"
+        icon="sap-icon://database"
+        press=".onGoDataChanges"/>
+
       <Button
         text="AI Recommendation"
-        press="goKmeans"
-        type="Emphasized"/>
+        icon="sap-icon://lightbulb"
+        type="Accept"
+        press=".goKmeans"/>
     </headerContent>
 
     <content>
@@ -38,7 +63,6 @@
               class="sapUiContentPadding sapUiMediumMarginTop"
               width="100%">
 
-              <!-- ================= KPI DASHBOARD ================= -->
               <Panel
                 headerText="Audit KPI Dashboard"
                 expandable="false"
@@ -47,97 +71,88 @@
 
                 <VBox width="100%">
 
-                  <!-- KPI Tiles -->
                   <HBox
                     wrap="Wrap"
                     justifyContent="SpaceBetween"
                     width="100%"
                     class="sapUiSmallMarginBottom">
 
-                    <GenericTile class="sapUiTinyMarginEnd sapUiTinyMarginBottom" frameType="TwoByOne">
-                      <TileContent>
-                        <content>
-                          <VBox class="sapUiSmallMargin">
-                            <Title text="Total Human Changes" level="H5"/>
-                            <ObjectNumber
-                              number="{logs>/kpis/totalHumanChanges}"
-                              emphasized="true"/>
-                          </VBox>
-                        </content>
-                      </TileContent>
-                    </GenericTile>
+                    <VBox class="kpiCard kpiBlue" alignItems="Center" justifyContent="Center">
+                      <core:Icon src="sap-icon://employee-approvals" size="1.5rem" class="kpiIcon"/>
+                      <Title text="Total Human Changes" level="H6" class="kpiTitle"/>
+                      <ObjectNumber
+                        number="{logs>/kpis/totalHumanChanges}"
+                        emphasized="true"
+                        class="kpiNumber"/>
+                    </VBox>
 
-                    <GenericTile class="sapUiTinyMarginEnd sapUiTinyMarginBottom" frameType="TwoByOne">
-                      <TileContent>
-                        <content>
-                          <VBox class="sapUiSmallMargin">
-                            <Title text="Total Role Assignments" level="H5"/>
-                            <ObjectNumber
-                              number="{logs>/kpis/totalRoleAssignments}"
-                              emphasized="true"/>
-                          </VBox>
-                        </content>
-                      </TileContent>
-                    </GenericTile>
+                    <VBox class="kpiCard kpiPurple" alignItems="Center" justifyContent="Center">
+                      <core:Icon src="sap-icon://add-employee" size="1.5rem" class="kpiIcon"/>
+                      <Title text="Total Role Assignments" level="H6" class="kpiTitle"/>
+                      <ObjectNumber
+                        number="{logs>/kpis/totalRoleAssignments}"
+                        emphasized="true"
+                        class="kpiNumber"/>
+                    </VBox>
 
-                    <GenericTile class="sapUiTinyMarginEnd sapUiTinyMarginBottom" frameType="TwoByOne">
-                      <TileContent>
-                        <content>
-                          <VBox class="sapUiSmallMargin">
-                            <Title text="Top Assigned Role" level="H5"/>
-                            <Text text="{logs>/kpis/topAssignedRole}" wrapping="true"/>
-                            <ObjectStatus
-                              text="{= 'Occurrences in logs: ' + ${logs>/kpis/topAssignedRoleCount} }"
-                              state="Information"/>
-                          </VBox>
-                        </content>
-                      </TileContent>
-                    </GenericTile>
+                    <VBox class="kpiCard kpiOrange" alignItems="Center" justifyContent="Center">
+                      <core:Icon src="sap-icon://badge" size="1.5rem" class="kpiIcon"/>
+                      <Title text="Top Assigned Role" level="H6" class="kpiTitle"/>
+                      <Text
+                        text="{logs>/kpis/topAssignedRole}"
+                        wrapping="true"
+                        textAlign="Center"
+                        class="kpiText"/>
+                      <ObjectStatus
+                        text="{= 'Occurrences: ' + ${logs>/kpis/topAssignedRoleCount} }"
+                        state="Information"
+                        class="sapUiTinyMarginTop"/>
+                    </VBox>
 
-                    <GenericTile class="sapUiTinyMarginBottom" frameType="TwoByOne">
-                      <TileContent>
-                        <content>
-                          <VBox class="sapUiSmallMargin">
-                            <Title text="Top Granting Actor" level="H5"/>
-                            <Text text="{logs>/kpis/topGrantingActor}" wrapping="true"/>
-                            <ObjectStatus
-                              text="{= 'Logged actions: ' + ${logs>/kpis/topGrantingActorCount} }"
-                              state="Success"/>
-                          </VBox>
-                        </content>
-                      </TileContent>
-                    </GenericTile>
+                    <VBox class="kpiCard kpiGreen" alignItems="Center" justifyContent="Center">
+                      <core:Icon src="sap-icon://person-placeholder" size="1.5rem" class="kpiIcon"/>
+                      <Title text="Top Granting Actor" level="H6" class="kpiTitle"/>
+                      <Text
+                        text="{logs>/kpis/topGrantingActor}"
+                        wrapping="true"
+                        textAlign="Center"
+                        class="kpiText"/>
+                      <ObjectStatus
+                        text="{= 'Logged actions: ' + ${logs>/kpis/topGrantingActorCount} }"
+                        state="Success"
+                        class="sapUiTinyMarginTop"/>
+                    </VBox>
 
                   </HBox>
-<!-- ================= CRUD SUMMARY ================= -->
-<HBox
-  justifyContent="Start"
-  width="100%"
-  class="sapUiSmallMarginBottom">
 
-  <ObjectStatus
-    text="{= 'CREATE: ' + ${logs>/kpis/crudSummary/CREATE} }"
-    state="Success"
-    class="sapUiSmallMarginEnd sapUiTinyMarginBottom"/>
+                  <HBox
+                    wrap="Wrap"
+                    justifyContent="Start"
+                    width="100%"
+                    class="sapUiSmallMarginBottom">
 
-  <ObjectStatus
-    text="{= 'UPDATE: ' + ${logs>/kpis/crudSummary/UPDATE} }"
-    state="Warning"
-    class="sapUiSmallMarginEnd sapUiTinyMarginBottom"/>
+                    <HBox class="miniStatCard miniCreate" alignItems="Center">
+                      <core:Icon src="sap-icon://add" size="1rem" class="miniStatIcon sapUiTinyMarginEnd"/>
+                      <Text text="{= 'CREATE: ' + ${logs>/kpis/crudSummary/CREATE} }" class="miniStatText"/>
+                    </HBox>
 
-  <ObjectStatus
-    text="{= 'DELETE: ' + ${logs>/kpis/crudSummary/DELETE} }"
-    state="Error"
-    class="sapUiSmallMarginEnd sapUiTinyMarginBottom"/>
+                    <HBox class="miniStatCard miniUpdate" alignItems="Center">
+                      <core:Icon src="sap-icon://edit" size="1rem" class="miniStatIcon sapUiTinyMarginEnd"/>
+                      <Text text="{= 'UPDATE: ' + ${logs>/kpis/crudSummary/UPDATE} }" class="miniStatText"/>
+                    </HBox>
 
-  <ObjectStatus
-    text="{= 'OTHER: ' + ${logs>/kpis/crudSummary/OTHER} }"
-    state="Information"
-    class="sapUiTinyMarginBottom"/>
+                    <HBox class="miniStatCard miniDelete" alignItems="Center">
+                      <core:Icon src="sap-icon://delete" size="1rem" class="miniStatIcon sapUiTinyMarginEnd"/>
+                      <Text text="{= 'DELETE: ' + ${logs>/kpis/crudSummary/DELETE} }" class="miniStatText"/>
+                    </HBox>
 
-</HBox>
+                    <HBox class="miniStatCard miniOther" alignItems="Center">
+                      <core:Icon src="sap-icon://activity-items" size="1rem" class="miniStatIcon sapUiTinyMarginEnd"/>
+                      <Text text="{= 'OTHER: ' + ${logs>/kpis/crudSummary/OTHER} }" class="miniStatText"/>
+                    </HBox>
 
-                  <!-- Horizontal Bar Chart -->
+                  </HBox>
+
                   <Panel
                     headerText="Top 10 Assigned Roles (Audit Log Frequency)"
                     expandable="false"
@@ -145,48 +160,46 @@
                     class="sapUiNoContentPadding sapUiSmallMarginTop">
 
                     <viz:VizFrame
-  id="topRolesChart"
-  vizType="bar"
-  width="100%"
-  height="30rem"
-  uiConfig="{applicationSet:'fiori'}">
+                      id="topRolesChart"
+                      vizType="bar"
+                      width="100%"
+                      height="30rem"
+                      uiConfig="{applicationSet:'fiori'}">
 
-  <viz:dataset>
-    <viz.data:FlattenedDataset data="{logs>/kpis/top10Roles}">
-      <viz.data:dimensions>
-        <viz.data:DimensionDefinition
-          name="Role"
-          value="{logs>name}"/>
-      </viz.data:dimensions>
-      <viz.data:measures>
-        <viz.data:MeasureDefinition
-          name="Occurrences"
-          value="{logs>count}"/>
-      </viz.data:measures>
-    </viz.data:FlattenedDataset>
-  </viz:dataset>
+                      <viz:dataset>
+                        <viz.data:FlattenedDataset data="{logs>/kpis/top10Roles}">
+                          <viz.data:dimensions>
+                            <viz.data:DimensionDefinition
+                              name="Role"
+                              value="{logs>name}"/>
+                          </viz.data:dimensions>
+                          <viz.data:measures>
+                            <viz.data:MeasureDefinition
+                              name="Occurrences"
+                              value="{logs>count}"/>
+                          </viz.data:measures>
+                        </viz.data:FlattenedDataset>
+                      </viz:dataset>
 
-  <viz:feeds>
-    <viz.feeds:FeedItem
-      uid="valueAxis"
-      type="Measure"
-      values="Occurrences"/>
-    <viz.feeds:FeedItem
-      uid="categoryAxis"
-      type="Dimension"
-      values="Role"/>
-  </viz:feeds>
+                      <viz:feeds>
+                        <viz.feeds:FeedItem
+                          uid="valueAxis"
+                          type="Measure"
+                          values="Occurrences"/>
+                        <viz.feeds:FeedItem
+                          uid="categoryAxis"
+                          type="Dimension"
+                          values="Role"/>
+                      </viz:feeds>
 
-</viz:VizFrame>
+                    </viz:VizFrame>
 
                   </Panel>
 
                 </VBox>
 
               </Panel>
-              <!-- =============== END KPI DASHBOARD =============== -->
 
-              <!-- Filters row -->
               <HBox
                 id="hbHumanFilters"
                 class="sapUiSmallMarginBottom"
@@ -198,9 +211,9 @@
 
                   <SegmentedButton id="sbHumanFilter" selectedKey="ALL" selectionChange=".onHumanFilterChange">
                     <items>
-                      <SegmentedButtonItem id="sbHumanAll"    key="ALL"                  text="All"               width="5rem"/>
-                      <SegmentedButtonItem id="sbHumanRoles"  key="Role Assignment"      text="Role Assignments" width="9rem"/>
-                      <SegmentedButtonItem id="sbHumanOther"  key="Configuration Change" text="Other"            width="5rem"/>
+                      <SegmentedButtonItem id="sbHumanAll" key="ALL" text="All" width="5rem"/>
+                      <SegmentedButtonItem id="sbHumanRoles" key="Role Assignment" text="Role Assignments" width="9rem"/>
+                      <SegmentedButtonItem id="sbHumanOther" key="Configuration Change" text="Other" width="5rem"/>
                     </items>
                   </SegmentedButton>
 
@@ -223,7 +236,6 @@
 
               </HBox>
 
-              <!-- Human Table -->
               <Table id="tblHuman" growing="true" items="{ path:'logs>/human' }">
 
                 <headerToolbar>
@@ -232,17 +244,16 @@
                     <ToolbarSpacer id="spHuman"/>
                     <Text id="txtHumanCount" text="{= (${logs>/human}.length || 0) + ' items'}"/>
                     <Button text="Export Excel" press=".onExportLogsExcel"/>
-<Button text="Export PDF" press=".onExportLogsPdf"/>
+                    <Button text="Export PDF" press=".onExportLogsPdf"/>
                   </Toolbar>
-                  
                 </headerToolbar>
 
                 <columns>
-                  <Column id="colHTime"   width="12rem"><Text text="Time"/></Column>
-                  <Column id="colHType"   width="12rem"><Text text="Type"/></Column>
+                  <Column id="colHTime" width="12rem"><Text text="Time"/></Column>
+                  <Column id="colHType" width="12rem"><Text text="Type"/></Column>
                   <Column id="colHAction" width="10rem"><Text text="Action"/></Column>
                   <Column id="colHDetail" width="20rem"><Text text="Details"/></Column>
-                  <Column id="colHActor"  width="16rem"><Text text="Actor"/></Column>
+                  <Column id="colHActor" width="16rem"><Text text="Actor"/></Column>
                   <Column id="colHTarget" width="16rem"><Text text="Target"/></Column>
                 </columns>
 
@@ -276,69 +287,172 @@
             icon="sap-icon://sys-monitor"
             class="sapUiLargeMarginBegin sapUiExtraLargeMarginEnd">
 
-            <VBox id="vbSystemWrapper" class="sapUiContentPadding sapUiMediumMarginTop">
+            <VBox id="vbSystemWrapper" class="sapUiContentPadding sapUiMediumMarginTop" width="100%">
 
-              <!-- Filters -->
-              <HBox id="hbSystemFilters" class="sapUiSmallMarginBottom" alignItems="Center">
+              <MessageStrip
+                text="Track technical configuration events, deployment-related changes, system-generated actions, and infrastructure activity."
+                type="Information"
+                showIcon="true"
+                class="sapUiSmallMarginBottom"/>
 
-                <SegmentedButton
-                  id="sbSystemFilter"
-                  selectedKey="ALL"
-                  selectionChange=".onSystemFilterChange"
-                  class="sapUiSmallMarginEnd">
-                  <items>
-                    <SegmentedButtonItem id="sbSystemAll"   key="ALL"                  text="All"         width="5rem"/>
-                    <SegmentedButtonItem id="sbSystemDep"   key="Deployment"           text="Deployments" width="9rem"/>
-                    <SegmentedButtonItem id="sbSystemOther" key="Configuration Change" text="Other"       width="5rem"/>
-                  </items>
-                </SegmentedButton>
+              <HBox
+  wrap="Wrap"
+  justifyContent="SpaceBetween"
+  width="100%"
+  class="sapUiMediumMarginBottom">
 
-                <Label id="lblSystemEmail" text="Email" class="sapUiSmallMarginEnd"/>
-                <SearchField
-                  id="sfSystemEmail"
-                  width="18rem"
-                  liveChange=".onSystemEmailChange"
-                  placeholder="Filter by actor, target or details"/>
+  <VBox class="kpiCard kpiBlue" alignItems="Center" justifyContent="Center">
+    <core:Icon src="sap-icon://activity-items" size="1.5rem" class="kpiIcon"/>
+    <Title text="Total Technical Events" level="H6" class="kpiTitle"/>
+    <ObjectNumber
+      number="{logs>/systemKpis/totalTechnicalEvents}"
+      emphasized="true"
+      class="kpiNumber"/>
+  </VBox>
 
-              </HBox>
+  <VBox class="kpiCard kpiPurple" alignItems="Center" justifyContent="Center">
+    <core:Icon src="sap-icon://shipping-status" size="1.5rem" class="kpiIcon"/>
+    <Title text="Deployments" level="H6" class="kpiTitle"/>
+    <ObjectNumber
+      number="{logs>/systemKpis/deploymentCount}"
+      emphasized="true"
+      class="kpiNumber"/>
+  </VBox>
 
-              <Table id="tblSystem" growing="true" items="{ path:'logs>/system' }">
+  <VBox class="kpiCard kpiOrange" alignItems="Center" justifyContent="Center">
+    <core:Icon src="sap-icon://action-settings" size="1.5rem" class="kpiIcon"/>
+    <Title text="Config Changes" level="H6" class="kpiTitle"/>
+    <ObjectNumber
+      number="{logs>/systemKpis/configChangeCount}"
+      emphasized="true"
+      class="kpiNumber"/>
+  </VBox>
 
-                <headerToolbar>
-                  <Toolbar id="tbSystemHeader">
-                    <Title text="System / Technical Events" level="H2"/>
-                    <ToolbarSpacer/>
-                    <Text id="txtSystemCount" text="{= (${logs>/system}.length || 0) + ' items'}"/>
-                  </Toolbar>
-                </headerToolbar>
+  <VBox class="kpiCard kpiGreen" alignItems="Center" justifyContent="Center">
+    <core:Icon src="sap-icon://technical-object" size="1.5rem" class="kpiIcon"/>
+    <Title text="Primary Technical Actor" level="H6" class="kpiTitle"/>
+    <Text
+      text="{logs>/systemKpis/topTechnicalActor}"
+      wrapping="true"
+      textAlign="Center"
+      class="kpiText"/>
+    <ObjectStatus
+      text="{= 'Occurrences: ' + ${logs>/systemKpis/topTechnicalActorCount} }"
+      state="Success"
+      class="sapUiTinyMarginTop"/>
+  </VBox>
 
-                <columns>
-                  <Column width="12rem"><Text text="Time"/></Column>
-                  <Column width="12rem"><Text text="Type"/></Column>
-                  <Column width="10rem"><Text text="Action"/></Column>
-                  <Column width="24rem"><Text text="Details"/></Column>
-                  <Column width="16rem"><Text text="Actor"/></Column>
-                  <Column width="16rem"><Text text="Target"/></Column>
-                </columns>
+</HBox>
 
-                <items>
-                  <ColumnListItem>
-                    <cells>
-                      <Text text="{logs>time}"/>
-                      <Text text="{logs>objectType}"/>
-                      <ObjectStatus
-                        text="{logs>action}"
-                        state="{= ${logs>action}==='CREATE' ? 'Success' :
-                                 ${logs>action}==='UPDATE' ? 'Warning' :
-                                 ${logs>action}==='DELETE' ? 'Error' : 'None'}"/>
-                      <Text text="{logs>details}" wrapping="true" maxLines="3"/>
-                      <Text text="{logs>actor}" wrapping="true"/>
-                      <Text text="{logs>target}" wrapping="true"/>
-                    </cells>
-                  </ColumnListItem>
-                </items>
+              <Panel
+                headerText="Technical Filters"
+                expandable="true"
+                expanded="true"
+                class="styledPanel sapUiMediumMarginBottom">
 
-              </Table>
+                <VBox class="sapUiMediumMargin">
+
+                  <HBox alignItems="Center" class="sapUiSmallMarginBottom">
+                    <core:Icon src="sap-icon://filter" size="1rem" class="cardIconBlue sapUiTinyMarginEnd"/>
+                    <Title text="Filter &amp; Investigation" level="H5"/>
+                  </HBox>
+
+                  <HBox
+                    id="hbSystemFilters"
+                    class="sapUiSmallMarginBottom"
+                    alignItems="Center"
+                    justifyContent="SpaceBetween"
+                    wrap="Wrap"
+                    width="100%">
+
+                    <HBox alignItems="Center" wrap="Wrap">
+                      <SegmentedButton
+                        id="sbSystemFilter"
+                        selectedKey="ALL"
+                        selectionChange=".onSystemFilterChange"
+                        class="sapUiSmallMarginEnd sapUiTinyMarginBottom">
+                        <items>
+                          <SegmentedButtonItem id="sbSystemAll" key="ALL" text="All" width="5rem"/>
+                          <SegmentedButtonItem id="sbSystemDep" key="Deployment" text="Deployments" width="9rem"/>
+                          <SegmentedButtonItem id="sbSystemOther" key="Configuration Change" text="Other" width="5rem"/>
+                        </items>
+                      </SegmentedButton>
+
+                      <Label id="lblSystemEmail" text="Search" class="sapUiSmallMarginEnd"/>
+                      <SearchField
+                        id="sfSystemEmail"
+                        width="20rem"
+                        liveChange=".onSystemEmailChange"
+                        placeholder="Filter by actor, target or details"
+                        class="sapUiTinyMarginBottom"/>
+                    </HBox>
+
+                    <HBox alignItems="Center" class="sapUiTinyMarginBottom">
+                      <core:Icon src="sap-icon://hint" size="0.9rem" class="sapUiTinyMarginEnd cardIconGreen"/>
+                      <Text text="{= (${logs>/system}.length || 0) + ' technical events loaded' }" class="subtleText"/>
+                    </HBox>
+
+                  </HBox>
+
+                </VBox>
+              </Panel>
+
+              <Panel class="styledPanel">
+                <VBox class="sapUiMediumMargin">
+
+                  <HBox alignItems="Center" class="sapUiSmallMarginBottom">
+                    <core:Icon src="sap-icon://table-view" size="1.1rem" class="cardIconGreen sapUiTinyMarginEnd"/>
+                    <Title text="System / Technical Events" level="H5"/>
+                  </HBox>
+
+                  <Text
+                    text="Detailed log of deployments, configuration changes, actors, targets, and system-generated actions."
+                    class="subtleText sapUiSmallMarginBottom"/>
+
+                  <Table id="tblSystem" growing="true" items="{ path:'logs>/system' }" class="niceTable">
+
+                    <headerToolbar>
+                      <Toolbar id="tbSystemHeader">
+                        <Title text="Technical Event Inventory" level="H2"/>
+                        <ToolbarSpacer/>
+                        <ObjectStatus
+                          text="{= (${logs>/system}.length || 0) + ' items'}"
+                          state="Information"/>
+                      </Toolbar>
+                    </headerToolbar>
+
+                    <columns>
+                      <Column width="12rem"><Text text="Time"/></Column>
+                      <Column width="14rem"><Text text="Type"/></Column>
+                      <Column width="10rem"><Text text="Action"/></Column>
+                      <Column width="26rem"><Text text="Details"/></Column>
+                      <Column width="18rem"><Text text="Actor"/></Column>
+                      <Column width="18rem"><Text text="Target"/></Column>
+                    </columns>
+
+                    <items>
+                      <ColumnListItem class="tableRowHover">
+                        <cells>
+                          <Text text="{logs>time}"/>
+                          <ObjectStatus
+                            text="{logs>objectType}"
+                            state="Information"/>
+                          <ObjectStatus
+                            text="{logs>action}"
+                            state="{= ${logs>action}==='CREATE' ? 'Success' :
+                                     ${logs>action}==='UPDATE' ? 'Warning' :
+                                     ${logs>action}==='DELETE' ? 'Error' : 'None'}"/>
+                          <Text text="{logs>details}" wrapping="true" maxLines="3"/>
+                          <Text text="{logs>actor}" wrapping="true"/>
+                          <Text text="{logs>target}" wrapping="true"/>
+                        </cells>
+                      </ColumnListItem>
+                    </items>
+
+                  </Table>
+
+                </VBox>
+              </Panel>
 
             </VBox>
           </IconTabFilter>

@@ -1,51 +1,191 @@
 <mvc:View
   controllerName="pwc.monitoring.monitoringui.controller.kmeans"
   xmlns:mvc="sap.ui.core.mvc"
-  xmlns="sap.m">
+  xmlns="sap.m"
+  xmlns:core="sap.ui.core">
 
   <Page title="SAP Basis Intelligence">
+
     <content>
-      <VBox class="sapUiSmallMargin">
+      <VBox class="sapUiContentPadding aiSearchPage" width="100%">
 
-        <Input
-  id="tcodeInput"
-  placeholder="Enter T-Code or keyword"
-  submit="onSearch" />
+        <VBox class="searchHeroSection sapUiMediumMarginBottom" alignItems="Center" width="100%">
+          <core:Icon
+            src="sap-icon://ai"
+            size="2.5rem"
+            class="heroAiIcon sapUiSmallMarginBottom"/>
 
-        <Button
-          text="Search"
-          press="onSearch"
-          class="sapUiTinyMarginTop sapUiTinyMarginBottom" />
+          <Title
+            text="SAP Basis Intelligence Search"
+            level="H2"
+            class="sapUiSmallMarginBottom"/>
 
-        <Table
-          id="resultTable"
-          items="{recModel>/}">
+          <Text
+            text="Find related T-Codes, programs, descriptions, clusters, and similarity-based recommendations."
+            class="heroSubtitle sapUiSmallMarginBottom"/>
 
-          <columns>
-            <Column><Text text="Rank" /></Column>
-            <Column><Text text="Code" /></Column>
-            <Column><Text text="Program" /></Column>
-            <Column><Text text="Description" /></Column>
-            <Column><Text text="Cluster" /></Column>
-            <Column><Text text="Similarity" /></Column>
-          </columns>
+          <HBox
+            width="100%"
+            justifyContent="Center"
+            alignItems="Center"
+            class="sapUiMediumMarginTop"
+            wrap="Wrap">
 
-          <items>
-            <ColumnListItem>
-              <cells>
-                <Text text="{recModel>rank}" />
-                <Text text="{recModel>tcode}" />
-                <Text text="{recModel>program}" />
-                <Text text="{recModel>desc}" />
-                <Text text="{recModel>cluster}" />
-                <Text text="{recModel>similarity}" />
-              </cells>
-            </ColumnListItem>
-          </items>
+            <SearchField
+              id="tcodeInput"
+              width="32rem"
+              placeholder="Search by T-Code or keyword..."
+              search=".onSearch"
+              class="sapUiTinyMarginEnd sapUiTinyMarginBottom"/>
 
-        </Table>
+            <Button
+              text="Search"
+              icon="sap-icon://search"
+              type="Emphasized"
+              press=".onSearch"
+              class="sapUiTinyMarginEnd sapUiTinyMarginBottom"/>
+
+            <Button
+              text="Favorites"
+              icon="sap-icon://list"
+              type="Transparent"
+              press=".onToggleFavoritesPanel"
+              class="sapUiTinyMarginBottom"/>
+          </HBox>
+        </VBox>
+
+        <!-- Favorites Panel -->
+        <Panel
+          expandable="true"
+          expanded="{favModel>/showFavorites}"
+          visible="{= ${favModel>/favorites}.length > 0 }"
+          headerText="My Favorites"
+          class="styledPanel sapUiMediumMarginBottom">
+
+          <VBox class="sapUiMediumMargin">
+            <List items="{favModel>/favorites}">
+              <CustomListItem>
+                <HBox justifyContent="SpaceBetween" alignItems="Center" width="100%">
+                  <VBox width="70%">
+                    <HBox alignItems="Center">
+                      <Text text="♥" class="favoriteHeart favoriteHeartActive sapUiTinyMarginEnd"/>
+                      <Title text="{favModel>tcode}" level="H6"/>
+                    </HBox>
+                    <Text text="{favModel>desc}" wrapping="true"/>
+                  </VBox>
+
+                  <HBox alignItems="Center">
+                    <Button
+                      icon="sap-icon://copy"
+                      type="Transparent"
+                      tooltip="Copy T-Code"
+                      press=".onCopyFavoriteTcode"
+                      class="sapUiTinyMarginEnd"/>
+
+                    <ObjectStatus
+                      text="{favModel>cluster}"
+                      state="Information"
+                      class="sapUiTinyMarginEnd"/>
+
+                    <Button
+                      text="×"
+                      type="Transparent"
+                      tooltip="Remove from favorites"
+                      press=".onRemoveFavorite"
+                      class="favoriteRemoveBtn"/>
+                  </HBox>
+                </HBox>
+              </CustomListItem>
+            </List>
+          </VBox>
+        </Panel>
+
+        <!-- Results -->
+        <Panel
+          headerText="Recommendation Results"
+          class="styledPanel sapUiMediumMarginBottom">
+
+          <VBox class="sapUiMediumMargin">
+
+            <HBox alignItems="Center" class="sapUiSmallMarginBottom">
+              <core:Icon
+                src="sap-icon://search"
+                size="1.1rem"
+                class="cardIconBlue sapUiTinyMarginEnd"/>
+              <Title text="AI Recommendations" level="H5"/>
+            </HBox>
+
+            <Text
+              text="Explore ranked matches returned by the recommendation engine."
+              class="subtleText sapUiSmallMarginBottom"/>
+
+            <Table
+              id="resultTable"
+              items="{recModel>/}"
+              growing="true"
+              growingThreshold="15"
+              class="niceTable">
+
+              <columns>
+                <Column width="6rem">
+                  <Text text="Rank"/>
+                </Column>
+                <Column width="10rem">
+                  <Text text="Code"/>
+                </Column>
+                <Column width="5rem" hAlign="Center">
+                  <Text text="Copy"/>
+                </Column>
+                <Column width="5rem" hAlign="Center">
+                  <Text text="Fav"/>
+                </Column>
+                <Column width="12rem">
+                  <Text text="Program"/>
+                </Column>
+                <Column width="24rem">
+                  <Text text="Description"/>
+                </Column>
+                <Column width="8rem">
+                  <Text text="Cluster"/>
+                </Column>
+                <Column width="10rem" hAlign="End">
+                  <Text text="Similarity"/>
+                </Column>
+              </columns>
+
+              <items>
+                <ColumnListItem class="tableRowHover">
+                  <cells>
+                    <ObjectNumber number="{recModel>rank}"/>
+                    <ObjectIdentifier title="{recModel>tcode}"/>
+
+                    <Button
+                      icon="sap-icon://copy"
+                      type="Transparent"
+                      tooltip="Copy T-Code"
+                      press=".onCopyTcode"/>
+
+                    <Button
+                      text="{= ${recModel>isFavorite} ? '♥' : '♡' }"
+                      type="Transparent"
+                      tooltip="Toggle favorite"
+                      press=".onToggleFavorite"
+                      class="{= ${recModel>isFavorite} ? 'favoriteHeartBtn favoriteHeartActive' : 'favoriteHeartBtn favoriteHeartInactive' }"/>
+
+                    <Text text="{recModel>program}" wrapping="true"/>
+                    <Text text="{recModel>desc}" wrapping="true"/>
+                    <ObjectStatus text="{recModel>cluster}" state="Information"/>
+                    <ObjectNumber number="{recModel>similarity}"/>
+                  </cells>
+                </ColumnListItem>
+              </items>
+
+            </Table>
+          </VBox>
+        </Panel>
 
       </VBox>
     </content>
+
   </Page>
 </mvc:View>

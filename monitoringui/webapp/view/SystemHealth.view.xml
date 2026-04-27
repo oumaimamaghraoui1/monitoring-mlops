@@ -4,206 +4,269 @@
   xmlns="sap.m"
   xmlns:f="sap.f"
   xmlns:l="sap.ui.layout"
+  xmlns:core="sap.ui.core"
   xmlns:viz="sap.viz.ui5.controls"
   displayBlock="true">
 
-<Page title="Backend Health and Root Cause Analysis Dashboard">
-<headerContent>
-  <Button text="Refresh" press=".onRefresh"/>
-  <Button text="Security Events" press=".onGoSecurity"/>
-  <!--<Button text="Data Changes" press=".onGoDataChanges"/>-->
-  <Button text="AI Risk Monitor" press=".goRisk"/>
-</headerContent>
+  <Page title="Backend Health and Root Cause Analysis Dashboard">
+
+    <headerContent>
+      <Button text="Refresh" icon="sap-icon://refresh" type="Emphasized" press=".onRefresh"/>
+      <Button text="Security Events" icon="sap-icon://shield" press=".onGoSecurity"/>
+      <!--<Button text="Data Changes" press=".onGoDataChanges"/>-->
+      <Button text="AI Risk Monitor" icon="sap-icon://ai" press=".goRisk"/>
+      <Button
+    text="AI Recommendation"
+    icon="sap-icon://lightbulb"
+    type="Accept"
+    press=".goKmeans"/>
+    </headerContent>
+
     <content>
+      <VBox class="sapUiContentPadding">
 
-      <l:Grid width="100%" class="sapUiLargeMargin">
+        <!-- Top banner -->
+        <MessageStrip
+          text="Real-time backend health indicators, runtime load, and root-cause signals."
+          type="Information"
+          showIcon="true"
+          class="sapUiSmallMarginBottom"/>
 
-        <!-- ============================= -->
-        <!-- CPU CARD (HALF ROW) -->
-        <!-- ============================= -->
-        <f:Card>
-          <f:layoutData>
-            <l:GridData span="L6 M12 S12"/>
-          </f:layoutData>
+        <l:Grid width="100%" defaultSpan="L12 M12 S12" class="sapUiResponsiveMargin">
 
-          <f:content>
-            <VBox class="sapUiSmallMargin">
-              <Title text="CPU Usage" level="H4"/>
-              <ObjectStatus
-                text="{metrics>/cpuText}"
-                state="{metrics>/cpuState}"/>
-              <Text
-                text="Measures backend processing load."
-                class="sapUiTinyMarginTop"/>
+          <!-- ============================= -->
+          <!-- CPU CARD -->
+          <!-- ============================= -->
+          <f:Card class="healthCard cpuCard">
+            <f:layoutData>
+              <l:GridData span="L6 M12 S12"/>
+            </f:layoutData>
 
-              <viz:VizFrame
-                id="cpuChart"
-                vizType="line"
-                uiConfig="{applicationSet:'fiori'}"
-                width="100%"
-                height="180px"/>
-            </VBox>
-          </f:content>
-        </f:Card>
+            <f:content>
+              <VBox class="sapUiMediumMargin">
+                <HBox alignItems="Center" class="sapUiSmallMarginBottom">
+                  <core:Icon src="sap-icon://process" size="1.2rem" class="cardIconBlue sapUiTinyMarginEnd"/>
+                  <Title text="CPU Usage" level="H4"/>
+                </HBox>
 
-        <!-- ============================= -->
-        <!-- MEMORY CARD (HALF ROW) -->
-        <!-- ============================= -->
-        <f:Card>
-          <f:layoutData>
-            <l:GridData span="L6 M12 S12"/>
-          </f:layoutData>
+                <ObjectStatus
+                  text="{metrics>/cpuText}"
+                  state="{metrics>/cpuState}"
+                  class="sapUiTinyMarginBottom"/>
 
-          <f:content>
-            <VBox class="sapUiSmallMargin">
-              <Title text="Memory (RSS)" level="H4"/>
-              <ObjectStatus
-                text="{metrics>/memText}"
-                state="Information"/>
-              <Text
-                text="Total RAM used by Node.js."
-                class="sapUiTinyMarginTop"/>
+                <Text
+                  text="Measures backend processing load."
+                  class="sapUiTinyMarginBottom subtleText"/>
 
-              <viz:VizFrame
-                id="memChart"
-                vizType="line"
-                uiConfig="{applicationSet:'fiori'}"
-                width="100%"
-                height="180px"/>
-            </VBox>
-          </f:content>
-        </f:Card>
+                <viz:VizFrame
+                  id="cpuChart"
+                  vizType="line"
+                  uiConfig="{applicationSet:'fiori'}"
+                  width="100%"
+                  height="180px"/>
+              </VBox>
+            </f:content>
+          </f:Card>
 
-        <!-- ============================= -->
-        <!-- HEALTH -->
-        <!-- ============================= -->
-        <f:Card>
-          <f:layoutData>
-            <l:GridData span="L3 M6 S12"/>
-          </f:layoutData>
+          <!-- ============================= -->
+          <!-- MEMORY CARD -->
+          <!-- ============================= -->
+          <f:Card class="healthCard memCard">
+            <f:layoutData>
+              <l:GridData span="L6 M12 S12"/>
+            </f:layoutData>
 
-          <f:content>
-            <VBox class="sapUiSmallMargin">
-              <Title text="Health Score" level="H4"/>
-              <ObjectStatus
-                text="{metrics>/healthText}"
-                state="{metrics>/healthState}"/>
-              <Text
-                text="Overall runtime stability."
-                class="sapUiTinyMarginTop"/>
-            </VBox>
-          </f:content>
-        </f:Card>
+            <f:content>
+              <VBox class="sapUiMediumMargin">
+                <HBox alignItems="Center" class="sapUiSmallMarginBottom">
+                  <core:Icon src="sap-icon://database" size="1.2rem" class="cardIconPurple sapUiTinyMarginEnd"/>
+                  <Title text="Memory (RSS)" level="H4"/>
+                </HBox>
 
-        <!-- ============================= -->
-        <!-- RESPONSE TIME -->
-        <!-- ============================= -->
-        <f:Card>
-          <f:layoutData>
-            <l:GridData span="L3 M6 S12"/>
-          </f:layoutData>
+                <ObjectStatus
+                  text="{metrics>/memText}"
+                  state="Information"
+                  class="sapUiTinyMarginBottom"/>
 
-          <f:content>
-            <VBox class="sapUiSmallMargin">
-              <Title text="Response Time" level="H4"/>
-              <ObjectStatus
-                text="{metrics>/respText}"
-                state="{metrics>/respState}"/>
-              <Text
-                text="Backend execution latency."
-                class="sapUiTinyMarginTop"/>
-            </VBox>
-          </f:content>
-        </f:Card>
+                <Text
+                  text="Total RAM used by Node.js."
+                  class="sapUiTinyMarginBottom subtleText"/>
 
-        <!-- ============================= -->
-        <!-- EVENT LOOP -->
-        <!-- ============================= -->
-        <f:Card>
-          <f:layoutData>
-            <l:GridData span="L3 M6 S12"/>
-          </f:layoutData>
+                <viz:VizFrame
+                  id="memChart"
+                  vizType="line"
+                  uiConfig="{applicationSet:'fiori'}"
+                  width="100%"
+                  height="180px"/>
+              </VBox>
+            </f:content>
+          </f:Card>
 
-          <f:content>
-            <VBox class="sapUiSmallMargin">
-              <Title text="Event Loop Lag" level="H4"/>
-              <ObjectStatus
-                text="{= ${metrics>/elLagMs} + ' ms'}"
-                state="{metrics>/lagState}"/>
-              <Text
-                text="Node.js overload delay."
-                class="sapUiTinyMarginTop"/>
-            </VBox>
-          </f:content>
-        </f:Card>
+          <!-- ============================= -->
+          <!-- HEALTH SCORE -->
+          <!-- ============================= -->
+          <f:Card class="healthCard greenAccentCard">
+            <f:layoutData>
+              <l:GridData span="L3 M6 S12"/>
+            </f:layoutData>
 
-        <!-- ============================= -->
-        <!-- GC -->
-        <!-- ============================= -->
-        <f:Card>
-          <f:layoutData>
-            <l:GridData span="L3 M6 S12"/>
-          </f:layoutData>
+            <f:content>
+              <VBox class="sapUiMediumMargin">
+                <HBox alignItems="Center" class="sapUiSmallMarginBottom">
+                  <core:Icon src="sap-icon://sys-enter-2" size="1.2rem" class="cardIconGreen sapUiTinyMarginEnd"/>
+                  <Title text="Health Score" level="H4"/>
+                </HBox>
 
-          <f:content>
-            <VBox class="sapUiSmallMargin">
-              <Title text="GC Duration" level="H4"/>
-              <ObjectStatus
-                text="{metrics>/gcText}"
-                state="{metrics>/gcState}"/>
-              <Text
-                text="Garbage collector runtime."
-                class="sapUiTinyMarginTop"/>
-            </VBox>
-          </f:content>
-        </f:Card>
+                <ObjectStatus
+                  text="{metrics>/healthText}"
+                  state="{metrics>/healthState}"
+                  class="kpiStatus"/>
 
-        <!-- ============================= -->
-        <!-- HEAP -->
-        <!-- ============================= -->
-        <f:Card>
-          <f:layoutData>
-            <l:GridData span="L3 M6 S12"/>
-          </f:layoutData>
+                <Text
+                  text="Overall runtime stability."
+                  class="sapUiTinyMarginTop subtleText"/>
+              </VBox>
+            </f:content>
+          </f:Card>
 
-          <f:content>
-            <VBox class="sapUiSmallMargin">
-              <Title text="Heap Growth Rate" level="H4"/>
-              <ObjectStatus
-                text="{metrics>/heapText}"
-                state="{metrics>/heapState}"/>
-              <Text
-                text="Memory growth trend."
-                class="sapUiTinyMarginTop"/>
-            </VBox>
-          </f:content>
-        </f:Card>
+          <!-- ============================= -->
+          <!-- RESPONSE TIME -->
+          <!-- ============================= -->
+          <f:Card class="healthCard blueAccentCard">
+            <f:layoutData>
+              <l:GridData span="L3 M6 S12"/>
+            </f:layoutData>
 
-        <!-- ============================= -->
-        <!-- UPTIME -->
-        <!-- ============================= -->
-        <f:Card>
-          <f:layoutData>
-            <l:GridData span="L3 M6 S12"/>
-          </f:layoutData>
+            <f:content>
+              <VBox class="sapUiMediumMargin">
+                <HBox alignItems="Center" class="sapUiSmallMarginBottom">
+                  <core:Icon src="sap-icon://history" size="1.2rem" class="cardIconBlue sapUiTinyMarginEnd"/>
+                  <Title text="Response Time" level="H4"/>
+                </HBox>
 
-          <f:content>
-            <VBox class="sapUiSmallMargin">
-              <Title text="Uptime" level="H4"/>
-              <ObjectStatus
-                text="{metrics>/uptimeText}"
-                state="Success"/>
-              <Text
-                text="Backend running time."
-                class="sapUiTinyMarginTop"/>
-            </VBox>
-          </f:content>
-        </f:Card>
+                <ObjectStatus
+                  text="{metrics>/respText}"
+                  state="{metrics>/respState}"
+                  class="kpiStatus"/>
 
-      </l:Grid>
+                <Text
+                  text="Backend execution latency."
+                  class="sapUiTinyMarginTop subtleText"/>
+              </VBox>
+            </f:content>
+          </f:Card>
 
+          <!-- ============================= -->
+          <!-- EVENT LOOP -->
+          <!-- ============================= -->
+          <f:Card class="healthCard orangeAccentCard">
+            <f:layoutData>
+              <l:GridData span="L3 M6 S12"/>
+            </f:layoutData>
+
+            <f:content>
+              <VBox class="sapUiMediumMargin">
+                <HBox alignItems="Center" class="sapUiSmallMarginBottom">
+                  <core:Icon src="sap-icon://synchronize" size="1.2rem" class="cardIconOrange sapUiTinyMarginEnd"/>
+                  <Title text="Event Loop Lag" level="H4"/>
+                </HBox>
+
+                <ObjectStatus
+                  text="{= ${metrics>/elLagMs} + ' ms'}"
+                  state="{metrics>/lagState}"
+                  class="kpiStatus"/>
+
+                <Text
+                  text="Node.js overload delay."
+                  class="sapUiTinyMarginTop subtleText"/>
+              </VBox>
+            </f:content>
+          </f:Card>
+
+          <!-- ============================= -->
+          <!-- GC -->
+          <!-- ============================= -->
+          <f:Card class="healthCard redAccentCard">
+            <f:layoutData>
+              <l:GridData span="L3 M6 S12"/>
+            </f:layoutData>
+
+            <f:content>
+              <VBox class="sapUiMediumMargin">
+                <HBox alignItems="Center" class="sapUiSmallMarginBottom">
+                  <core:Icon src="sap-icon://delete" size="1.2rem" class="cardIconRed sapUiTinyMarginEnd"/>
+                  <Title text="GC Duration" level="H4"/>
+                </HBox>
+
+                <ObjectStatus
+                  text="{metrics>/gcText}"
+                  state="{metrics>/gcState}"
+                  class="kpiStatus"/>
+
+                <Text
+                  text="Garbage collector runtime."
+                  class="sapUiTinyMarginTop subtleText"/>
+              </VBox>
+            </f:content>
+          </f:Card>
+
+          <!-- ============================= -->
+          <!-- HEAP -->
+          <!-- ============================= -->
+          <f:Card class="healthCard purpleAccentCard">
+            <f:layoutData>
+              <l:GridData span="L3 M6 S12"/>
+            </f:layoutData>
+
+            <f:content>
+              <VBox class="sapUiMediumMargin">
+                <HBox alignItems="Center" class="sapUiSmallMarginBottom">
+                  <core:Icon src="sap-icon://trend-up" size="1.2rem" class="cardIconPurple sapUiTinyMarginEnd"/>
+                  <Title text="Heap Growth Rate" level="H4"/>
+                </HBox>
+
+                <ObjectStatus
+                  text="{metrics>/heapText}"
+                  state="{metrics>/heapState}"
+                  class="kpiStatus"/>
+
+                <Text
+                  text="Memory growth trend."
+                  class="sapUiTinyMarginTop subtleText"/>
+              </VBox>
+            </f:content>
+          </f:Card>
+
+          <!-- ============================= -->
+          <!-- UPTIME -->
+          <!-- ============================= -->
+          <f:Card class="healthCard greenAccentCard">
+            <f:layoutData>
+              <l:GridData span="L3 M6 S12"/>
+            </f:layoutData>
+
+            <f:content>
+              <VBox class="sapUiMediumMargin">
+                <HBox alignItems="Center" class="sapUiSmallMarginBottom">
+                  <core:Icon src="sap-icon://time-entry-request" size="1.2rem" class="cardIconGreen sapUiTinyMarginEnd"/>
+                  <Title text="Uptime" level="H4"/>
+                </HBox>
+
+                <ObjectStatus
+                  text="{metrics>/uptimeText}"
+                  state="Success"
+                  class="kpiStatus"/>
+
+                <Text
+                  text="Backend running time."
+                  class="sapUiTinyMarginTop subtleText"/>
+              </VBox>
+            </f:content>
+          </f:Card>
+
+        </l:Grid>
+      </VBox>
     </content>
 
   </Page>
-
 </mvc:View>

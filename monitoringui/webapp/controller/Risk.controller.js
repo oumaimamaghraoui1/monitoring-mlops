@@ -280,7 +280,9 @@ this.getOwnerComponent()
 .getRouter()
 .navTo("security");
 },
-
+goKmeans: function () {
+      this.getOwnerComponent().getRouter().navTo("kmeans", {}, false);
+    },
 onGoDataChanges() {
 this.getOwnerComponent()
 .getRouter()

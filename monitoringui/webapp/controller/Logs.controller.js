@@ -79,24 +79,20 @@ sap.ui.define([
 
     var s = String(value).trim();
 
-    // 1) if email exists anywhere, show only the email
     var email = firstEmail(s);
     if (email) {
       return email;
     }
 
-    // 2) user/sap.default/foo@bar.com -> foo@bar.com
     if (s.indexOf("user/") === 0) {
       return s.split("/").pop();
     }
 
-    // 3) sb-xxx|portal-cf-service!b3664 -> portal-cf-service
     if (s.indexOf("|") > -1) {
       var afterPipe = s.split("|")[1] || s;
       return afterPipe.split("!")[0] || afterPipe;
     }
 
-    // 4) sb-das-application!b188376 -> das-application
     if (s.indexOf("sb-") === 0 && s.indexOf("!") > -1) {
       return s.replace("sb-", "").split("!")[0];
     }
@@ -161,7 +157,6 @@ sap.ui.define([
     var attrs = parsed && parsed.attributes ? parsed.attributes : [];
     var i;
 
-    // 1) best source: object.id.crudType
     crud = parsed &&
       parsed.object &&
       parsed.object.id &&
@@ -171,7 +166,6 @@ sap.ui.define([
       return normalizeCrud(crud, row && row.action);
     }
 
-    // 2) operationType
     crud = parsed &&
       parsed.object &&
       parsed.object.id &&
@@ -181,7 +175,6 @@ sap.ui.define([
       return normalizeCrud(crud, row && row.action);
     }
 
-    // 3) operation in attributes
     for (i = 0; i < attrs.length; i++) {
       if (attrs[i] && attrs[i].name === "operation") {
         crud = attrs[i].new || attrs[i].old;
@@ -191,7 +184,6 @@ sap.ui.define([
       }
     }
 
-    // 4) generic fallback
     crud = parsed && parsed.crudType;
     if (crud) {
       return normalizeCrud(crud, row && row.action);
@@ -285,7 +277,6 @@ sap.ui.define([
       return "";
     }
 
-    // strict source: rolecollection_name only
     try {
       var parsed = JSON.parse((row.raw && row.raw.message) || "{}");
       var role = parsed &&
@@ -300,7 +291,6 @@ sap.ui.define([
       // ignore
     }
 
-    // safe fallback only if row is already Role Assignment with explicit Assigned role:
     if (row.details && String(row.details).indexOf("Assigned role: ") === 0) {
       return String(row.details).replace("Assigned role: ", "").trim();
     }
@@ -345,7 +335,6 @@ sap.ui.define([
   function buildGenericDetails(parsed, currentDetails) {
     var d = String(currentDetails || "").trim();
 
-    // do not preserve polluted legacy strings
     if (
       d &&
       d.indexOf("Assigned role: ") !== 0 &&
@@ -401,7 +390,6 @@ sap.ui.define([
 
     var human = isHumanEvent(row);
 
-    // 1) SCIM USER UPDATE MUST WIN FIRST
     if (objType === "scim user") {
       var scim = extractScimUserInfo(parsed);
 
@@ -419,25 +407,17 @@ sap.ui.define([
           : details || "User identity updated";
 
       human = true;
-    }
-
-    // 2) REAL ROLE ASSIGNMENT ONLY
-    else if (isExplicitRoleAssignment(parsed)) {
+    } else if (isExplicitRoleAssignment(parsed)) {
       objectType = "Role Assignment";
       target = cleanTargetDisplay(roleName || extractRoleName(row) || target || "Role");
       details = roleName
         ? "Assigned role: " + roleName
         : "Role assignment";
       human = true;
-    }
-
-    // 3) GENERIC CONFIG CHANGE
-    else {
+    } else {
       objectType = "Configuration Change";
       details = buildGenericDetails(parsed, details);
       target = cleanTargetDisplay(target);
-
-      // generic human only if actor is human-like
       human = isHumanActor(actorRaw);
     }
 
@@ -461,7 +441,7 @@ sap.ui.define([
   }
 
   // =========================================================
-  // KPI
+  // HUMAN KPI
   // =========================================================
 
   function computeLogKpis(rows) {
@@ -543,6 +523,65 @@ sap.ui.define([
   }
 
   // =========================================================
+  // SYSTEM KPI
+  // =========================================================
+
+  function computeSystemKpis(rows) {
+    var systemRows = rows.filter(function (r) {
+      return !isHumanEvent(r);
+    });
+
+    var deploymentCount = 0;
+    var configChangeCount = 0;
+    var actorCounts = {};
+
+    systemRows.forEach(function (r) {
+      var details = String(r.details || "").toLowerCase();
+      var rawType = String(r.objectType || "").toLowerCase();
+      var actor = cleanActorDisplay(r.actor || "Unknown");
+
+      if (
+        rawType.indexOf("deployment") > -1 ||
+        details.indexOf("deployment") > -1 ||
+        details.indexOf("undeployment") > -1 ||
+        details.indexOf("redeployment") > -1
+      ) {
+        deploymentCount += 1;
+      }
+
+      if (
+        rawType === "configuration change" ||
+        details.indexOf("configuration updated") > -1
+      ) {
+        configChangeCount += 1;
+      }
+
+      actorCounts[actor] = (actorCounts[actor] || 0) + 1;
+    });
+
+    var sortedActors = Object.keys(actorCounts)
+      .map(function (key) {
+        return { name: key, count: actorCounts[key] };
+      })
+      .sort(function (a, b) {
+        if (b.count !== a.count) {
+          return b.count - a.count;
+        }
+        return a.name.localeCompare(b.name);
+      });
+
+    var topActor = sortedActors.length ? sortedActors[0] : null;
+
+    return {
+      totalTechnicalEvents: systemRows.length,
+      deploymentCount: deploymentCount,
+      configChangeCount: configChangeCount,
+      topTechnicalActor: topActor ? topActor.name : "N/A",
+      topTechnicalActorCount: topActor ? topActor.count : 0
+    };
+  }
+
+  // =========================================================
   // CONTROLLER
   // =========================================================
 
@@ -572,6 +611,13 @@ sap.ui.define([
             DELETE: 0,
             OTHER: 0
           }
+        },
+        systemKpis: {
+          totalTechnicalEvents: 0,
+          deploymentCount: 0,
+          configChangeCount: 0,
+          topTechnicalActor: "N/A",
+          topTechnicalActorCount: 0
         }
       });
 
@@ -621,11 +667,9 @@ sap.ui.define([
           visible: true,
           text: "Top Assigned Role Collections in IAS Tenant"
         },
-
         legend: {
           visible: false
         },
-
         plotArea: {
           dataPointStyle: {
             rules: aRules,
@@ -633,32 +677,26 @@ sap.ui.define([
               color: "#DDE6ED"
             }
           },
-
           gap: {
             barSpacing: 0.05
           },
-
           dataLabel: {
             visible: true,
             position: "outsideEnd",
             formatString: "0"
           }
         },
-
         valueAxis: {
           visible: false
         },
-
         valueAxis2: {
           visible: false
         },
-
         categoryAxis: {
           title: {
             visible: false
           }
         },
-
         interaction: {
           selectability: {
             mode: "NONE"
@@ -696,6 +734,9 @@ sap.ui.define([
           var kpis = computeLogKpis(normalized);
           model.setProperty("/kpis", kpis);
 
+          var systemKpis = computeSystemKpis(normalized);
+          model.setProperty("/systemKpis", systemKpis);
+
           model.setProperty("/humanFilter", "ALL");
           model.setProperty("/systemFilter", "ALL");
 
@@ -711,7 +752,6 @@ sap.ui.define([
 
           this._applyFilters();
 
-          // apply chart styling after data is present
           this._configureTopRolesChart();
           setTimeout(function () {
             this._configureTopRolesChart();
@@ -719,6 +759,7 @@ sap.ui.define([
 
           console.log("[UI] Total rows:", normalized.length);
           console.log("[KPI] Computed KPIs:", kpis);
+          console.log("[System KPI] Computed KPIs:", systemKpis);
         }.bind(this))
         .catch(function (err) {
           console.error("[UI] Failed to load logs:", err);

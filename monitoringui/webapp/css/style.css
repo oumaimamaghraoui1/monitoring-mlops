@@ -32,3 +32,726 @@
 .sapVizFrame{
   min-height:240px !important;
 }
+.healthCard {
+  border-radius: 1rem;
+  box-shadow: 0 0.25rem 0.75rem rgba(0, 0, 0, 0.08);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  border: 1px solid #e5e7eb;
+  overflow: hidden;
+  background: #ffffff;
+}
+
+.healthCard:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.12);
+}
+
+.cpuCard {
+  border-top: 0.35rem solid #3b82f6;
+}
+
+.memCard {
+  border-top: 0.35rem solid #8b5cf6;
+}
+
+.greenAccentCard {
+  border-top: 0.35rem solid #10b981;
+}
+
+.blueAccentCard {
+  border-top: 0.35rem solid #0ea5e9;
+}
+
+.orangeAccentCard {
+  border-top: 0.35rem solid #f59e0b;
+}
+
+.redAccentCard {
+  border-top: 0.35rem solid #ef4444;
+}
+
+.purpleAccentCard {
+  border-top: 0.35rem solid #8b5cf6;
+}
+
+.cardIconBlue {
+  color: #3b82f6;
+}
+
+.cardIconPurple {
+  color: #8b5cf6;
+}
+
+.cardIconGreen {
+  color: #10b981;
+}
+
+.cardIconOrange {
+  color: #f59e0b;
+}
+
+.cardIconRed {
+  color: #ef4444;
+}
+
+.subtleText {
+  color: #6b7280;
+}
+
+.kpiCard {
+  width: 15rem;
+  min-height: 10rem;
+  margin: 0.75rem;
+  padding: 1rem;
+  border-radius: 1rem;
+  background: #ffffff;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+  border-top: 0.4rem solid transparent;
+  text-align: center;
+  justify-content: center;
+}
+
+.kpiHigh {
+  border-top-color: #dc2626;
+}
+
+.kpiMedium {
+  border-top-color: #d97706;
+}
+
+.kpiLow {
+  border-top-color: #2563eb;
+}
+
+.kpiTotal {
+  border-top-color: #059669;
+}
+
+.kpiIcon {
+  margin-bottom: 0.5rem;
+  color: #334155;
+}
+
+.kpiTitle {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #1f2937;
+  margin-bottom: 0.5rem;
+  text-align: center;
+}
+
+.kpiNumber {
+  margin-top: 0.25rem;
+}
+
+.kpiNumber .sapMObjectNumberText {
+  font-size: 2rem !important;
+  font-weight: 700;
+  line-height: 2.2rem;
+}
+
+.kpiNumber .sapMObjectNumberUnit {
+  font-size: 0.875rem;
+  color: #6b7280;
+}
+/* KPI cards */
+.kpiCard {
+  width: 15rem;
+  min-height: 10rem;
+  margin: 0.75rem;
+  padding: 1rem;
+  border-radius: 1rem;
+  background: #ffffff;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+  border-top: 0.4rem solid transparent;
+  text-align: center;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.kpiCard:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.12);
+}
+
+.kpiHigh {
+  border-top-color: #dc2626;
+}
+
+.kpiMedium {
+  border-top-color: #d97706;
+}
+
+.kpiLow {
+  border-top-color: #2563eb;
+}
+
+.kpiNormal {
+  border-top-color: #059669;
+}
+
+.kpiIcon {
+  margin-bottom: 0.5rem;
+  color: #334155;
+}
+
+.kpiTitle {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #1f2937;
+  margin-bottom: 0.5rem;
+  text-align: center;
+}
+
+.kpiNumber .sapMObjectNumberText {
+  font-size: 2rem !important;
+  font-weight: 700;
+  line-height: 2.2rem;
+}
+
+/* Panels */
+.styledPanel {
+  border-radius: 1rem !important;
+  overflow: hidden;
+  background: #ffffff;
+  box-shadow: 0 4px 18px rgba(15, 23, 42, 0.08);
+  border: 1px solid #e5e7eb;
+}
+
+.chartPanel {
+  min-width: 320px;
+  margin-bottom: 1rem;
+}
+
+.subtleText {
+  color: #6b7280;
+  font-size: 0.92rem;
+}
+
+/* Icons */
+.cardIconBlue {
+  color: #2563eb;
+}
+
+.cardIconPurple {
+  color: #7c3aed;
+}
+
+.cardIconGreen {
+  color: #059669;
+}
+
+/* Table */
+.niceTable {
+  border-radius: 0.75rem;
+  overflow: hidden;
+}
+
+.tableRowHover:hover {
+  background-color: #f8fafc;
+}
+
+
+/* ===== Main KPI cards ===== */
+.kpiCard {
+  width: 16rem;
+  min-height: 10rem;
+  margin-right: 0.75rem;
+  margin-bottom: 0.75rem;
+  padding: 1rem;
+  border-radius: 1rem;
+  background: #ffffff;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+  border-top: 0.35rem solid transparent;
+  text-align: center;
+}
+
+.kpiBlue {
+  border-top-color: #2563eb;
+}
+
+.kpiPurple {
+  border-top-color: #7c3aed;
+}
+
+.kpiOrange {
+  border-top-color: #d97706;
+}
+
+.kpiGreen {
+  border-top-color: #059669;
+}
+
+.kpiIcon {
+  color: #334155;
+  margin-bottom: 0.5rem;
+}
+
+.kpiTitle {
+  color: #1f2937;
+  font-weight: 600;
+  margin-bottom: 0.4rem;
+  text-align: center;
+}
+
+.kpiNumber .sapMObjectNumberText {
+  font-size: 2rem !important;
+  font-weight: 700;
+  line-height: 2.2rem;
+}
+
+.kpiText {
+  color: #334155;
+  font-weight: 500;
+  text-align: center;
+  max-width: 100%;
+}
+
+/* ===== CRUD mini widgets ===== */
+.miniStatCard {
+  padding: 0.6rem 1rem;
+  border-radius: 999px;
+  margin-right: 0.75rem;
+  margin-bottom: 0.5rem;
+  background: #f8fafc;
+  border: 1px solid #e5e7eb;
+}
+
+.miniStatIcon {
+  color: #475569;
+}
+
+.miniStatText {
+  font-weight: 600;
+  color: #334155;
+}
+
+.miniCreate {
+  background: #ecfdf5;
+  border-color: #a7f3d0;
+}
+
+.miniUpdate {
+  background: #fffbeb;
+  border-color: #fde68a;
+}
+
+.miniDelete {
+  background: #fef2f2;
+  border-color: #fecaca;
+}
+
+.miniOther {
+  background: #eff6ff;
+  border-color: #bfdbfe;
+}
+
+.sapMPageHeader .sapMBtn {
+  margin-left: 0.25rem;
+}
+
+.sapMPageHeader .sapMBtn .sapMBtnInner {
+  border-radius: 0.6rem;
+}
+.sapMPageHeader .sapMBtn .sapMBtnInner {
+  border-radius: 0.65rem;
+  transition: all 0.2s ease;
+}
+
+.sapMPageHeader .sapMBtn:hover .sapMBtnInner {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.10);
+}
+.aiSearchPage {
+  background: linear-gradient(180deg, #f8fafc 0%, #ffffff 100%);
+  min-height: 100%;
+}
+
+.searchHeroSection {
+  padding: 2rem 1rem 1.5rem 1rem;
+  border-radius: 1.25rem;
+  background: linear-gradient(135deg, #eff6ff 0%, #f8fafc 50%, #eef2ff 100%);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+  text-align: center;
+}
+
+.heroAiIcon {
+  color: #2563eb;
+}
+
+.heroSubtitle {
+  color: #64748b;
+  max-width: 50rem;
+  text-align: center;
+}
+
+.styledPanel {
+  border-radius: 1rem !important;
+  overflow: hidden;
+  background: #ffffff;
+  box-shadow: 0 4px 18px rgba(15, 23, 42, 0.08);
+  border: 1px solid #e5e7eb;
+}
+
+.cardIconBlue {
+  color: #2563eb;
+}
+
+.subtleText {
+  color: #6b7280;
+  font-size: 0.92rem;
+}
+
+.niceTable {
+  border-radius: 0.75rem;
+  overflow: hidden;
+}
+
+.tableRowHover:hover {
+  background-color: #f8fafc;
+}
+.appTopBar {
+  background: #ffffff;
+  border-bottom: 1px solid #e5e7eb;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+}
+
+/* =========================
+   GLOBAL PAGE ENHANCEMENTS
+   ========================= */
+.sapMPage {
+  background: #f8fafc;
+}
+
+.sapMPageHeader::before {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.largeTabSpacing .sapMITBFilter {
+  padding-left: 1rem;
+  padding-right: 1rem;
+}
+
+/* =========================
+   KPI CARDS
+   ========================= */
+.kpiCard {
+  width: 16rem;
+  min-height: 10rem;
+  margin-right: 0.75rem;
+  margin-bottom: 0.75rem;
+  padding: 1rem;
+  border-radius: 1rem;
+  background: #ffffff;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+  border-top: 0.35rem solid transparent;
+  text-align: center;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.kpiCard:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 20px rgba(15, 23, 42, 0.12);
+}
+
+.kpiBlue {
+  border-top-color: #2563eb;
+}
+
+.kpiPurple {
+  border-top-color: #7c3aed;
+}
+
+.kpiOrange {
+  border-top-color: #d97706;
+}
+
+.kpiGreen {
+  border-top-color: #059669;
+}
+
+.kpiIcon {
+  color: #334155;
+  margin-bottom: 0.5rem;
+}
+
+.kpiTitle {
+  color: #1f2937;
+  font-weight: 600;
+  margin-bottom: 0.4rem;
+  text-align: center;
+}
+
+.kpiNumber {
+  margin-top: 0.25rem;
+}
+
+.kpiNumber .sapMObjectNumberText {
+  font-size: 2rem !important;
+  font-weight: 700;
+  line-height: 2.2rem;
+  color: #0f172a;
+}
+
+.kpiText {
+  color: #334155;
+  font-weight: 500;
+  text-align: center;
+  max-width: 100%;
+}
+
+/* =========================
+   MINI STAT WIDGETS
+   ========================= */
+.miniStatCard {
+  padding: 0.6rem 1rem;
+  border-radius: 999px;
+  margin-right: 0.75rem;
+  margin-bottom: 0.5rem;
+  background: #f8fafc;
+  border: 1px solid #e5e7eb;
+  transition: all 0.2s ease;
+}
+
+.miniStatCard:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px rgba(15, 23, 42, 0.08);
+}
+
+.miniStatIcon {
+  color: #475569;
+}
+
+.miniStatText {
+  font-weight: 600;
+  color: #334155;
+}
+
+.miniCreate {
+  background: #ecfdf5;
+  border-color: #a7f3d0;
+}
+
+.miniUpdate {
+  background: #fffbeb;
+  border-color: #fde68a;
+}
+
+.miniDelete {
+  background: #fef2f2;
+  border-color: #fecaca;
+}
+
+.miniOther {
+  background: #eff6ff;
+  border-color: #bfdbfe;
+}
+
+/* =========================
+   PANELS / CARDS
+   ========================= */
+.styledPanel {
+  border-radius: 1rem !important;
+  overflow: hidden;
+  background: #ffffff;
+  box-shadow: 0 4px 18px rgba(15, 23, 42, 0.08);
+  border: 1px solid #e5e7eb;
+}
+
+.styledPanel .sapMPanelHdr {
+  font-weight: 600;
+  color: #0f172a;
+  background: #ffffff;
+}
+
+.styledPanel .sapMPanelContent {
+  background: #ffffff;
+}
+
+/* =========================
+   SUBTLE TEXT
+   ========================= */
+.subtleText {
+  color: #6b7280;
+  font-size: 0.92rem;
+  line-height: 1.4;
+}
+
+/* =========================
+   ICON COLORS
+   ========================= */
+.cardIconBlue {
+  color: #2563eb;
+}
+
+.cardIconGreen {
+  color: #059669;
+}
+
+.cardIconPurple {
+  color: #7c3aed;
+}
+
+.cardIconOrange {
+  color: #d97706;
+}
+
+/* =========================
+   TABLE STYLING
+   ========================= */
+.niceTable {
+  border-radius: 0.75rem;
+  overflow: hidden;
+  background: #ffffff;
+}
+
+.niceTable .sapMListTblHeaderCell {
+  background: #f8fafc;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.niceTable .sapMColumnHeader .sapMText,
+.niceTable .sapMListTblHeaderCell .sapMText {
+  font-weight: 600;
+  color: #334155;
+}
+
+.tableRowHover:hover {
+  background-color: #f8fafc;
+}
+
+.sapMListTblRow {
+  transition: background-color 0.2s ease;
+}
+
+.sapMListTblRow:nth-child(even) {
+  background-color: #fcfcfd;
+}
+
+/* =========================
+   TOOLBAR IMPROVEMENTS
+   ========================= */
+.sapMTB {
+  background: transparent;
+}
+
+.sapMTB .sapMTitle {
+  color: #0f172a;
+}
+
+/* =========================
+   HEADER BUTTONS
+   ========================= */
+.sapMPageHeader .sapMBtn {
+  margin-left: 0.25rem;
+}
+
+.sapMPageHeader .sapMBtn .sapMBtnInner {
+  border-radius: 0.65rem;
+  transition: all 0.2s ease;
+}
+
+.sapMPageHeader .sapMBtn:hover .sapMBtnInner {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.10);
+}
+
+/* =========================
+   SEARCH / FILTER AREA
+   ========================= */
+.sapMSF {
+  border-radius: 0.65rem;
+}
+
+.sapMSegB {
+  border-radius: 0.65rem;
+}
+
+/* =========================
+   MESSAGE STRIP
+   ========================= */
+.sapMMsgStrip {
+  border-radius: 0.75rem;
+}
+
+/* =========================
+   OBJECT STATUS / LABELS
+   ========================= */
+.sapMObjStatus {
+  font-weight: 500;
+}
+
+.sapMLabel {
+  color: #334155;
+  font-weight: 500;
+}
+
+/* =========================
+   TAB BAR CLEANUP
+   ========================= */
+.sapMITBContent {
+  background: transparent;
+}
+
+.sapMITBHead {
+  background: #ffffff;
+  border-radius: 1rem;
+  padding-top: 0.5rem;
+  box-shadow: 0 2px 10px rgba(15, 23, 42, 0.05);
+}
+
+/* =========================
+   RESPONSIVE TWEAKS
+   ========================= */
+@media (max-width: 900px) {
+  .kpiCard {
+    width: 100%;
+    margin-right: 0;
+  }
+
+  .miniStatCard {
+    width: auto;
+  }
+}
+.copyBtnCompact .sapMBtnInner {
+  border-radius: 0.5rem;
+}
+.favoriteHeartBtn .sapMBtnInner {
+  border: none !important;
+  background: transparent !important;
+  min-width: 2rem;
+  padding: 0;
+}
+
+.favoriteHeartBtn .sapMBtnContent {
+  font-size: 1.4rem !important;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.favoriteHeartActive .sapMBtnContent {
+  color: #ec4899 !important;
+  text-shadow: 0 0 6px rgba(236, 72, 153, 0.20);
+}
+
+.favoriteHeartInactive .sapMBtnContent {
+  color: #94a3b8 !important;
+}
+
+.favoriteHeartBtn:hover .sapMBtnContent {
+  transform: scale(1.08);
+  transition: all 0.15s ease;
+}
+
+.favoriteHeart {
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.favoriteRemoveBtn .sapMBtnInner {
+  border: none !important;
+  background: transparent !important;
+}
+
+.favoriteRemoveBtn .sapMBtnContent {
+  font-size: 1.2rem;
+  color: #64748b;
+}

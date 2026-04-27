@@ -365,7 +365,9 @@ onUserPieSelect(oEvent){
     onGoLogs() {
       this.getOwnerComponent().getRouter().navTo("logs", {}, false);
     },
-
+goKmeans: function () {
+      this.getOwnerComponent().getRouter().navTo("kmeans", {}, false);
+    },
     // ============================================
     // Filter handlers
     // ============================================

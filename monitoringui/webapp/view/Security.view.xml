@@ -2,278 +2,329 @@
   controllerName="pwc.monitoring.monitoringui.controller.Security"
   xmlns:mvc="sap.ui.core.mvc"
   xmlns="sap.m"
+  xmlns:core="sap.ui.core"
   xmlns:viz="sap.viz.ui5.controls"
   xmlns:vizData="sap.viz.ui5.data"
   xmlns:vizFeeds="sap.viz.ui5.controls.common.feeds">
 
-<Page
-  title="Security Behaviour Monitoring (UEBA)"
-  showNavButton="true"
-  navButtonPress=".onBack">
+  <Page
+    title="Security Behaviour Monitoring (UEBA)"
+    showNavButton="true"
+    navButtonPress=".onBack">
 
-  <headerContent>
-    <Button text="Refresh" press=".onRefresh"/>
-    <!-- <Button text="Data Changes" press=".onGoDataChanges"/> -->
-    <Button text="System Health" press=".onGoSystemHealth" />
-    <!--<Button text="Configuration Logs" press=".onGoLogs"/>-->
-    <Button text="AI Risk Monitor" press=".goRisk"/>
-  </headerContent>
+    <headerContent>
+      <Button text="Refresh" icon="sap-icon://refresh" type="Emphasized" press=".onRefresh"/>
+      <!-- <Button text="Data Changes" press=".onGoDataChanges"/> -->
+      <Button text="System Health" icon="sap-icon://sys-monitor" press=".onGoSystemHealth"/>
+      <!--<Button text="Configuration Logs" press=".onGoLogs"/>-->
+      <Button text="AI Risk Monitor" icon="sap-icon://ai" press=".goRisk"/>
+      <Button
+    text="AI Recommendation"
+    icon="sap-icon://lightbulb"
+    type="Accept"
+    press=".goKmeans"/>
+    </headerContent>
 
-  <content>
+    <content>
+      <VBox class="sapUiContentPadding">
 
-    <!-- KPI ROW -->
-    <HBox
-      width="100%"
-      justifyContent="SpaceAround"
-      wrap="Wrap"
-      class="sapUiContentPadding sapUiMediumMarginBottom">
+        <MessageStrip
+          text="Monitor risky security behaviour, anomalous access activity, suspicious login patterns, and user/client events."
+          type="Warning"
+          showIcon="true"
+          class="sapUiSmallMarginBottom"/>
 
-      <GenericTile header="High Behaviour Risk">
-        <TileContent>
-          <NumericContent value="{security>/kpi/high}"
-            valueColor="Error"/>
-        </TileContent>
-      </GenericTile>
-
-      <GenericTile header="Medium Behaviour Risk">
-        <TileContent>
-          <NumericContent value="{security>/kpi/medium}"
-            valueColor="Critical"/>
-        </TileContent>
-      </GenericTile>
-
-      <GenericTile header="Low Behaviour Risk">
-        <TileContent>
-          <NumericContent value="{security>/kpi/low}"
-            valueColor="Neutral"/>
-        </TileContent>
-      </GenericTile>
-
-      <GenericTile header="Total Events">
-        <TileContent>
-          <NumericContent
-            value="{= (${security>/rows}.length || 0) }"
-            valueColor="Good"/>
-        </TileContent>
-      </GenericTile>
-
-    </HBox>
-
-    <!-- FILTER PANEL -->
-    <Panel
-      headerText="Analyst Filters"
-      expandable="true"
-      expanded="true"
-      class="sapUiContentPadding sapUiMediumMarginBottom">
-
-      <VBox>
-
-        <SegmentedButton
-          selectedKey="ALL"
-          selectionChange=".onTypeChange">
-          <items>
-            <SegmentedButtonItem key="ALL" text="All"/>
-            <SegmentedButtonItem key="LOGIN" text="Logins"/>
-            <SegmentedButtonItem key="TOKEN" text="Tokens"/>
-            <SegmentedButtonItem key="CLIENT" text="Client Auth"/>
-            <SegmentedButtonItem key="OTHER" text="Other"/>
-          </items>
-        </SegmentedButton>
-
-        <HBox class="sapUiSmallMarginTop">
-          <SearchField
-            width="16rem"
-            liveChange=".onEmailChange"
-            placeholder="Search User / Client"/>
-          <SearchField
-            width="12rem"
-            liveChange=".onIpChange"
-            placeholder="Search IP"/>
-        </HBox>
-
-      </VBox>
-
-    </Panel>
-
-    <!-- SIDE BY SIDE FLEX CHARTS -->
-    <FlexBox
-      width="100%"
-      renderType="Bare"
-      wrap="NoWrap"
-      justifyContent="SpaceBetween"
-      class="sapUiContentPadding sapUiMediumMarginBottom">
-
-      <!-- PIE PANEL -->
-      <Panel>
-        <layoutData>
-          <FlexItemData growFactor="1" baseSize="50%"/>
-        </layoutData>
-
-        <viz:VizFrame
-          id="idUserPie"
-          width="100%"
-          height="420px"
-          vizType="pie"
-          uiConfig="{applicationSet:'fiori'}"
-          selectData=".onUserPieSelect"
-          vizProperties='{
-            "plotArea":{
-              "dataLabel":{"visible":true}
-            },
-            "legend":{
-              "visible":true,
-              "layout":{"position":"bottom"}
-            }
-          }'>
-
-          <viz:dataset>
-            <vizData:FlattenedDataset
-              data="{security>/userChart}">
-              <vizData:dimensions>
-                <vizData:DimensionDefinition
-                  name="User"
-                  value="{security>user}"/>
-              </vizData:dimensions>
-              <vizData:measures>
-                <vizData:MeasureDefinition
-                  name="Events"
-                  value="{security>count}"/>
-              </vizData:measures>
-            </vizData:FlattenedDataset>
-          </viz:dataset>
-
-          <viz:feeds>
-            <vizFeeds:FeedItem uid="size"
-              type="Measure" values="Events"/>
-            <vizFeeds:FeedItem uid="color"
-              type="Dimension" values="User"/>
-          </viz:feeds>
-
-        </viz:VizFrame>
-      </Panel>
-
-      <!-- LINE PANEL -->
-      <Panel>
-        <layoutData>
-          <FlexItemData growFactor="1" baseSize="50%"/>
-        </layoutData>
-
-        <viz:VizFrame
-          id="idRiskLine"
-          width="100%"
-          height="420px"
-          vizType="line"
-          uiConfig="{applicationSet:'fiori'}"
-          vizProperties='{
-            "title":{
-              "visible":true,
-             "text":"IAM Activity by Hour of Day"
-            }
-          }'>
-
-          <viz:dataset>
-            <vizData:FlattenedDataset
-              data="{security>/hourChart}">
-              <vizData:dimensions>
-                <vizData:DimensionDefinition
-                  name="Time"
-                  value="{security>time}"/>
-              </vizData:dimensions>
-              <vizData:measures>
-                <vizData:MeasureDefinition
-                  name="Risk Events"
-                  value="{security>count}"/>
-              </vizData:measures>
-            </vizData:FlattenedDataset>
-          </viz:dataset>
-
-          <viz:feeds>
-            <vizFeeds:FeedItem uid="valueAxis"
-              type="Measure" values="Risk Events"/>
-            <vizFeeds:FeedItem uid="categoryAxis"
-              type="Dimension" values="Time"/>
-          </viz:feeds>
-
-        </viz:VizFrame>
-
-      </Panel>
-
-    </FlexBox>
-<HBox
- justifyContent="End"
- class="sapUiSmallMarginBottom">
-
- <Button
-  text="Export Security to Excel"
-  icon="sap-icon://excel-attachment"
-  type="Emphasized"
-  press=".onExportSecurityExcel"/>
-
-</HBox>
-
-<!-- ================= LAST AUDIT ================= -->
-
+        <!-- KPI ROW -->
 <HBox
   width="100%"
-  justifyContent="End"
-  class="sapUiContentPadding sapUiMediumMarginTop sapUiMediumMarginBottom">
+  justifyContent="SpaceAround"
+  wrap="Wrap"
+  class="sapUiMediumMarginBottom">
 
-  <ObjectStatus
-    title="Last Security Event Available"
-    text="{security>/lastAuditDate}"
-    state="Success"/>
+  <!-- High Risk -->
+  <VBox class="kpiCard kpiHigh" alignItems="Center" justifyContent="Center">
+    <core:Icon src="sap-icon://warning2" size="1.6rem" class="kpiIcon"/>
+    <Title text="High Behaviour Risk" level="H6" class="kpiTitle"/>
+    <ObjectNumber
+      number="{security>/kpi/high}"
+      state="Error"
+      class="kpiNumber"/>
+  </VBox>
 
+  <!-- Medium Risk -->
+  <VBox class="kpiCard kpiMedium" alignItems="Center" justifyContent="Center">
+    <core:Icon src="sap-icon://alert" size="1.6rem" class="kpiIcon"/>
+    <Title text="Medium Behaviour Risk" level="H6" class="kpiTitle"/>
+    <ObjectNumber
+      number="{security>/kpi/medium}"
+      state="Warning"
+      class="kpiNumber"/>
+  </VBox>
+
+  <!-- Low Risk -->
+  <VBox class="kpiCard kpiLow" alignItems="Center" justifyContent="Center">
+    <core:Icon src="sap-icon://activity-individual" size="1.6rem" class="kpiIcon"/>
+    <Title text="Low Behaviour Risk" level="H6" class="kpiTitle"/>
+    <ObjectNumber
+      number="{security>/kpi/low}"
+      state="Success"
+      class="kpiNumber"/>
+  </VBox>
+
+  <!-- Total -->
+  <VBox class="kpiCard kpiTotal" alignItems="Center" justifyContent="Center">
+    <core:Icon src="sap-icon://list" size="1.6rem" class="kpiIcon"/>
+    <Title text="Total Events" level="H6" class="kpiTitle"/>
+    <ObjectNumber
+      number="{= ${security>/rows} ? ${security>/rows}.length : 0 }"
+      state="Information"
+      class="kpiNumber"/>
+  </VBox>
 
 </HBox>
 
-    <!-- TABLE -->
-    <Table
-      items="{security>/rows}"
-      growing="true"
-      growingThreshold="25"
-      class="sapUiContentPadding">
+        <Panel
+          headerText="Analyst Filters"
+          expandable="true"
+          expanded="true"
+          class="styledPanel sapUiMediumMarginBottom">
 
-      <columns>
-        <Column><Text text="Time"/></Column>
-        <Column><Text text="User"/></Column>
-        <Column><Text text="Risk"/></Column>
-        <Column><Text text="Event Type"/></Column>
-        <Column><Text text="IP"/></Column>
-        <Column><Text text="Client"/></Column>
-        <Column><Text text="Score"/></Column>
-      </columns>
+          <VBox class="sapUiMediumMargin">
 
-      <items>
-        <ColumnListItem>
-          <cells>
+            <HBox alignItems="Center" class="sapUiSmallMarginBottom">
+              <core:Icon src="sap-icon://filter" size="1rem" class="cardIconBlue sapUiTinyMarginEnd"/>
+              <Title text="Filtering &amp; Investigation" level="H5"/>
+            </HBox>
 
-            <Text text="{security>time}"/>
-            <Text text="{security>user}" wrapping="true"/>
-            <ObjectStatus
-              text="{security>risk}"
-              state="{security>riskState}"/>
-            <Text text="{security>eventType}"/>
-            <Text text="{security>ip}"/>
-            <Text text="{security>client}" wrapping="true"/>
+            <SegmentedButton
+              selectedKey="ALL"
+              selectionChange=".onTypeChange"
+              class="sapUiSmallMarginBottom">
+              <items>
+                <SegmentedButtonItem key="ALL" text="All"/>
+                <SegmentedButtonItem key="LOGIN" text="Logins"/>
+                <SegmentedButtonItem key="TOKEN" text="Tokens"/>
+                <SegmentedButtonItem key="CLIENT" text="Client Auth"/>
+                <SegmentedButtonItem key="OTHER" text="Other"/>
+              </items>
+            </SegmentedButton>
 
-            <ObjectNumber
-              number="{
-                path:'security>anomalyScore',
-                type:'sap.ui.model.type.Float',
-                formatOptions:{
-                  minFractionDigits:3,
-                  maxFractionDigits:3
-                }
-              }"/>
+            <HBox class="sapUiSmallMarginTop" wrap="Wrap">
+              <SearchField
+                width="16rem"
+                liveChange=".onEmailChange"
+                placeholder="Search User / Client"
+                class="sapUiTinyMarginEnd sapUiTinyMarginBottom"/>
+              <SearchField
+                width="12rem"
+                liveChange=".onIpChange"
+                placeholder="Search IP"
+                class="sapUiTinyMarginBottom"/>
+            </HBox>
 
-          </cells>
-        </ColumnListItem>
-      </items>
+          </VBox>
+        </Panel>
 
-    </Table>
+        <FlexBox
+          width="100%"
+          renderType="Bare"
+          wrap="Wrap"
+          justifyContent="SpaceBetween"
+          class="sapUiMediumMarginBottom">
 
-  </content>
+          <Panel class="styledPanel chartPanel">
+            <layoutData>
+              <FlexItemData growFactor="1" baseSize="48%"/>
+            </layoutData>
 
-</Page>
+            <VBox class="sapUiMediumMargin">
+              <HBox alignItems="Center" class="sapUiSmallMarginBottom">
+                <core:Icon src="sap-icon://pie-chart" size="1.1rem" class="cardIconPurple sapUiTinyMarginEnd"/>
+                <Title text="Events by User" level="H5"/>
+              </HBox>
 
+              <Text
+                text="Distribution of security-relevant events across users."
+                class="subtleText sapUiTinyMarginBottom"/>
+
+              <viz:VizFrame
+                id="idUserPie"
+                width="100%"
+                height="420px"
+                vizType="pie"
+                uiConfig="{applicationSet:'fiori'}"
+                selectData=".onUserPieSelect"
+                vizProperties='{
+                  "plotArea":{
+                    "dataLabel":{"visible":true},
+                    "colorPalette":["#ef4444","#f59e0b","#3b82f6","#10b981","#8b5cf6","#14b8a6"]
+                  },
+                  "legend":{
+                    "visible":true,
+                    "layout":{"position":"bottom"}
+                  }
+                }'>
+
+                <viz:dataset>
+                  <vizData:FlattenedDataset data="{security>/userChart}">
+                    <vizData:dimensions>
+                      <vizData:DimensionDefinition
+                        name="User"
+                        value="{security>user}"/>
+                    </vizData:dimensions>
+                    <vizData:measures>
+                      <vizData:MeasureDefinition
+                        name="Events"
+                        value="{security>count}"/>
+                    </vizData:measures>
+                  </vizData:FlattenedDataset>
+                </viz:dataset>
+
+                <viz:feeds>
+                  <vizFeeds:FeedItem uid="size" type="Measure" values="Events"/>
+                  <vizFeeds:FeedItem uid="color" type="Dimension" values="User"/>
+                </viz:feeds>
+
+              </viz:VizFrame>
+            </VBox>
+          </Panel>
+
+          <Panel class="styledPanel chartPanel">
+            <layoutData>
+              <FlexItemData growFactor="1" baseSize="48%"/>
+            </layoutData>
+
+            <VBox class="sapUiMediumMargin">
+              <HBox alignItems="Center" class="sapUiSmallMarginBottom">
+                <core:Icon src="sap-icon://line-chart" size="1.1rem" class="cardIconBlue sapUiTinyMarginEnd"/>
+                <Title text="IAM Activity by Hour of Day" level="H5"/>
+              </HBox>
+
+              <Text
+                text="Temporal trend of risky IAM-related activity across the day."
+                class="subtleText sapUiTinyMarginBottom"/>
+
+              <viz:VizFrame
+                id="idRiskLine"
+                width="100%"
+                height="420px"
+                vizType="line"
+                uiConfig="{applicationSet:'fiori'}"
+                vizProperties='{
+                  "plotArea":{
+                    "colorPalette":["#2563eb"],
+                    "dataLabel":{"visible":false}
+                  },
+                  "valueAxis":{"title":{"visible":true}},
+                  "categoryAxis":{"title":{"visible":true}},
+                  "title":{
+                    "visible":false
+                  }
+                }'>
+
+                <viz:dataset>
+                  <vizData:FlattenedDataset data="{security>/hourChart}">
+                    <vizData:dimensions>
+                      <vizData:DimensionDefinition
+                        name="Time"
+                        value="{security>time}"/>
+                    </vizData:dimensions>
+                    <vizData:measures>
+                      <vizData:MeasureDefinition
+                        name="Risk Events"
+                        value="{security>count}"/>
+                    </vizData:measures>
+                  </vizData:FlattenedDataset>
+                </viz:dataset>
+
+                <viz:feeds>
+                  <vizFeeds:FeedItem uid="valueAxis" type="Measure" values="Risk Events"/>
+                  <vizFeeds:FeedItem uid="categoryAxis" type="Dimension" values="Time"/>
+                </viz:feeds>
+
+              </viz:VizFrame>
+            </VBox>
+          </Panel>
+
+        </FlexBox>
+
+        <HBox justifyContent="End" class="sapUiSmallMarginBottom">
+          <Button
+            text="Export Security to Excel"
+            icon="sap-icon://excel-attachment"
+            type="Emphasized"
+            press=".onExportSecurityExcel"/>
+        </HBox>
+
+        <HBox
+          width="100%"
+          justifyContent="End"
+          class="sapUiMediumMarginTop sapUiMediumMarginBottom">
+          <ObjectStatus
+            title="Last Security Event Available"
+            text="{security>/lastAuditDate}"
+            state="Success"
+            icon="sap-icon://accept"/>
+        </HBox>
+
+        <Panel class="styledPanel">
+          <VBox class="sapUiMediumMargin">
+            <HBox alignItems="Center" class="sapUiSmallMarginBottom">
+              <core:Icon src="sap-icon://table-view" size="1.1rem" class="cardIconGreen sapUiTinyMarginEnd"/>
+              <Title text="Security Events Table" level="H5"/>
+            </HBox>
+
+            <Text
+              text="Detailed analyst view of anomalous events, user behaviour, IPs, clients, and calculated anomaly scores."
+              class="subtleText sapUiSmallMarginBottom"/>
+
+            <Table
+              items="{security>/rows}"
+              growing="true"
+              growingThreshold="25"
+              class="niceTable">
+
+              <columns>
+                <Column><Text text="Time"/></Column>
+                <Column><Text text="User"/></Column>
+                <Column><Text text="Risk"/></Column>
+                <Column><Text text="Event Type"/></Column>
+                <Column><Text text="IP"/></Column>
+                <Column><Text text="Client"/></Column>
+                <Column hAlign="End"><Text text="Score"/></Column>
+              </columns>
+
+              <items>
+                <ColumnListItem class="tableRowHover">
+                  <cells>
+                    <Text text="{security>time}"/>
+                    <Text text="{security>user}" wrapping="true"/>
+                    <ObjectStatus
+                      text="{security>risk}"
+                      state="{security>riskState}"/>
+                    <Text text="{security>eventType}"/>
+                    <Text text="{security>ip}"/>
+                    <Text text="{security>client}" wrapping="true"/>
+                    <ObjectNumber
+                      number="{
+                        path:'security>anomalyScore',
+                        type:'sap.ui.model.type.Float',
+                        formatOptions:{
+                          minFractionDigits:3,
+                          maxFractionDigits:3
+                        }
+                      }"
+                      emphasized="false"/>
+                  </cells>
+                </ColumnListItem>
+              </items>
+
+            </Table>
+          </VBox>
+        </Panel>
+
+      </VBox>
+    </content>
+
+  </Page>
 </mvc:View>

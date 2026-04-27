@@ -1,8 +1,33 @@
 <mvc:View
-  controllerName="pwc.monitoring.monitoringui.controller.App"
   xmlns:mvc="sap.ui.core.mvc"
-  xmlns="sap.m">
+  xmlns="sap.m"
+  xmlns:core="sap.ui.core">
+  <App id="app">
+    <pages>
+      <Page showHeader="false">
+        <content>
+          <VBox width="100%">
+            <Toolbar class="appTopBar">
+              <Image
+                src="img/pwc-logo.png"
+                height="28px"
+                decorative="false"
+                class="sapUiTinyMarginEnd"/>
+              <Title text="Monitoring Intelligence Suite"/>
+              <ToolbarSpacer/>
+              <Text text="Powered by"/>
+              <Image
+                src="img/sap-logo.png"
+                height="24px"
+                decorative="false"
+                class="sapUiTinyMarginBegin"/>
+            </Toolbar>
 
-  <App id="mainApp"/>
-
+            <!-- router target content here -->
+            <App id="mainApp"/>
+          </VBox>
+        </content>
+      </Page>
+    </pages>
+  </App>
 </mvc:View>
