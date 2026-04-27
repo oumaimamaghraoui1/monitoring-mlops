@@ -32,12 +32,6 @@
         text="AI Risk Monitor"
         icon="sap-icon://ai"
         press=".goRisk"/>
-
-      <Button
-        text="Data Changes"
-        icon="sap-icon://database"
-        press=".onGoDataChanges"/>
-
       <Button
         text="AI Recommendation"
         icon="sap-icon://lightbulb"
