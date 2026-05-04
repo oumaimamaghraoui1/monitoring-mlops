@@ -10,13 +10,14 @@ from sklearn.neighbors import NearestNeighbors
 # ====================================================
 # CONFIG
 # ====================================================
-os.makedirs("artifacts", exist_ok=True)
+ARTIFACTS_DIR = os.environ.get("ARTIFACTS_DIR", "artifacts")
+os.makedirs(ARTIFACTS_DIR, exist_ok=True)
 
 INPUT_PATH = "output/transactions_cleaned.csv"
-OUT_VECTORIZER = "artifacts/vectorizer.joblib"
-OUT_MODEL = "artifacts/model.joblib"
-OUT_MATRIX = "artifacts/matrix.npz"
-OUT_DATA = "artifacts/transactions_model.csv"
+OUT_VECTORIZER = os.path.join(ARTIFACTS_DIR, "vectorizer.joblib")
+OUT_MODEL = os.path.join(ARTIFACTS_DIR, "model.joblib")
+OUT_MATRIX = os.path.join(ARTIFACTS_DIR, "matrix.npz")
+OUT_DATA = os.path.join(ARTIFACTS_DIR, "transactions_model.csv")
 
 # ====================================================
 # LOAD DATA

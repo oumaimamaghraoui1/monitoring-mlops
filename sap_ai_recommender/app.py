@@ -3,7 +3,8 @@ import re
 import joblib
 import numpy as np
 import pandas as pd
-
+import subprocess
+import sys
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from scipy.sparse import load_npz, hstack
@@ -12,11 +13,48 @@ from difflib import SequenceMatcher
 
 BASE_DIR = Path(__file__).resolve().parent
 
-ARTIFACTS_DIR = BASE_DIR / "artifacts"
+ARTIFACTS_DIR = Path("/tmp/sap_ai_recommender_artifacts")
+ARTIFACTS_DIR.mkdir(parents=True, exist_ok=True)
+
 VECTORIZER_PATH = ARTIFACTS_DIR / "vectorizer.joblib"
 MODEL_PATH = ARTIFACTS_DIR / "model.joblib"
 MATRIX_PATH = ARTIFACTS_DIR / "matrix.npz"
 DATA_PATH = ARTIFACTS_DIR / "transactions_model.csv"
+RAW_INPUT_PATH = BASE_DIR / "data" / "transactions.csv"
+
+def ensure_artifacts():
+    required_files = [VECTORIZER_PATH, MODEL_PATH, MATRIX_PATH, DATA_PATH]
+
+    if all(p.exists() for p in required_files):
+        return
+
+    print("Artifacts missing. Rebuilding artifacts in /tmp...")
+
+    subprocess.run(
+        [
+            sys.executable,
+            str(BASE_DIR / "preprocess_transactions.py"),
+            "--input",
+            str(RAW_INPUT_PATH),
+        ],
+        check=True,
+        cwd=str(BASE_DIR),
+    )
+
+    env = os.environ.copy()
+    env["ARTIFACTS_DIR"] = str(ARTIFACTS_DIR)
+
+    subprocess.run(
+        [
+            sys.executable,
+            str(BASE_DIR / "train_recommender.py"),
+        ],
+        check=True,
+        cwd=str(BASE_DIR),
+        env=env,
+    )
+
+ensure_artifacts()
 
 TOP_K = 15
 RERANK_POOL = 15
