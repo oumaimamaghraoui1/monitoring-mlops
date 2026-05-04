@@ -60,19 +60,16 @@ function cleanActorDisplay(value) {
 
   const s = String(value).trim();
 
-  // 1) if there is an email anywhere, show only the email
   const match = s.match(EMAIL_RE);
   if (match) {
     return match[0].toLowerCase();
   }
 
-  // 2) if it starts with user/, keep only the last segment
   if (s.indexOf("user/") === 0) {
     const parts = s.split("/");
     return parts[parts.length - 1] || s;
   }
 
-  // 3) keep technical actors as-is
   return s;
 }
 
@@ -126,7 +123,6 @@ function extractCrudType(row, parsed) {
   const attrs = parsed && parsed.attributes ? parsed.attributes : [];
   let i;
 
-  // 1) best source: object.id.crudType
   crud =
     parsed &&
     parsed.object &&
@@ -137,7 +133,6 @@ function extractCrudType(row, parsed) {
     return normalizeCrud(crud, row && row.action);
   }
 
-  // 2) operationType
   crud =
     parsed &&
     parsed.object &&
@@ -148,7 +143,6 @@ function extractCrudType(row, parsed) {
     return normalizeCrud(crud, row && row.action);
   }
 
-  // 3) sometimes operation appears in attributes
   for (i = 0; i < attrs.length; i++) {
     if (attrs[i] && attrs[i].name === "operation") {
       crud = attrs[i].new || attrs[i].old;
@@ -158,7 +152,6 @@ function extractCrudType(row, parsed) {
     }
   }
 
-  // 4) generic fallback
   crud = parsed && parsed.crudType;
   if (crud) {
     return normalizeCrud(crud, row && row.action);
@@ -172,7 +165,6 @@ function extractRoleName(row) {
     return "";
   }
 
-  // 1) Best source: rolecollection_name from raw audit payload
   try {
     const parsed = JSON.parse((row.raw && row.raw.message) || "{}");
     const role =
@@ -188,7 +180,6 @@ function extractRoleName(row) {
     // ignore
   }
 
-  // 2) Fallback: details column
   if (row.details) {
     const d = String(row.details).trim();
 
@@ -214,7 +205,6 @@ function extractRoleName(row) {
     }
   }
 
-  // 3) Fallback: target if meaningful
   if (
     row.target &&
     row.target !== "Unknown" &&
@@ -508,6 +498,66 @@ router.get("/audit/export/excel", async (req, res) => {
 });
 
 // =====================================================
+// SYSTEM EXCEL EXPORT
+// =====================================================
+router.post("/audit/export/system/excel", async (req, res) => {
+  try {
+    const logs = Array.isArray(req.body.logs) ? req.body.logs : [];
+
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet("System Technical Logs");
+
+    sheet.columns = [
+      { header: "Time", key: "time", width: 22 },
+      { header: "Type", key: "objectType", width: 24 },
+      { header: "Action", key: "action", width: 12 },
+      { header: "Details", key: "details", width: 50 },
+      { header: "Actor", key: "actor", width: 30 },
+      { header: "Target", key: "target", width: 28 },
+      { header: "Risk", key: "risk", width: 12 },
+      { header: "Risk State", key: "riskState", width: 14 },
+      { header: "Anomaly Score", key: "anomalyScore", width: 18 }
+    ];
+
+    logs.forEach((l) => {
+      sheet.addRow({
+        time: l.time || "",
+        objectType: l.objectType || "",
+        action: l.action || "",
+        details: l.details || "",
+        actor: l.actor || "",
+        target: l.target || "",
+        risk: l.risk || "",
+        riskState: l.riskState || "",
+        anomalyScore:
+          l.anomalyScore !== undefined &&
+          l.anomalyScore !== null &&
+          l.anomalyScore !== ""
+            ? Number(l.anomalyScore).toFixed(3)
+            : ""
+      });
+    });
+
+    sheet.getRow(1).font = { bold: true };
+    sheet.views = [{ state: "frozen", ySplit: 1 }];
+
+    res.setHeader(
+      "Content-Type",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    );
+    res.setHeader(
+      "Content-Disposition",
+      'attachment; filename="System_Technical_Logs.xlsx"'
+    );
+
+    await workbook.xlsx.write(res);
+    res.end();
+  } catch (err) {
+    console.error("[SYSTEM LOGS EXCEL EXPORT] Failed:", err);
+    res.status(500).send("System logs Excel export failed");
+  }
+});
+// =====================================================
 // PDF EXPORT
 // =====================================================
 router.get("/audit/export/pdf", async (req, res) => {
@@ -529,7 +579,6 @@ router.get("/audit/export/pdf", async (req, res) => {
 
     doc.pipe(res);
 
-    // PAGE 1
     doc.fillColor("#0F172A")
       .font("Helvetica-Bold")
       .fontSize(20)
@@ -653,7 +702,6 @@ router.get("/audit/export/pdf", async (req, res) => {
       fy += 18;
     });
 
-    // PAGE 2
     doc.addPage();
 
     doc.fillColor("#0F172A")
@@ -673,7 +721,6 @@ router.get("/audit/export/pdf", async (req, res) => {
 
     drawHorizontalBarChart(doc, kpis.top10Roles, 40, 95, 470, 20, 12);
 
-    // PAGE 3
     doc.addPage();
 
     doc.fillColor("#0F172A")

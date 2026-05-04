@@ -13,16 +13,27 @@
     navButtonPress=".onBack">
 
     <headerContent>
-      <Button text="Refresh" icon="sap-icon://refresh" type="Emphasized" press=".onRefresh"/>
-      <!-- <Button text="Data Changes" press=".onGoDataChanges"/> -->
-      <Button text="System Health" icon="sap-icon://sys-monitor" press=".onGoSystemHealth"/>
-      <!--<Button text="Configuration Logs" press=".onGoLogs"/>-->
-      <Button text="AI Risk Monitor" icon="sap-icon://ai" press=".goRisk"/>
       <Button
-    text="AI Recommendation"
-    icon="sap-icon://lightbulb"
-    type="Accept"
-    press=".goKmeans"/>
+        text="Refresh"
+        icon="sap-icon://refresh"
+        type="Emphasized"
+        press=".onRefresh"/>
+
+      <Button
+        text="System Health"
+        icon="sap-icon://sys-monitor"
+        press=".onGoSystemHealth"/>
+
+      <Button
+        text="AI Risk Monitor"
+        icon="sap-icon://ai"
+        press=".goRisk"/>
+
+      <Button
+        text="AI Recommendation"
+        icon="sap-icon://lightbulb"
+        type="Accept"
+        press=".goKmeans"/>
     </headerContent>
 
     <content>
@@ -35,95 +46,49 @@
           class="sapUiSmallMarginBottom"/>
 
         <!-- KPI ROW -->
-<HBox
-  width="100%"
-  justifyContent="SpaceAround"
-  wrap="Wrap"
-  class="sapUiMediumMarginBottom">
+        <HBox
+          width="100%"
+          justifyContent="SpaceAround"
+          wrap="Wrap"
+          class="sapUiMediumMarginBottom">
 
-  <!-- High Risk -->
-  <VBox class="kpiCard kpiHigh" alignItems="Center" justifyContent="Center">
-    <core:Icon src="sap-icon://warning2" size="1.6rem" class="kpiIcon"/>
-    <Title text="High Behaviour Risk" level="H6" class="kpiTitle"/>
-    <ObjectNumber
-      number="{security>/kpi/high}"
-      state="Error"
-      class="kpiNumber"/>
-  </VBox>
-
-  <!-- Medium Risk -->
-  <VBox class="kpiCard kpiMedium" alignItems="Center" justifyContent="Center">
-    <core:Icon src="sap-icon://alert" size="1.6rem" class="kpiIcon"/>
-    <Title text="Medium Behaviour Risk" level="H6" class="kpiTitle"/>
-    <ObjectNumber
-      number="{security>/kpi/medium}"
-      state="Warning"
-      class="kpiNumber"/>
-  </VBox>
-
-  <!-- Low Risk -->
-  <VBox class="kpiCard kpiLow" alignItems="Center" justifyContent="Center">
-    <core:Icon src="sap-icon://activity-individual" size="1.6rem" class="kpiIcon"/>
-    <Title text="Low Behaviour Risk" level="H6" class="kpiTitle"/>
-    <ObjectNumber
-      number="{security>/kpi/low}"
-      state="Success"
-      class="kpiNumber"/>
-  </VBox>
-
-  <!-- Total -->
-  <VBox class="kpiCard kpiTotal" alignItems="Center" justifyContent="Center">
-    <core:Icon src="sap-icon://list" size="1.6rem" class="kpiIcon"/>
-    <Title text="Total Events" level="H6" class="kpiTitle"/>
-    <ObjectNumber
-      number="{= ${security>/rows} ? ${security>/rows}.length : 0 }"
-      state="Information"
-      class="kpiNumber"/>
-  </VBox>
-
-</HBox>
-
-        <Panel
-          headerText="Analyst Filters"
-          expandable="true"
-          expanded="true"
-          class="styledPanel sapUiMediumMarginBottom">
-
-          <VBox class="sapUiMediumMargin">
-
-            <HBox alignItems="Center" class="sapUiSmallMarginBottom">
-              <core:Icon src="sap-icon://filter" size="1rem" class="cardIconBlue sapUiTinyMarginEnd"/>
-              <Title text="Filtering &amp; Investigation" level="H5"/>
-            </HBox>
-
-            <SegmentedButton
-              selectedKey="ALL"
-              selectionChange=".onTypeChange"
-              class="sapUiSmallMarginBottom">
-              <items>
-                <SegmentedButtonItem key="ALL" text="All"/>
-                <SegmentedButtonItem key="LOGIN" text="Logins"/>
-                <SegmentedButtonItem key="TOKEN" text="Tokens"/>
-                <SegmentedButtonItem key="CLIENT" text="Client Auth"/>
-                <SegmentedButtonItem key="OTHER" text="Other"/>
-              </items>
-            </SegmentedButton>
-
-            <HBox class="sapUiSmallMarginTop" wrap="Wrap">
-              <SearchField
-                width="16rem"
-                liveChange=".onEmailChange"
-                placeholder="Search User / Client"
-                class="sapUiTinyMarginEnd sapUiTinyMarginBottom"/>
-              <SearchField
-                width="12rem"
-                liveChange=".onIpChange"
-                placeholder="Search IP"
-                class="sapUiTinyMarginBottom"/>
-            </HBox>
-
+          <VBox class="kpiCard kpiHigh" alignItems="Center" justifyContent="Center">
+            <core:Icon src="sap-icon://warning2" size="1.6rem" class="kpiIcon"/>
+            <Title text="High Behaviour Risk" level="H6" class="kpiTitle"/>
+            <ObjectNumber
+              number="{security>/kpi/high}"
+              state="Error"
+              class="kpiNumber"/>
           </VBox>
-        </Panel>
+
+          <VBox class="kpiCard kpiMedium" alignItems="Center" justifyContent="Center">
+            <core:Icon src="sap-icon://alert" size="1.6rem" class="kpiIcon"/>
+            <Title text="Medium Behaviour Risk" level="H6" class="kpiTitle"/>
+            <ObjectNumber
+              number="{security>/kpi/medium}"
+              state="Warning"
+              class="kpiNumber"/>
+          </VBox>
+
+          <VBox class="kpiCard kpiLow" alignItems="Center" justifyContent="Center">
+            <core:Icon src="sap-icon://activity-individual" size="1.6rem" class="kpiIcon"/>
+            <Title text="Low Behaviour Risk" level="H6" class="kpiTitle"/>
+            <ObjectNumber
+              number="{security>/kpi/low}"
+              state="Success"
+              class="kpiNumber"/>
+          </VBox>
+
+          <VBox class="kpiCard kpiTotal" alignItems="Center" justifyContent="Center">
+            <core:Icon src="sap-icon://list" size="1.6rem" class="kpiIcon"/>
+            <Title text="Filtered Events" level="H6" class="kpiTitle"/>
+            <ObjectNumber
+              number="{= ${security>/rows} ? ${security>/rows}.length : 0 }"
+              state="Information"
+              class="kpiNumber"/>
+          </VBox>
+
+        </HBox>
 
         <FlexBox
           width="100%"
@@ -248,14 +213,6 @@
 
         </FlexBox>
 
-        <HBox justifyContent="End" class="sapUiSmallMarginBottom">
-          <Button
-            text="Export Security to Excel"
-            icon="sap-icon://excel-attachment"
-            type="Emphasized"
-            press=".onExportSecurityExcel"/>
-        </HBox>
-
         <HBox
           width="100%"
           justifyContent="End"
@@ -267,8 +224,57 @@
             icon="sap-icon://accept"/>
         </HBox>
 
+        <Panel
+          headerText="Analyst Filters"
+          expandable="true"
+          expanded="true"
+          class="styledPanel sapUiMediumMarginBottom">
+
+          <VBox class="sapUiMediumMargin">
+
+            <HBox alignItems="Center" class="sapUiSmallMarginBottom">
+              <core:Icon src="sap-icon://filter" size="1rem" class="cardIconBlue sapUiTinyMarginEnd"/>
+              <Title text="Filtering &amp; Investigation" level="H5"/>
+            </HBox>
+
+            <SegmentedButton
+              id="sbSecurityType"
+              selectedKey="{security>/typeKey}"
+              selectionChange=".onTypeChange"
+              class="sapUiSmallMarginBottom">
+              <items>
+                <SegmentedButtonItem key="ALL" text="All"/>
+                <SegmentedButtonItem key="LOGIN" text="Logins"/>
+                <SegmentedButtonItem key="TOKEN" text="Tokens"/>
+                <SegmentedButtonItem key="CLIENT" text="Client Auth"/>
+                <SegmentedButtonItem key="OTHER" text="Other"/>
+              </items>
+            </SegmentedButton>
+
+            <HBox class="sapUiSmallMarginTop" wrap="Wrap">
+              <SearchField
+                id="sfSecurityEmail"
+                width="16rem"
+                value="{security>/emailFilter}"
+                liveChange=".onEmailChange"
+                placeholder="Search User / Client"
+                class="sapUiTinyMarginEnd sapUiTinyMarginBottom"/>
+
+              <SearchField
+                id="sfSecurityIp"
+                width="12rem"
+                value="{security>/ipFilter}"
+                liveChange=".onIpChange"
+                placeholder="Search IP"
+                class="sapUiTinyMarginBottom"/>
+            </HBox>
+
+          </VBox>
+        </Panel>
+
         <Panel class="styledPanel">
           <VBox class="sapUiMediumMargin">
+
             <HBox alignItems="Center" class="sapUiSmallMarginBottom">
               <core:Icon src="sap-icon://table-view" size="1.1rem" class="cardIconGreen sapUiTinyMarginEnd"/>
               <Title text="Security Events Table" level="H5"/>
@@ -279,10 +285,27 @@
               class="subtleText sapUiSmallMarginBottom"/>
 
             <Table
+              id="tblSecurity"
               items="{security>/rows}"
               growing="true"
               growingThreshold="25"
               class="niceTable">
+
+              <headerToolbar>
+                <Toolbar id="tbSecurityHeader">
+                  <Title text="Security Events" level="H2"/>
+                  <ToolbarSpacer/>
+                  <ObjectStatus
+                    text="{= (${security>/rows}.length || 0) + ' items'}"
+                    state="Information"/>
+
+                  <Button
+                    text="Export Filtered Excel"
+                    icon="sap-icon://excel-attachment"
+                    type="Emphasized"
+                    press=".onExportVisibleSecurityExcel"/>
+                </Toolbar>
+              </headerToolbar>
 
               <columns>
                 <Column><Text text="Time"/></Column>
@@ -320,6 +343,7 @@
               </items>
 
             </Table>
+
           </VBox>
         </Panel>
 

@@ -1,14 +1,12 @@
 sap.ui.define([
   "sap/ui/core/mvc/Controller",
-  "sap/ui/model/json/JSONModel"
-], function (Controller, JSONModel) {
+  "sap/ui/model/json/JSONModel",
+  "sap/ui/export/Spreadsheet",
+  "sap/m/MessageToast"
+], function (Controller, JSONModel, Spreadsheet, MessageToast) {
   "use strict";
 
   var EMAIL_RE = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/;
-
-  // =========================================================
-  // BASIC HELPERS
-  // =========================================================
 
   function formatTime(iso) {
     if (!iso) {
@@ -192,10 +190,6 @@ sap.ui.define([
     return normalizeCrud(row && row.action, "OTHER");
   }
 
-  // =========================================================
-  // SCIM / ROLE HELPERS
-  // =========================================================
-
   function extractScimUserInfo(parsed) {
     if (!parsed || !parsed.attributes || !Array.isArray(parsed.attributes)) {
       return {
@@ -205,6 +199,7 @@ sap.ui.define([
     }
 
     var i, payload, obj, emails, first, nameObj, name, email;
+
     for (i = 0; i < parsed.attributes.length; i++) {
       if (!parsed.attributes[i] || parsed.attributes[i].name !== "complete") {
         continue;
@@ -214,6 +209,7 @@ sap.ui.define([
 
       for (var j = 0; j < payloads.length; j++) {
         payload = payloads[j];
+
         if (!payload) {
           continue;
         }
@@ -233,12 +229,14 @@ sap.ui.define([
 
         if (Array.isArray(emails)) {
           first = null;
+
           for (var k = 0; k < emails.length; k++) {
             if (emails[k] && emails[k].value) {
               first = emails[k];
               break;
             }
           }
+
           if (first && first.value) {
             email = String(first.value).toLowerCase();
           }
@@ -351,9 +349,11 @@ sap.ui.define([
     if (objectTypeRaw === "Deployment") {
       return "Deployment";
     }
+
     if (objectTypeRaw === "Undeployment") {
       return "Undeployment";
     }
+
     if (objectTypeRaw === "Redeployment") {
       return "Redeployment";
     }
@@ -368,10 +368,6 @@ sap.ui.define([
 
     return "Configuration updated";
   }
-
-  // =========================================================
-  // DISPLAY NORMALIZATION
-  // =========================================================
 
   function deriveDisplayRow(row) {
     var parsed = safeParseMessage(row);
@@ -440,10 +436,6 @@ sap.ui.define([
     };
   }
 
-  // =========================================================
-  // HUMAN KPI
-  // =========================================================
-
   function computeLogKpis(rows) {
     var humanRows = rows.filter(function (r) {
       return isHumanEvent(r);
@@ -487,23 +479,31 @@ sap.ui.define([
 
     var sortedRoles = Object.keys(roleCounts)
       .map(function (key) {
-        return { name: key, count: roleCounts[key] };
+        return {
+          name: key,
+          count: roleCounts[key]
+        };
       })
       .sort(function (a, b) {
         if (b.count !== a.count) {
           return b.count - a.count;
         }
+
         return a.name.localeCompare(b.name);
       });
 
     var sortedActors = Object.keys(actorCounts)
       .map(function (key) {
-        return { name: key, count: actorCounts[key] };
+        return {
+          name: key,
+          count: actorCounts[key]
+        };
       })
       .sort(function (a, b) {
         if (b.count !== a.count) {
           return b.count - a.count;
         }
+
         return a.name.localeCompare(b.name);
       });
 
@@ -521,10 +521,6 @@ sap.ui.define([
       crudSummary: crudSummary
     };
   }
-
-  // =========================================================
-  // SYSTEM KPI
-  // =========================================================
 
   function computeSystemKpis(rows) {
     var systemRows = rows.filter(function (r) {
@@ -561,12 +557,16 @@ sap.ui.define([
 
     var sortedActors = Object.keys(actorCounts)
       .map(function (key) {
-        return { name: key, count: actorCounts[key] };
+        return {
+          name: key,
+          count: actorCounts[key]
+        };
       })
       .sort(function (a, b) {
         if (b.count !== a.count) {
           return b.count - a.count;
         }
+
         return a.name.localeCompare(b.name);
       });
 
@@ -581,9 +581,78 @@ sap.ui.define([
     };
   }
 
-  // =========================================================
-  // CONTROLLER
-  // =========================================================
+  function getExportColumns() {
+    return [
+      {
+        label: "Time",
+        property: "time",
+        width: 22
+      },
+      {
+        label: "Type",
+        property: "objectType",
+        width: 28
+      },
+      {
+        label: "Action",
+        property: "action",
+        width: 15
+      },
+      {
+        label: "Details",
+        property: "details",
+        width: 60
+      },
+      {
+        label: "Actor",
+        property: "actor",
+        width: 35
+      },
+      {
+        label: "Target",
+        property: "target",
+        width: 35
+      },
+      {
+        label: "Risk",
+        property: "risk",
+        width: 15
+      },
+      {
+        label: "Risk State",
+        property: "riskState",
+        width: 18
+      },
+      {
+        label: "Anomaly Score",
+        property: "anomalyScore",
+        width: 18
+      }
+    ];
+  }
+
+  function exportRowsToExcel(rows, filePrefix) {
+    var count = rows.length;
+
+    var timestamp = new Date()
+      .toISOString()
+      .replace(/[:.]/g, "-")
+      .replace("T", "_")
+      .slice(0, 19);
+
+    var sheet = new Spreadsheet({
+      workbook: {
+        columns: getExportColumns()
+      },
+      dataSource: rows,
+      fileName: filePrefix + "_FILTERED_" + count + "_rows_" + timestamp + ".xlsx"
+    });
+
+    return sheet.build()
+      .finally(function () {
+        sheet.destroy();
+      });
+  }
 
   return Controller.extend("pwc.monitoring.monitoringui.controller.Logs", {
 
@@ -631,6 +700,7 @@ sap.ui.define([
 
     _configureTopRolesChart: function () {
       var oChart = this.byId("topRolesChart");
+
       if (!oChart) {
         return;
       }
@@ -708,13 +778,16 @@ sap.ui.define([
     onRefresh: function () {
       var API_BASE = "https://port8090-workspaces-ws-dl8fm.eu10.applicationstudio.cloud.sap";
 
-      fetch(API_BASE + "/audit/full", { credentials: "include" })
+      fetch(API_BASE + "/audit/full", {
+        credentials: "include"
+      })
         .then(function (r) {
           if (!r.ok) {
             return r.text().then(function (text) {
               throw new Error("HTTP " + r.status + " " + r.statusText + ": " + text.slice(0, 200));
             });
           }
+
           return r.json();
         })
         .then(function (json) {
@@ -729,13 +802,10 @@ sap.ui.define([
           });
 
           var model = this.getView().getModel("logs");
+
           model.setProperty("/all", normalized);
-
-          var kpis = computeLogKpis(normalized);
-          model.setProperty("/kpis", kpis);
-
-          var systemKpis = computeSystemKpis(normalized);
-          model.setProperty("/systemKpis", systemKpis);
+          model.setProperty("/kpis", computeLogKpis(normalized));
+          model.setProperty("/systemKpis", computeSystemKpis(normalized));
 
           model.setProperty("/humanFilter", "ALL");
           model.setProperty("/systemFilter", "ALL");
@@ -746,6 +816,7 @@ sap.ui.define([
           if (humanSeg) {
             humanSeg.setSelectedKey("ALL");
           }
+
           if (systemSeg) {
             systemSeg.setSelectedKey("ALL");
           }
@@ -753,13 +824,12 @@ sap.ui.define([
           this._applyFilters();
 
           this._configureTopRolesChart();
+
           setTimeout(function () {
             this._configureTopRolesChart();
           }.bind(this), 0);
 
           console.log("[UI] Total rows:", normalized.length);
-          console.log("[KPI] Computed KPIs:", kpis);
-          console.log("[System KPI] Computed KPIs:", systemKpis);
         }.bind(this))
         .catch(function (err) {
           console.error("[UI] Failed to load logs:", err);
@@ -769,6 +839,7 @@ sap.ui.define([
     onHumanFilterChange: function (e) {
       var key = e.getParameter("item").getKey();
       var m = this.getView().getModel("logs");
+
       m.setProperty("/humanFilter", key);
       this._applyFilters();
     },
@@ -776,6 +847,7 @@ sap.ui.define([
     onHumanEmailChange: function (e) {
       var val = e.getParameter("newValue") || e.getSource().getValue() || "";
       var m = this.getView().getModel("logs");
+
       m.setProperty("/humanEmail", val.trim());
       this._applyFilters();
     },
@@ -783,6 +855,7 @@ sap.ui.define([
     onSystemFilterChange: function (e) {
       var key = e.getParameter("item").getKey();
       var m = this.getView().getModel("logs");
+
       m.setProperty("/systemFilter", key);
       this._applyFilters();
     },
@@ -790,6 +863,7 @@ sap.ui.define([
     onSystemEmailChange: function (e) {
       var val = e.getParameter("newValue") || e.getSource().getValue() || "";
       var m = this.getView().getModel("logs");
+
       m.setProperty("/systemEmail", val.trim());
       this._applyFilters();
     },
@@ -810,6 +884,46 @@ sap.ui.define([
     onExportLogsPdf: function () {
       var API_BASE = "https://port8090-workspaces-ws-dl8fm.eu10.applicationstudio.cloud.sap";
       window.open(API_BASE + "/audit/export/pdf", "_blank");
+    },
+
+    onExportVisibleHumanExcel: function () {
+      var m = this.getView().getModel("logs");
+      var rows = m.getProperty("/human") || [];
+      var count = rows.length;
+
+      MessageToast.show("Exporting " + count + " filtered human rows");
+
+      console.log("[EXPORT FILTERED HUMAN] rows count:", count);
+      console.log("[EXPORT FILTERED HUMAN] rows:", rows);
+
+      exportRowsToExcel(rows, "Human_Changes")
+        .then(function () {
+          MessageToast.show("Human Excel exported: " + count + " rows");
+        })
+        .catch(function (err) {
+          console.error("[EXPORT FILTERED HUMAN] failed:", err);
+          MessageToast.show("Human Excel export failed");
+        });
+    },
+
+    onExportVisibleSystemExcel: function () {
+      var m = this.getView().getModel("logs");
+      var rows = m.getProperty("/system") || [];
+      var count = rows.length;
+
+      MessageToast.show("Exporting " + count + " filtered system rows");
+
+      console.log("[EXPORT FILTERED SYSTEM] rows count:", count);
+      console.log("[EXPORT FILTERED SYSTEM] rows:", rows);
+
+      exportRowsToExcel(rows, "System_Technical_Logs")
+        .then(function () {
+          MessageToast.show("System Excel exported: " + count + " rows");
+        })
+        .catch(function (err) {
+          console.error("[EXPORT FILTERED SYSTEM] failed:", err);
+          MessageToast.show("System Excel export failed");
+        });
     },
 
     onGoDataChanges: function () {
@@ -877,9 +991,29 @@ sap.ui.define([
         return !isHumanEvent(x);
       });
 
-      if (sType !== "ALL") {
+      if (sType === "Deployment") {
         system = system.filter(function (x) {
-          return x.objectType === sType;
+          var details = String(x.details || "").toLowerCase();
+          var type = String(x.objectType || "").toLowerCase();
+
+          return (
+            type.indexOf("deployment") > -1 ||
+            details.indexOf("deployment") > -1 ||
+            details.indexOf("undeployment") > -1 ||
+            details.indexOf("redeployment") > -1
+          );
+        });
+      } else if (sType === "Configuration Change") {
+        system = system.filter(function (x) {
+          var details = String(x.details || "").toLowerCase();
+          var type = String(x.objectType || "").toLowerCase();
+
+          return (
+            type === "configuration change" &&
+            details.indexOf("deployment") === -1 &&
+            details.indexOf("undeployment") === -1 &&
+            details.indexOf("redeployment") === -1
+          );
         });
       }
 

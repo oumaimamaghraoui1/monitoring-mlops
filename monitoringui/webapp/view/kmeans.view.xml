@@ -63,6 +63,36 @@
           class="styledPanel sapUiMediumMarginBottom">
 
           <VBox class="sapUiMediumMargin">
+
+            <HBox
+              width="100%"
+              justifyContent="SpaceBetween"
+              alignItems="Center"
+              class="sapUiSmallMarginBottom">
+
+              <HBox alignItems="Center">
+                <core:Icon
+                  src="sap-icon://favorite"
+                  size="1rem"
+                  class="cardIconPurple sapUiTinyMarginEnd"/>
+                <Title text="Saved T-Codes" level="H5"/>
+              </HBox>
+
+              <HBox alignItems="Center">
+                <ObjectStatus
+                  text="{= (${favModel>/favorites}.length || 0) + ' favorites'}"
+                  state="Information"
+                  class="sapUiSmallMarginEnd"/>
+
+                <Button
+                  text="Export Favorites Excel"
+                  icon="sap-icon://excel-attachment"
+                  type="Transparent"
+                  press=".onExportFavoritesExcel"/>
+              </HBox>
+
+            </HBox>
+
             <List items="{favModel>/favorites}">
               <CustomListItem>
                 <HBox justifyContent="SpaceBetween" alignItems="Center" width="100%">
@@ -119,12 +149,71 @@
               text="Explore ranked matches returned by the recommendation engine."
               class="subtleText sapUiSmallMarginBottom"/>
 
+            <!-- Result filters and actions -->
+            <Panel
+              headerText="T-Code Result Filters"
+              expandable="true"
+              expanded="true"
+              class="styledPanel sapUiSmallMarginBottom">
+
+              <VBox class="sapUiMediumMargin">
+
+                <HBox
+                  width="100%"
+                  alignItems="Center"
+                  justifyContent="SpaceBetween"
+                  wrap="Wrap">
+
+                  <HBox alignItems="Center" wrap="Wrap">
+                    <SearchField
+                      id="sfTcodeResultFilter"
+                      width="24rem"
+                      value="{recModel>/filterText}"
+                      liveChange=".onResultFilterChange"
+                      placeholder="Filter by T-Code, program, description, cluster..."
+                      class="sapUiSmallMarginEnd sapUiTinyMarginBottom"/>
+
+                    <Button
+                      text="Clear"
+                      icon="sap-icon://clear-filter"
+                      press=".onClearResultFilter"
+                      class="sapUiTinyMarginBottom"/>
+                  </HBox>
+
+                  <HBox alignItems="Center" class="sapUiTinyMarginBottom">
+                    <ObjectStatus
+                      text="{= (${recModel>/rows}.length || 0) + ' filtered results'}"
+                      state="Information"
+                      class="sapUiSmallMarginEnd"/>
+
+                    <Button
+                      text="Export Filtered Excel"
+                      icon="sap-icon://excel-attachment"
+                      type="Emphasized"
+                      press=".onExportFilteredResultsExcel"/>
+                  </HBox>
+
+                </HBox>
+
+              </VBox>
+            </Panel>
+
             <Table
               id="resultTable"
-              items="{recModel>/}"
+              items="{recModel>/rows}"
               growing="true"
               growingThreshold="15"
               class="niceTable">
+
+              <headerToolbar>
+                <Toolbar id="tbTcodeResults">
+                  <Title text="T-Code Recommendations" level="H2"/>
+                  <ToolbarSpacer/>
+                  <ObjectStatus
+                    text="{= (${recModel>/rows}.length || 0) + ' items'}"
+                    state="Information"/>
+                </Toolbar>
+              </headerToolbar>
 
               <columns>
                 <Column width="6rem">

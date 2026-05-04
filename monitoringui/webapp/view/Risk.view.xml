@@ -14,14 +14,27 @@
     navButtonPress=".onBack">
 
     <headerContent>
-      <Button text="Refresh" icon="sap-icon://refresh" type="Emphasized" press=".onRefresh"/>
-      <Button text="Security Events" icon="sap-icon://shield" press=".onGoSecurity"/>
-      <Button text="System Health" icon="sap-icon://sys-monitor" press=".onGoSystemHealth"/>
       <Button
-    text="AI Recommendation"
-    icon="sap-icon://lightbulb"
-    type="Accept"
-    press=".goKmeans"/>
+        text="Refresh"
+        icon="sap-icon://refresh"
+        type="Emphasized"
+        press=".onRefresh"/>
+
+      <Button
+        text="Security Events"
+        icon="sap-icon://shield"
+        press=".onGoSecurity"/>
+
+      <Button
+        text="System Health"
+        icon="sap-icon://sys-monitor"
+        press=".onGoSystemHealth"/>
+
+      <Button
+        text="AI Recommendation"
+        icon="sap-icon://lightbulb"
+        type="Accept"
+        press=".goKmeans"/>
     </headerContent>
 
     <content>
@@ -43,9 +56,6 @@
 
           <!-- High -->
           <VBox class="kpiCard kpiHigh" alignItems="Center" justifyContent="Center">
-            <customData>
-              <core:CustomData key="risk" value="High"/>
-            </customData>
             <core:Icon src="sap-icon://warning2" size="1.6rem" class="kpiIcon"/>
             <Title text="High Risk" level="H6" class="kpiTitle"/>
             <ObjectNumber
@@ -56,9 +66,6 @@
 
           <!-- Medium -->
           <VBox class="kpiCard kpiMedium" alignItems="Center" justifyContent="Center">
-            <customData>
-              <core:CustomData key="risk" value="Medium"/>
-            </customData>
             <core:Icon src="sap-icon://alert" size="1.6rem" class="kpiIcon"/>
             <Title text="Medium Risk" level="H6" class="kpiTitle"/>
             <ObjectNumber
@@ -69,9 +76,6 @@
 
           <!-- Low -->
           <VBox class="kpiCard kpiLow" alignItems="Center" justifyContent="Center">
-            <customData>
-              <core:CustomData key="risk" value="Low"/>
-            </customData>
             <core:Icon src="sap-icon://activity-individual" size="1.6rem" class="kpiIcon"/>
             <Title text="Low Risk" level="H6" class="kpiTitle"/>
             <ObjectNumber
@@ -82,9 +86,6 @@
 
           <!-- Normal -->
           <VBox class="kpiCard kpiNormal" alignItems="Center" justifyContent="Center">
-            <customData>
-              <core:CustomData key="risk" value="Normal"/>
-            </customData>
             <core:Icon src="sap-icon://accept" size="1.6rem" class="kpiIcon"/>
             <Title text="Normal" level="H6" class="kpiTitle"/>
             <ObjectNumber
@@ -216,10 +217,10 @@
 
         </FlexBox>
 
-        <!-- ================= ACTIONS / AUDIT ================= -->
+        <!-- ================= LAST AUDIT ================= -->
         <HBox
           width="100%"
-          justifyContent="SpaceBetween"
+          justifyContent="End"
           alignItems="Center"
           class="sapUiSmallMarginBottom sapUiSmallMarginTop">
 
@@ -228,13 +229,67 @@
             text="{logs>/lastAuditDate}"
             state="Success"
             icon="sap-icon://history"/>
-
-          <Button
-            text="Export to Excel"
-            icon="sap-icon://excel-attachment"
-            type="Emphasized"
-            press=".onExportExcel"/>
         </HBox>
+
+        <!-- ================= FILTER PANEL ================= -->
+        <Panel
+          headerText="Risk Filters"
+          expandable="true"
+          expanded="true"
+          class="styledPanel sapUiMediumMarginBottom">
+
+          <VBox class="sapUiMediumMargin">
+
+            <HBox alignItems="Center" class="sapUiSmallMarginBottom">
+              <core:Icon src="sap-icon://filter" size="1rem" class="cardIconBlue sapUiTinyMarginEnd"/>
+              <Title text="Filtering &amp; Investigation" level="H5"/>
+            </HBox>
+
+            <HBox
+              width="100%"
+              alignItems="Center"
+              justifyContent="SpaceBetween"
+              wrap="Wrap">
+
+              <HBox alignItems="Center" wrap="Wrap">
+                <SegmentedButton
+  id="sbRiskFilter"
+  selectedKey="{logs>/riskFilter}"
+  selectionChange=".onRiskSelectionChange"
+  class="sapUiSmallMarginEnd sapUiTinyMarginBottom">
+  <items>
+    <SegmentedButtonItem key="ALL" text="All" width="6rem"/>
+    <SegmentedButtonItem key="High" text="High" width="6rem"/>
+    <SegmentedButtonItem key="Medium" text="Medium" width="7.5rem"/>
+    <SegmentedButtonItem key="Low" text="Low" width="6rem"/>
+    <SegmentedButtonItem key="Normal" text="Normal" width="7.5rem"/>
+  </items>
+</SegmentedButton>
+
+                <SearchField
+                  id="sfRiskSearch"
+                  width="22rem"
+                  value="{logs>/searchText}"
+                  liveChange=".onSearchChange"
+                  placeholder="Search operation, actor, target, action..."
+                  class="sapUiTinyMarginBottom"/>
+
+                <Button
+                  text="Clear"
+                  icon="sap-icon://clear-filter"
+                  press=".onClearRiskFilters"
+                  class="sapUiSmallMarginBegin sapUiTinyMarginBottom"/>
+              </HBox>
+
+              <HBox alignItems="Center" class="sapUiTinyMarginBottom">
+                <core:Icon src="sap-icon://hint" size="0.9rem" class="sapUiTinyMarginEnd cardIconGreen"/>
+                <Text text="{= (${logs>/logs}.length || 0) + ' filtered risk events' }" class="subtleText"/>
+              </HBox>
+
+            </HBox>
+
+          </VBox>
+        </Panel>
 
         <!-- ================= TABLE PANEL ================= -->
         <Panel class="styledPanel">
@@ -255,14 +310,44 @@
               growingThreshold="20"
               class="niceTable">
 
+              <headerToolbar>
+                <Toolbar id="tbRiskHeader">
+                  <Title text="Filtered Risk Events" level="H2"/>
+                  <ToolbarSpacer/>
+                  <ObjectStatus
+                    text="{= (${logs>/logs}.length || 0) + ' items'}"
+                    state="Information"/>
+
+                  <Button
+                    text="Export Filtered Excel"
+                    icon="sap-icon://excel-attachment"
+                    type="Emphasized"
+                    press=".onExportFilteredExcel"/>
+                </Toolbar>
+              </headerToolbar>
+
               <columns>
-                <Column width="55%">
+                <Column width="12rem">
+                  <Text text="Time"/>
+                </Column>
+
+                <Column width="43%">
                   <Text text="Role / Operation"/>
                 </Column>
-                <Column width="20%" hAlign="End">
+
+                <Column width="14rem">
+                  <Text text="Actor"/>
+                </Column>
+
+                <Column width="14rem">
+                  <Text text="Target"/>
+                </Column>
+
+                <Column width="10rem" hAlign="End">
                   <Text text="Score"/>
                 </Column>
-                <Column width="25%">
+
+                <Column width="10rem">
                   <Text text="Risk"/>
                 </Column>
               </columns>
@@ -270,7 +355,10 @@
               <items>
                 <ColumnListItem class="tableRowHover">
                   <cells>
-                    <Text text="{path:'logs>details', formatter:'.formatOperation'}" wrapping="true"/>
+                    <Text text="{logs>time}" wrapping="true"/>
+                    <Text text="{logs>operation}" wrapping="true"/>
+                    <Text text="{logs>actor}" wrapping="true"/>
+                    <Text text="{logs>target}" wrapping="true"/>
                     <ObjectNumber
                       number="{path:'logs>anomalyScore', formatter:'.formatScore'}"
                       emphasized="false"/>

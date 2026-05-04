@@ -32,6 +32,7 @@
         text="AI Risk Monitor"
         icon="sap-icon://ai"
         press=".goRisk"/>
+
       <Button
         text="AI Recommendation"
         icon="sap-icon://lightbulb"
@@ -191,7 +192,6 @@
                   </Panel>
 
                 </VBox>
-
               </Panel>
 
               <HBox
@@ -237,7 +237,13 @@
                     <Title id="ttlHuman" text="Human Changes" level="H2"/>
                     <ToolbarSpacer id="spHuman"/>
                     <Text id="txtHumanCount" text="{= (${logs>/human}.length || 0) + ' items'}"/>
-                    <Button text="Export Excel" press=".onExportLogsExcel"/>
+
+                    <Button
+                      text="Export Excel"
+                      icon="sap-icon://excel-attachment"
+                      type="Emphasized"
+                      press=".onExportVisibleHumanExcel"/>
+
                     <Button text="Export PDF" press=".onExportLogsPdf"/>
                   </Toolbar>
                 </headerToolbar>
@@ -290,53 +296,53 @@
                 class="sapUiSmallMarginBottom"/>
 
               <HBox
-  wrap="Wrap"
-  justifyContent="SpaceBetween"
-  width="100%"
-  class="sapUiMediumMarginBottom">
+                wrap="Wrap"
+                justifyContent="SpaceBetween"
+                width="100%"
+                class="sapUiMediumMarginBottom">
 
-  <VBox class="kpiCard kpiBlue" alignItems="Center" justifyContent="Center">
-    <core:Icon src="sap-icon://activity-items" size="1.5rem" class="kpiIcon"/>
-    <Title text="Total Technical Events" level="H6" class="kpiTitle"/>
-    <ObjectNumber
-      number="{logs>/systemKpis/totalTechnicalEvents}"
-      emphasized="true"
-      class="kpiNumber"/>
-  </VBox>
+                <VBox class="kpiCard kpiBlue" alignItems="Center" justifyContent="Center">
+                  <core:Icon src="sap-icon://activity-items" size="1.5rem" class="kpiIcon"/>
+                  <Title text="Total Technical Events" level="H6" class="kpiTitle"/>
+                  <ObjectNumber
+                    number="{logs>/systemKpis/totalTechnicalEvents}"
+                    emphasized="true"
+                    class="kpiNumber"/>
+                </VBox>
 
-  <VBox class="kpiCard kpiPurple" alignItems="Center" justifyContent="Center">
-    <core:Icon src="sap-icon://shipping-status" size="1.5rem" class="kpiIcon"/>
-    <Title text="Deployments" level="H6" class="kpiTitle"/>
-    <ObjectNumber
-      number="{logs>/systemKpis/deploymentCount}"
-      emphasized="true"
-      class="kpiNumber"/>
-  </VBox>
+                <VBox class="kpiCard kpiPurple" alignItems="Center" justifyContent="Center">
+                  <core:Icon src="sap-icon://shipping-status" size="1.5rem" class="kpiIcon"/>
+                  <Title text="Deployments" level="H6" class="kpiTitle"/>
+                  <ObjectNumber
+                    number="{logs>/systemKpis/deploymentCount}"
+                    emphasized="true"
+                    class="kpiNumber"/>
+                </VBox>
 
-  <VBox class="kpiCard kpiOrange" alignItems="Center" justifyContent="Center">
-    <core:Icon src="sap-icon://action-settings" size="1.5rem" class="kpiIcon"/>
-    <Title text="Config Changes" level="H6" class="kpiTitle"/>
-    <ObjectNumber
-      number="{logs>/systemKpis/configChangeCount}"
-      emphasized="true"
-      class="kpiNumber"/>
-  </VBox>
+                <VBox class="kpiCard kpiOrange" alignItems="Center" justifyContent="Center">
+                  <core:Icon src="sap-icon://action-settings" size="1.5rem" class="kpiIcon"/>
+                  <Title text="Config Changes" level="H6" class="kpiTitle"/>
+                  <ObjectNumber
+                    number="{logs>/systemKpis/configChangeCount}"
+                    emphasized="true"
+                    class="kpiNumber"/>
+                </VBox>
 
-  <VBox class="kpiCard kpiGreen" alignItems="Center" justifyContent="Center">
-    <core:Icon src="sap-icon://technical-object" size="1.5rem" class="kpiIcon"/>
-    <Title text="Primary Technical Actor" level="H6" class="kpiTitle"/>
-    <Text
-      text="{logs>/systemKpis/topTechnicalActor}"
-      wrapping="true"
-      textAlign="Center"
-      class="kpiText"/>
-    <ObjectStatus
-      text="{= 'Occurrences: ' + ${logs>/systemKpis/topTechnicalActorCount} }"
-      state="Success"
-      class="sapUiTinyMarginTop"/>
-  </VBox>
+                <VBox class="kpiCard kpiGreen" alignItems="Center" justifyContent="Center">
+                  <core:Icon src="sap-icon://technical-object" size="1.5rem" class="kpiIcon"/>
+                  <Title text="Primary Technical Actor" level="H6" class="kpiTitle"/>
+                  <Text
+                    text="{logs>/systemKpis/topTechnicalActor}"
+                    wrapping="true"
+                    textAlign="Center"
+                    class="kpiText"/>
+                  <ObjectStatus
+                    text="{= 'Occurrences: ' + ${logs>/systemKpis/topTechnicalActorCount} }"
+                    state="Success"
+                    class="sapUiTinyMarginTop"/>
+                </VBox>
 
-</HBox>
+              </HBox>
 
               <Panel
                 headerText="Technical Filters"
@@ -412,6 +418,12 @@
                         <ObjectStatus
                           text="{= (${logs>/system}.length || 0) + ' items'}"
                           state="Information"/>
+
+                        <Button
+                          text="Export Excel"
+                          icon="sap-icon://excel-attachment"
+                          type="Emphasized"
+                          press=".onExportVisibleSystemExcel"/>
                       </Toolbar>
                     </headerToolbar>
 
@@ -428,9 +440,7 @@
                       <ColumnListItem class="tableRowHover">
                         <cells>
                           <Text text="{logs>time}"/>
-                          <ObjectStatus
-                            text="{logs>objectType}"
-                            state="Information"/>
+                          <ObjectStatus text="{logs>objectType}" state="Information"/>
                           <ObjectStatus
                             text="{logs>action}"
                             state="{= ${logs>action}==='CREATE' ? 'Success' :
