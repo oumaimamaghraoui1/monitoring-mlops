@@ -3,28 +3,69 @@ sap.ui.define([
   "sap/ui/model/json/JSONModel",
   "sap/ui/export/Spreadsheet",
   "sap/m/MessageToast",
-  "sap/m/MessageBox"
-], function (Controller, JSONModel, Spreadsheet, MessageToast, MessageBox) {
+  "sap/m/MessageBox",
+  "sap/viz/ui5/controls/Popover"
+], function (Controller, JSONModel, Spreadsheet, MessageToast, MessageBox, Popover) {
   "use strict";
 
-  const EMAIL_RE = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/;
+  var EMAIL_RE = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/;
+  var API_BASE = "https://port8090-workspaces-ws-dl8fm.eu10.applicationstudio.cloud.sap";
 
-  // ============================================
-  // Utility formatting
-  // ============================================
+  var API_CANDIDATES = [
+    API_BASE + "/security/events",
+    "/security/events"
+  ];
+
+  function fetchJsonWithFallback(urls) {
+    var lastError = null;
+
+    function tryOne(index) {
+      if (index >= urls.length) {
+        throw lastError || new Error("All API endpoints failed");
+      }
+
+      var url = urls[index];
+
+      console.log("[SEC] Trying API:", url);
+
+      return fetch(url, {
+        credentials: "include"
+      })
+        .then(function (r) {
+          if (!r.ok) {
+            return r.text().then(function (text) {
+              throw new Error(
+                "HTTP " + r.status + " " + r.statusText + ": " + text.slice(0, 200)
+              );
+            });
+          }
+
+          return r.json();
+        })
+        .catch(function (err) {
+          console.warn("[SEC] API failed:", url, err);
+          lastError = err;
+          return tryOne(index + 1);
+        });
+    }
+
+    return tryOne(0);
+  }
 
   function formatTime(iso) {
     if (!iso) {
       return "";
     }
 
-    const d = new Date(iso);
+    var d = new Date(iso);
 
     if (isNaN(d.getTime())) {
       return String(iso);
     }
 
-    const pad = n => String(n).padStart(2, "0");
+    var pad = function (n) {
+      return String(n).padStart(2, "0");
+    };
 
     return (
       d.getFullYear() + "-" +
@@ -49,34 +90,121 @@ sap.ui.define([
   }
 
   function mapTypeToGroup(t) {
-    if (!t) {
-      return "OTHER";
-    }
+    t = String(t || "").toLowerCase();
 
-    if (t.includes("UserAuthenticationSuccess")) {
+    if (
+      t.indexOf("userauthenticationsuccess") > -1 ||
+      t.indexOf("identityproviderauthenticationsuccess") > -1 ||
+      t.indexOf("login") > -1 ||
+      t.indexOf("authentication") > -1 ||
+      t.indexOf("authsuccess") > -1 ||
+      t.indexOf("logon") > -1
+    ) {
+      if (t.indexOf("client") > -1) {
+        return "CLIENT";
+      }
+      if (t.indexOf("token") > -1) {
+        return "TOKEN";
+      }
       return "LOGIN";
     }
 
-    if (t.includes("IdentityProviderAuthenticationSuccess")) {
-      return "LOGIN";
-    }
-
-    if (t.includes("TokenIssuedEvent")) {
+    if (
+      t.indexOf("tokenissuedevent") > -1 ||
+      t.indexOf("tokenissued") > -1 ||
+      t.indexOf("token") > -1 ||
+      t.indexOf("oauth") > -1 ||
+      t.indexOf("jwt") > -1
+    ) {
       return "TOKEN";
     }
 
-    if (t.includes("ClientAuthenticationSuccess")) {
+    if (
+      t.indexOf("clientauthenticationsuccess") > -1 ||
+      t.indexOf("clientauthentication") > -1 ||
+      t.indexOf("clientauth") > -1 ||
+      t.indexOf("client") > -1
+    ) {
       return "CLIENT";
     }
 
     return "OTHER";
   }
 
-  // ============================================
-  // Deep extraction helpers
-  // ============================================
+  function normalizeValueState(state) {
+    if (state === "Error") {
+      return "Error";
+    }
 
-  function collectNestedStrings(obj, out = []) {
+    if (state === "Warning") {
+      return "Warning";
+    }
+
+    if (state === "Success") {
+      return "Success";
+    }
+
+    if (state === "Information") {
+      return "Information";
+    }
+
+    if (state === "Critical") {
+      return "Warning";
+    }
+
+    return "None";
+  }
+
+  function stateFromRisk(risk) {
+    if (risk === "High") {
+      return "Error";
+    }
+
+    if (risk === "Medium") {
+      return "Warning";
+    }
+
+    if (risk === "Low") {
+      return "Information";
+    }
+
+    if (risk === "Normal") {
+      return "Success";
+    }
+
+    return "None";
+  }
+
+  function riskFromNormalizedScore(score, anomaly, backendRisk) {
+    var s = Number(score || 0);
+    var a = Number(anomaly || 1);
+
+    if (backendRisk === "High" || backendRisk === "Medium" || backendRisk === "Low" || backendRisk === "Normal") {
+      return backendRisk;
+    }
+
+    if (a === -1 && s >= 0.65) {
+      return "High";
+    }
+
+    if (s >= 0.85) {
+      return "High";
+    }
+
+    if (s >= 0.65) {
+      return "Medium";
+    }
+
+    if (s >= 0.40) {
+      return "Low";
+    }
+
+    return "Normal";
+  }
+
+  function collectNestedStrings(obj, out) {
+    out = out || [];
+
     if (!obj) {
       return out;
     }
@@ -87,12 +215,16 @@ sap.ui.define([
     }
 
     if (Array.isArray(obj)) {
-      obj.forEach(x => collectNestedStrings(x, out));
+      obj.forEach(function (x) {
+        collectNestedStrings(x, out);
+      });
       return out;
     }
 
     if (typeof obj === "object") {
-      Object.keys(obj).forEach(k => collectNestedStrings(obj[k], out));
+      Object.keys(obj).forEach(function (k) {
+        collectNestedStrings(obj[k], out);
+      });
       return out;
     }
 
@@ -100,19 +232,19 @@ sap.ui.define([
   }
 
   function extractEmailDeep(ev) {
-    if (ev.user && EMAIL_RE.test(String(ev.user))) {
-      const m = String(ev.user).match(EMAIL_RE);
-      if (m) {
-        return m[0].toLowerCase();
+    if (ev && ev.user && EMAIL_RE.test(String(ev.user))) {
+      var m1 = String(ev.user).match(EMAIL_RE);
+      if (m1) {
+        return m1[0].toLowerCase();
       }
     }
 
-    const strings = collectNestedStrings(ev);
+    var strings = collectNestedStrings(ev);
 
-    for (const s of strings) {
-      const m = String(s).match(EMAIL_RE);
-      if (m) {
-        return m[0].toLowerCase();
+    for (var i = 0; i < strings.length; i++) {
+      var m2 = String(strings[i]).match(EMAIL_RE);
+      if (m2) {
+        return m2[0].toLowerCase();
       }
     }
 
@@ -124,27 +256,28 @@ sap.ui.define([
       return "Unknown";
     }
 
-    const c = String(client).replace(/\"/g, "").trim();
+    var c = String(client).replace(/\"/g, "").trim();
 
-    if (c.includes("sb-") || c.includes("|")) {
-      const label = c.split("|")[1]?.split("!")[0] || c;
-      return `${label} (${c})`;
+    if (c.indexOf("sb-") > -1 || c.indexOf("|") > -1) {
+      var afterPipe = c.split("|")[1];
+      var label = afterPipe ? afterPipe.split("!")[0] : c;
+      return label + " (" + c + ")";
     }
 
     return c;
   }
 
   function extractClientDeep(ev) {
-    if (ev.client && ev.client !== "Unknown") {
+    if (ev && ev.client && ev.client !== "Unknown") {
       return normalizeClient(ev.client);
     }
 
-    const strings = collectNestedStrings(ev);
+    var strings = collectNestedStrings(ev);
 
-    for (const s of strings) {
-      const str = String(s);
+    for (var i = 0; i < strings.length; i++) {
+      var str = String(strings[i]);
 
-      const m =
+      var m =
         /"client_id"\s*:\s*"([^"]+)"/.exec(str) ||
         /"cid"\s*:\s*"([^"]+)"/.exec(str) ||
         /"azp"\s*:\s*"([^"]+)"/.exec(str) ||
@@ -154,7 +287,7 @@ sap.ui.define([
         return normalizeClient(m[1]);
       }
 
-      if (str.includes("sb-") && (str.includes("|") || str.includes("!"))) {
+      if (str.indexOf("sb-") > -1 && (str.indexOf("|") > -1 || str.indexOf("!") > -1)) {
         return normalizeClient(str);
       }
     }
@@ -171,24 +304,24 @@ sap.ui.define([
   }
 
   function summarizeMessage(ev) {
-    const t = ev.eventType || "";
-    const user = ev.user || "Unknown";
-    const client = ev.client || "Unknown";
+    var t = ev.eventType || "";
+    var user = ev.user || "Unknown";
+    var client = ev.client || "Unknown";
 
-    if (t.includes("UserAuthenticationSuccess")) {
-      return `User login success (${user})`;
+    if (t.indexOf("UserAuthenticationSuccess") > -1) {
+      return "User login success (" + user + ")";
     }
 
-    if (t.includes("IdentityProviderAuthenticationSuccess")) {
-      return `Login via identity provider (${user})`;
+    if (t.indexOf("IdentityProviderAuthenticationSuccess") > -1) {
+      return "Login via identity provider (" + user + ")";
     }
 
-    if (t.includes("ClientAuthenticationSuccess")) {
-      return `Client authenticated (${client})`;
+    if (t.indexOf("ClientAuthenticationSuccess") > -1) {
+      return "Client authenticated (" + client + ")";
     }
 
-    if (t.includes("TokenIssuedEvent")) {
-      return `Token issued for ${user} via ${client}`;
+    if (t.indexOf("TokenIssuedEvent") > -1) {
+      return "Token issued for " + user + " via " + client;
     }
 
     if (ev.message && ev.message.length > 80) {
@@ -200,74 +333,30 @@ sap.ui.define([
 
   function getSecurityExportColumns() {
     return [
-      {
-        label: "Time",
-        property: "time",
-        width: 22
-      },
-      {
-        label: "User",
-        property: "user",
-        width: 35
-      },
-      {
-        label: "Risk",
-        property: "risk",
-        width: 14
-      },
-      {
-        label: "Risk State",
-        property: "riskState",
-        width: 16
-      },
-      {
-        label: "Event Group",
-        property: "eventGroup",
-        width: 16
-      },
-      {
-        label: "Event Type",
-        property: "eventType",
-        width: 45
-      },
-      {
-        label: "IP",
-        property: "ip",
-        width: 20
-      },
-      {
-        label: "Client",
-        property: "client",
-        width: 45
-      },
-      {
-        label: "Origin",
-        property: "origin",
-        width: 30
-      },
-      {
-        label: "Message",
-        property: "message",
-        width: 60
-      },
-      {
-        label: "Anomaly Score",
-        property: "anomalyScore",
-        width: 18
-      }
+      { label: "Time", property: "time", width: 22 },
+      { label: "User", property: "user", width: 35 },
+      { label: "Risk", property: "risk", width: 14 },
+      { label: "Risk State", property: "riskState", width: 16 },
+      { label: "Event Group", property: "eventGroup", width: 16 },
+      { label: "Event Type", property: "eventType", width: 45 },
+      { label: "IP", property: "ip", width: 20 },
+      { label: "Client", property: "client", width: 45 },
+      { label: "Origin", property: "origin", width: 30 },
+      { label: "Message", property: "message", width: 60 },
+      { label: "Anomaly Score", property: "anomalyScore", width: 18 }
     ];
   }
 
   function exportSecurityRowsToExcel(rows) {
-    const count = rows.length;
+    var count = rows.length;
 
-    const timestamp = new Date()
+    var timestamp = new Date()
       .toISOString()
       .replace(/[:.]/g, "-")
       .replace("T", "_")
       .slice(0, 19);
 
-    const sheet = new Spreadsheet({
+    var sheet = new Spreadsheet({
       workbook: {
         columns: getSecurityExportColumns()
       },
@@ -281,142 +370,217 @@ sap.ui.define([
       });
   }
 
-  // ============================================
-  // Main controller
-  // ============================================
-
   return Controller.extend("pwc.monitoring.monitoringui.controller.Security", {
 
     onInit: function () {
-      const model = new JSONModel({
+      var model = new JSONModel({
         all: [],
         rows: [],
         typeKey: "ALL",
         emailFilter: "",
         ipFilter: "",
+        firstAuditDate: "",
         lastAuditDate: "",
+        coverageText: "",
         userChart: [],
         hourChart: [],
         kpi: {
           high: 0,
           medium: 0,
-          low: 0
+          low: 0,
+          loginCount: 0,
+          tokenCount: 0,
+          clientCount: 0,
+          otherCount: 0
         }
       });
 
       this.getView().setModel(model, "security");
+
+      this._oRiskLinePopover = new Popover({
+        formatString: "#,##0"
+      });
+
       this.onRefresh();
     },
 
-    // ============================================
-    // Load merged + scored security events
-    // ============================================
+    onAfterRendering: function () {
+      this._configureRiskLineChart();
+      this._connectLinePopover();
+    },
+
+    _configureRiskLineChart: function () {
+      var oChart = this.byId("idRiskLine");
+
+      if (!oChart) {
+        return;
+      }
+
+      oChart.setVizProperties({
+        plotArea: {
+          colorPalette: ["#2563eb"],
+          dataLabel: {
+            visible: false
+          },
+          marker: {
+            visible: true,
+            size: 7
+          }
+        },
+        tooltip: {
+          visible: true
+        },
+        interaction: {
+          behaviorType: "default"
+        },
+        valueAxis: {
+          title: {
+            visible: true,
+            text: "Risk Events"
+          }
+        },
+        categoryAxis: {
+          title: {
+            visible: true,
+            text: "Hour of Day"
+          }
+        },
+        legend: {
+          visible: true
+        },
+        title: {
+          visible: false
+        }
+      });
+    },
+
+    _connectLinePopover: function () {
+      var oChart = this.byId("idRiskLine");
+
+      if (oChart && this._oRiskLinePopover) {
+        this._oRiskLinePopover.connect(oChart.getVizUid());
+      }
+    },
 
     onRefresh: function () {
-      const API_BASE =
-        "https://port8090-workspaces-ws-dl8fm.eu10.applicationstudio.cloud.sap";
+      fetchJsonWithFallback(API_CANDIDATES)
+        .then(function (json) {
+          var arr = Array.isArray(json.logs) ? json.logs : [];
 
-      fetch(`${API_BASE}/security/events`, {
-        credentials: "include"
-      })
-        .then(async (r) => {
-          if (!r.ok) {
-            const text = await r.text();
+          var norm = arr.map(function (ev) {
+            var score =
+              ev.anomalyScore !== undefined && ev.anomalyScore !== null
+                ? Number(ev.anomalyScore)
+                : 0;
 
-            throw new Error(
-              `HTTP ${r.status} ${r.statusText}: ${text.slice(0, 200)}`
-            );
-          }
+            if (isNaN(score)) {
+              score = 0;
+            }
 
-          return r.json();
-        })
-        .then((json) => {
-          const arr = Array.isArray(json.logs) ? json.logs : [];
+            var user = extractEmailDeep(ev);
+            var client = extractClientDeep(ev);
+            var origin = cleanOriginField(ev.origin);
+            var eventGroup = mapTypeToGroup(ev.eventType || "");
 
-          const norm = arr.map((ev) => {
-            const score = ev.anomalyScore ?? 0;
+            var msg = summarizeMessage(Object.assign({}, ev, {
+              user: user,
+              client: client
+            }));
 
-            const risk =
-              score < -0.4 ? "High" :
-              score < -0.2 ? "Medium" :
-              score < 0 ? "Low" :
-              "Normal";
+            var backendRisk = ev.mlRisk || ev.risk || "";
+            var risk = riskFromNormalizedScore(score, ev.anomaly, backendRisk);
+            var riskState = normalizeValueState(ev.riskState || stateFromRisk(risk));
 
-            const riskState =
-              risk === "High" ? "Error" :
-              risk === "Medium" ? "Critical" :
-              risk === "Low" ? "Warning" :
-              "Success";
-
-            const user = extractEmailDeep(ev);
-            const client = extractClientDeep(ev);
-            const origin = cleanOriginField(ev.origin);
-
-            const msg = summarizeMessage({
-              ...ev,
-              user,
-              client
-            });
-
-            return {
-              ...ev,
-              user,
-              client,
-              origin,
+            return Object.assign({}, ev, {
+              user: user,
+              client: client,
+              origin: origin,
               message: msg,
+              originalTime: ev.time,
               time: formatTime(ev.time),
-              eventGroup: mapTypeToGroup(ev.eventType || ""),
+              eventGroup: eventGroup,
               anomalyScore: score,
-              risk,
-              riskState
-            };
+              anomaly:
+                ev.anomaly !== undefined && ev.anomaly !== null
+                  ? Number(ev.anomaly)
+                  : 1,
+              risk: risk,
+              riskState: riskState
+            });
           });
 
-          norm.sort((a, b) => new Date(b.time) - new Date(a.time));
+          norm.sort(function (a, b) {
+            return new Date(b.originalTime || b.time) - new Date(a.originalTime || a.time);
+          });
 
-          const m = this.getView().getModel("security");
+          var m = this.getView().getModel("security");
 
           m.setProperty("/all", norm);
-          m.setProperty("/lastAuditDate", json.lastAuditDate || "");
 
-          // ===============================
-          // IAM Activity by Hour of Day
-          // ===============================
+          var firstAuditDate = "";
+          var lastAuditDate = "";
 
-          const hourCounts = {};
+          if (norm.length) {
+            var asc = norm.slice().sort(function (a, b) {
+              return new Date(a.originalTime || a.time) - new Date(b.originalTime || b.time);
+            });
 
-          for (let i = 0; i < 24; i++) {
-            const label = (`0${i}`).slice(-2);
+            firstAuditDate = formatTime(asc[0].originalTime || asc[0].time);
+            lastAuditDate = formatTime(asc[asc.length - 1].originalTime || asc[asc.length - 1].time);
+          }
+
+          m.setProperty("/firstAuditDate", firstAuditDate);
+          m.setProperty("/lastAuditDate", lastAuditDate || formatTime(json.lastAuditDate || ""));
+          m.setProperty(
+            "/coverageText",
+            firstAuditDate && lastAuditDate
+              ? firstAuditDate + "  →  " + lastAuditDate
+              : ""
+          );
+
+          var hourCounts = {};
+
+          for (var i = 0; i < 24; i++) {
+            var label = ("0" + i).slice(-2);
             hourCounts[label] = 0;
           }
 
-          norm.forEach(ev => {
-            if (!ev.time) {
+          norm.forEach(function (ev) {
+            var rawTime = ev.originalTime || ev.time;
+
+            if (!rawTime) {
               return;
             }
 
-            const hour = new Date(ev.time).getHours();
-            const label = (`0${hour}`).slice(-2);
+            var d = new Date(rawTime);
 
-            hourCounts[label]++;
+            if (isNaN(d.getTime())) {
+              return;
+            }
+
+            var hour = d.getHours();
+            var hourLabel = ("0" + hour).slice(-2);
+
+            hourCounts[hourLabel] = Number(hourCounts[hourLabel] || 0) + 1;
           });
 
-          const hourChart = Object.entries(hourCounts)
-            .map(([hour, count]) => ({
-              time: hour,
-              count
-            }));
+          var hourChart = Object.keys(hourCounts)
+            .sort(function (a, b) {
+              return Number(a) - Number(b);
+            })
+            .map(function (hour) {
+              return {
+                time: hour,
+                count: Number(hourCounts[hour] || 0)
+              };
+            });
 
           m.setProperty("/hourChart", hourChart);
 
-          // ==============================
-          // Aggregate events per user
-          // ==============================
+          var userCounts = {};
 
-          const userCounts = {};
-
-          norm.forEach(ev => {
-            const u = ev.user || "Unknown";
+          norm.forEach(function (ev) {
+            var u = ev.user || "Unknown";
 
             if (!userCounts[u]) {
               userCounts[u] = 0;
@@ -425,56 +589,91 @@ sap.ui.define([
             userCounts[u]++;
           });
 
-          const chartUsers = Object.entries(userCounts)
-            .map(([user, count]) => ({
-              user,
-              count
-            }))
-            .sort((a, b) => b.count - a.count)
+          var chartUsers = Object.keys(userCounts)
+            .map(function (userKey) {
+              return {
+                user: userKey,
+                count: userCounts[userKey]
+              };
+            })
+            .sort(function (a, b) {
+              return b.count - a.count;
+            })
             .slice(0, 8);
 
           m.setProperty("/userChart", chartUsers);
 
-          // KPI from full dataset
           m.setProperty("/kpi", {
-            high: norm.filter(x => x.risk === "High").length,
-            medium: norm.filter(x => x.risk === "Medium").length,
-            low: norm.filter(x => x.risk === "Low").length
+            high: norm.filter(function (x) {
+              return x.risk === "High";
+            }).length,
+            medium: norm.filter(function (x) {
+              return x.risk === "Medium";
+            }).length,
+            low: norm.filter(function (x) {
+              return x.risk === "Low";
+            }).length,
+            loginCount: norm.filter(function (x) {
+              return x.eventGroup === "LOGIN";
+            }).length,
+            tokenCount: norm.filter(function (x) {
+              return x.eventGroup === "TOKEN";
+            }).length,
+            clientCount: norm.filter(function (x) {
+              return x.eventGroup === "CLIENT";
+            }).length,
+            otherCount: norm.filter(function (x) {
+              return x.eventGroup === "OTHER";
+            }).length
           });
 
-          // Reset filters on refresh
           m.setProperty("/typeKey", "ALL");
           m.setProperty("/emailFilter", "");
           m.setProperty("/ipFilter", "");
 
           this._applyFilters();
-        })
-        .catch((err) => {
+          this._configureRiskLineChart();
+          this._connectLinePopover();
+        }.bind(this))
+        .catch(function (err) {
           console.error("[SEC] Load failed", err);
 
-          const m = this.getView().getModel("security");
+          MessageToast.show("Security events failed to load. Check backend/API.");
+
+          var m = this.getView().getModel("security");
 
           m.setProperty("/all", []);
           m.setProperty("/rows", []);
           m.setProperty("/userChart", []);
           m.setProperty("/hourChart", []);
+          m.setProperty("/firstAuditDate", "");
           m.setProperty("/lastAuditDate", "");
+          m.setProperty("/coverageText", "");
           m.setProperty("/kpi", {
             high: 0,
             medium: 0,
-            low: 0
+            low: 0,
+            loginCount: 0,
+            tokenCount: 0,
+            clientCount: 0,
+            otherCount: 0
           });
-        });
+        }.bind(this));
     },
 
     onUserPieSelect: function (oEvent) {
-      const data = oEvent.getParameter("data")[0].data;
+      var dataArr = oEvent.getParameter("data") || [];
 
-      const user = data.User;
-      const count = data.Events;
+      if (!dataArr.length || !dataArr[0].data) {
+        return;
+      }
+
+      var data = dataArr[0].data;
+      var user = data.User;
+      var count = data.Events;
 
       MessageBox.information(
-        `${user}\n\nGenerated ${count} IAM Security Events`,
+        user + "\n\nGenerated " + count + " IAM Security Events",
         {
           title: "User Event Count"
         }
@@ -498,62 +697,44 @@ sap.ui.define([
     },
 
     goRisk: function () {
-      this.getOwnerComponent()
-        .getRouter()
-        .navTo("risk", {}, false);
+      this.getOwnerComponent().getRouter().navTo("risk", {}, false);
     },
 
     goKmeans: function () {
       this.getOwnerComponent().getRouter().navTo("kmeans", {}, false);
     },
 
-    // ============================================
-    // Filter handlers
-    // ============================================
-
     onTypeChange: function (oEvent) {
-      const key = oEvent.getParameter("item").getKey();
+      var key = oEvent.getParameter("item").getKey();
 
-      this.getView()
-        .getModel("security")
-        .setProperty("/typeKey", key);
-
+      this.getView().getModel("security").setProperty("/typeKey", key);
       this._applyFilters();
     },
 
     onEmailChange: function (oEvent) {
-      const val = (oEvent.getParameter("newValue") || "").trim();
+      var val = (oEvent.getParameter("newValue") || "").trim();
 
-      this.getView()
-        .getModel("security")
-        .setProperty("/emailFilter", val);
-
+      this.getView().getModel("security").setProperty("/emailFilter", val);
       this._applyFilters();
     },
 
     onIpChange: function (oEvent) {
-      const val = (oEvent.getParameter("newValue") || "").trim();
+      var val = (oEvent.getParameter("newValue") || "").trim();
 
-      this.getView()
-        .getModel("security")
-        .setProperty("/ipFilter", val);
-
+      this.getView().getModel("security").setProperty("/ipFilter", val);
       this._applyFilters();
     },
 
-    // ============================================
-    // Filtered Excel Export
-    // ============================================
+    onExportSecurityPdf: function () {
+      window.open(API_BASE + "/security/export/pdf", "_blank");
+    },
 
     onExportVisibleSecurityExcel: function () {
-      const m = this.getView().getModel("security");
-      const rows = m.getProperty("/rows") || [];
-      const count = rows.length;
+      var m = this.getView().getModel("security");
+      var rows = m.getProperty("/rows") || [];
+      var count = rows.length;
 
       MessageToast.show("Exporting " + count + " filtered security rows");
-
-      console.log("[EXPORT FILTERED SECURITY] rows count:", count);
-      console.log("[EXPORT FILTERED SECURITY] rows:", rows);
 
       exportSecurityRowsToExcel(rows)
         .then(function () {
@@ -565,44 +746,53 @@ sap.ui.define([
         });
     },
 
-    // Backward compatibility if something still calls old method
     onExportSecurityExcel: function () {
       this.onExportVisibleSecurityExcel();
     },
 
-    // ============================================
-    // Apply filters to the table
-    // ============================================
-
     _applyFilters: function () {
-      const m = this.getView().getModel("security");
+      var m = this.getView().getModel("security");
 
-      const all = m.getProperty("/all") || [];
-      const typeKey = m.getProperty("/typeKey");
-      const email = m.getProperty("/emailFilter");
-      const ip = m.getProperty("/ipFilter");
+      var all = m.getProperty("/all") || [];
+      var typeKey = m.getProperty("/typeKey");
+      var email = m.getProperty("/emailFilter");
+      var ip = m.getProperty("/ipFilter");
 
-      let rows = all.slice();
+      var rows = all.slice();
 
       if (typeKey && typeKey !== "ALL") {
-        rows = rows.filter((r) => r.eventGroup === typeKey);
+        rows = rows.filter(function (r) {
+          return r.eventGroup === typeKey;
+        });
       }
 
       if (email) {
-        rows = rows.filter((r) =>
-          includesIC(r.user, email) ||
-          includesIC(r.client, email) ||
-          includesIC(r.origin, email) ||
-          includesIC(r.message, email) ||
-          includesIC(r.eventType, email)
-        );
+        rows = rows.filter(function (r) {
+          return (
+            includesIC(r.user, email) ||
+            includesIC(r.client, email) ||
+            includesIC(r.origin, email) ||
+            includesIC(r.message, email) ||
+            includesIC(r.eventType, email) ||
+            includesIC(r.risk, email)
+          );
+        });
       }
 
       if (ip) {
-        rows = rows.filter((r) => includesIC(r.ip, ip));
+        rows = rows.filter(function (r) {
+          return includesIC(r.ip, ip);
+        });
       }
 
       m.setProperty("/rows", rows);
+    },
+
+    onExit: function () {
+      if (this._oRiskLinePopover) {
+        this._oRiskLinePopover.destroy();
+        this._oRiskLinePopover = null;
+      }
     }
 
   });

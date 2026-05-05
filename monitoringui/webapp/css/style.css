@@ -755,3 +755,70 @@
   font-size: 1.2rem;
   color: #64748b;
 }
+.kpiCrimson {
+  border-top: 0.35rem solid #dc2626;
+}
+
+.kpiGold {
+  border-top: 0.35rem solid #eab308;
+}
+
+.kpiCyan {
+  border-top: 0.35rem solid #06b6d4;
+}
+
+.kpiSlate {
+  border-top: 0.35rem solid #64748b;
+}
+
+.miniLoginSec {
+  border: 1px solid #fecaca;
+  background: #fef2f2;
+  border-radius: 999px;
+  padding: 0.65rem 1rem;
+  margin-right: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.miniTokenSec {
+  border: 1px solid #fde68a;
+  background: #fffbeb;
+  border-radius: 999px;
+  padding: 0.65rem 1rem;
+  margin-right: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.miniClientSec {
+  border: 1px solid #a5f3fc;
+  background: #ecfeff;
+  border-radius: 999px;
+  padding: 0.65rem 1rem;
+  margin-right: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.miniOtherSec {
+  border: 1px solid #cbd5e1;
+  background: #f8fafc;
+  border-radius: 999px;
+  padding: 0.65rem 1rem;
+  margin-right: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.cardIconCrimson {
+  color: #dc2626;
+}
+
+.cardIconGold {
+  color: #ca8a04;
+}
+
+.cardIconCyan {
+  color: #0891b2;
+}
+
+.cardIconSlate {
+  color: #475569;
+}

@@ -5,6 +5,7 @@ import numpy as np
 import pandas as pd
 import subprocess
 import sys
+import os
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from scipy.sparse import load_npz, hstack

@@ -2,7 +2,7 @@ import dotenv from "dotenv";
 import path from "path";
 import { fileURLToPath } from "url";
 import cfenv from "cfenv";
-
+import auditFullRoutes from "./src/api/audit.full.routes.js";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -78,7 +78,7 @@ if (!isCI) {
 // =======================
 app.use("/audit", riskExportRoutes);
 app.use("/", securityExportRoutes);
-
+app.use(auditFullRoutes);
 app.use("/health", healthRoutes);
 app.use("/metrics", metricsRoutes);
 app.use("/audit", auditRoutes);

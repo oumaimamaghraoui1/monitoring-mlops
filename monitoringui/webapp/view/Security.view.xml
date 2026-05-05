@@ -45,14 +45,13 @@
           showIcon="true"
           class="sapUiSmallMarginBottom"/>
 
-        <!-- KPI ROW -->
         <HBox
           width="100%"
           justifyContent="SpaceAround"
           wrap="Wrap"
           class="sapUiMediumMarginBottom">
 
-          <VBox class="kpiCard kpiHigh" alignItems="Center" justifyContent="Center">
+          <VBox class="kpiCard kpiCrimson" alignItems="Center" justifyContent="Center">
             <core:Icon src="sap-icon://warning2" size="1.6rem" class="kpiIcon"/>
             <Title text="High Behaviour Risk" level="H6" class="kpiTitle"/>
             <ObjectNumber
@@ -61,7 +60,7 @@
               class="kpiNumber"/>
           </VBox>
 
-          <VBox class="kpiCard kpiMedium" alignItems="Center" justifyContent="Center">
+          <VBox class="kpiCard kpiGold" alignItems="Center" justifyContent="Center">
             <core:Icon src="sap-icon://alert" size="1.6rem" class="kpiIcon"/>
             <Title text="Medium Behaviour Risk" level="H6" class="kpiTitle"/>
             <ObjectNumber
@@ -70,7 +69,7 @@
               class="kpiNumber"/>
           </VBox>
 
-          <VBox class="kpiCard kpiLow" alignItems="Center" justifyContent="Center">
+          <VBox class="kpiCard kpiCyan" alignItems="Center" justifyContent="Center">
             <core:Icon src="sap-icon://activity-individual" size="1.6rem" class="kpiIcon"/>
             <Title text="Low Behaviour Risk" level="H6" class="kpiTitle"/>
             <ObjectNumber
@@ -79,7 +78,7 @@
               class="kpiNumber"/>
           </VBox>
 
-          <VBox class="kpiCard kpiTotal" alignItems="Center" justifyContent="Center">
+          <VBox class="kpiCard kpiSlate" alignItems="Center" justifyContent="Center">
             <core:Icon src="sap-icon://list" size="1.6rem" class="kpiIcon"/>
             <Title text="Filtered Events" level="H6" class="kpiTitle"/>
             <ObjectNumber
@@ -87,6 +86,34 @@
               state="Information"
               class="kpiNumber"/>
           </VBox>
+
+        </HBox>
+
+        <HBox
+          wrap="Wrap"
+          justifyContent="Start"
+          width="100%"
+          class="sapUiSmallMarginBottom">
+
+          <HBox class="miniStatCard miniLoginSec" alignItems="Center">
+            <core:Icon src="sap-icon://log" size="1rem" class="miniStatIcon sapUiTinyMarginEnd"/>
+            <Text text="{= 'LOGIN: ' + (${security>/kpi/loginCount} || 0) }" class="miniStatText"/>
+          </HBox>
+
+          <HBox class="miniStatCard miniTokenSec" alignItems="Center">
+            <core:Icon src="sap-icon://key" size="1rem" class="miniStatIcon sapUiTinyMarginEnd"/>
+            <Text text="{= 'TOKEN: ' + (${security>/kpi/tokenCount} || 0) }" class="miniStatText"/>
+          </HBox>
+
+          <HBox class="miniStatCard miniClientSec" alignItems="Center">
+            <core:Icon src="sap-icon://shield" size="1rem" class="miniStatIcon sapUiTinyMarginEnd"/>
+            <Text text="{= 'CLIENT: ' + (${security>/kpi/clientCount} || 0) }" class="miniStatText"/>
+          </HBox>
+
+          <HBox class="miniStatCard miniOtherSec" alignItems="Center">
+            <core:Icon src="sap-icon://activity-items" size="1rem" class="miniStatIcon sapUiTinyMarginEnd"/>
+            <Text text="{= 'OTHER: ' + (${security>/kpi/otherCount} || 0) }" class="miniStatText"/>
+          </HBox>
 
         </HBox>
 
@@ -104,7 +131,7 @@
 
             <VBox class="sapUiMediumMargin">
               <HBox alignItems="Center" class="sapUiSmallMarginBottom">
-                <core:Icon src="sap-icon://pie-chart" size="1.1rem" class="cardIconPurple sapUiTinyMarginEnd"/>
+                <core:Icon src="sap-icon://pie-chart" size="1.1rem" class="cardIconCrimson sapUiTinyMarginEnd"/>
                 <Title text="Events by User" level="H5"/>
               </HBox>
 
@@ -161,7 +188,7 @@
 
             <VBox class="sapUiMediumMargin">
               <HBox alignItems="Center" class="sapUiSmallMarginBottom">
-                <core:Icon src="sap-icon://line-chart" size="1.1rem" class="cardIconBlue sapUiTinyMarginEnd"/>
+                <core:Icon src="sap-icon://line-chart" size="1.1rem" class="cardIconCyan sapUiTinyMarginEnd"/>
                 <Title text="IAM Activity by Hour of Day" level="H5"/>
               </HBox>
 
@@ -178,13 +205,15 @@
                 vizProperties='{
                   "plotArea":{
                     "colorPalette":["#2563eb"],
-                    "dataLabel":{"visible":false}
+                    "dataLabel":{"visible":false},
+                    "marker":{"visible":true,"size":7}
                   },
-                  "valueAxis":{"title":{"visible":true}},
-                  "categoryAxis":{"title":{"visible":true}},
-                  "title":{
-                    "visible":false
-                  }
+                  "tooltip":{"visible":true},
+                  "interaction":{"behaviorType":"default"},
+                  "valueAxis":{"title":{"visible":true,"text":"Risk Events"}},
+                  "categoryAxis":{"title":{"visible":true,"text":"Hour of Day"}},
+                  "legend":{"visible":true},
+                  "title":{"visible":false}
                 }'>
 
                 <viz:dataset>
@@ -218,10 +247,10 @@
           justifyContent="End"
           class="sapUiMediumMarginTop sapUiMediumMarginBottom">
           <ObjectStatus
-            title="Last Security Event Available"
-            text="{security>/lastAuditDate}"
+            title="Security Event Coverage"
+            text="{security>/coverageText}"
             state="Success"
-            icon="sap-icon://accept"/>
+            icon="sap-icon://history"/>
         </HBox>
 
         <Panel
@@ -233,7 +262,7 @@
           <VBox class="sapUiMediumMargin">
 
             <HBox alignItems="Center" class="sapUiSmallMarginBottom">
-              <core:Icon src="sap-icon://filter" size="1rem" class="cardIconBlue sapUiTinyMarginEnd"/>
+              <core:Icon src="sap-icon://filter" size="1rem" class="cardIconGold sapUiTinyMarginEnd"/>
               <Title text="Filtering &amp; Investigation" level="H5"/>
             </HBox>
 
@@ -276,7 +305,7 @@
           <VBox class="sapUiMediumMargin">
 
             <HBox alignItems="Center" class="sapUiSmallMarginBottom">
-              <core:Icon src="sap-icon://table-view" size="1.1rem" class="cardIconGreen sapUiTinyMarginEnd"/>
+              <core:Icon src="sap-icon://table-view" size="1.1rem" class="cardIconSlate sapUiTinyMarginEnd"/>
               <Title text="Security Events Table" level="H5"/>
             </HBox>
 
@@ -304,6 +333,11 @@
                     icon="sap-icon://excel-attachment"
                     type="Emphasized"
                     press=".onExportVisibleSecurityExcel"/>
+
+                  <Button
+                    text="Export PDF"
+                    icon="sap-icon://pdf-attachment"
+                    press=".onExportSecurityPdf"/>
                 </Toolbar>
               </headerToolbar>
 
