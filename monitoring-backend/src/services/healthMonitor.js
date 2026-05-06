@@ -22,8 +22,8 @@ new PerformanceObserver(list=>{
 }).observe({entryTypes:["gc"]});
 
 const SAMPLE_INTERVAL_MS=2000;
-const HEALTH_ALERT_SCORE=50;
-const ALERT_COOLDOWN_MS=3000000;
+const HEALTH_ALERT_SCORE=40;
+const ALERT_COOLDOWN_MS=300000;
 
 let samplerTimer=null;
 let lastLoop=process.hrtime.bigint();

@@ -2,11 +2,15 @@ sap.ui.define([
   "sap/ui/core/mvc/Controller",
   "sap/ui/model/json/JSONModel",
   "sap/ui/export/Spreadsheet",
-  "sap/m/MessageToast"
-], function (Controller, JSONModel, Spreadsheet, MessageToast) {
+  "sap/m/MessageToast",
+  "sap/m/MessageBox",
+  "pwc/monitoring/monitoringui/utils/TCodeClassificationHelper"
+], function (Controller, JSONModel, Spreadsheet, MessageToast, MessageBox, TCodeClassificationHelper) {
   "use strict";
 
   const FAVORITES_KEY = "sapBasisFavorites";
+  const RECENT_SEARCHES_KEY = "sapBasisRecentSearches";
+  const MAX_RECENT_SEARCHES = 4;
 
   function includesIC(hay, needle) {
     if (!needle) {
@@ -22,41 +26,15 @@ sap.ui.define([
 
   function getTcodeExportColumns() {
     return [
-      {
-        label: "Rank",
-        property: "rank",
-        width: 10
-      },
-      {
-        label: "T-Code",
-        property: "tcode",
-        width: 18
-      },
-      {
-        label: "Program",
-        property: "program",
-        width: 28
-      },
-      {
-        label: "Description",
-        property: "desc",
-        width: 60
-      },
-      {
-        label: "Cluster",
-        property: "cluster",
-        width: 18
-      },
-      {
-        label: "Similarity",
-        property: "similarity",
-        width: 18
-      },
-      {
-        label: "Favorite",
-        property: "favoriteText",
-        width: 14
-      }
+      { label: "Rank", property: "rank", width: 10 },
+      { label: "T-Code", property: "tcode", width: 18 },
+      { label: "Program", property: "program", width: 28 },
+      { label: "Description", property: "desc", width: 60 },
+      { label: "Domain", property: "domain", width: 18 },
+      { label: "Module", property: "module", width: 18 },
+      { label: "Cluster", property: "cluster", width: 28 },
+      { label: "Similarity", property: "similarity", width: 18 },
+      { label: "Favorite", property: "favoriteText", width: 14 }
     ];
   }
 
@@ -67,11 +45,10 @@ sap.ui.define([
         tcode: row.tcode || "",
         program: row.program || "",
         desc: row.desc || "",
+        domain: row.domain || "",
+        module: row.module || "",
         cluster: row.cluster || "",
-        similarity:
-          row.similarity !== undefined && row.similarity !== null
-            ? row.similarity
-            : "",
+        similarity: row.similarity !== undefined && row.similarity !== null ? row.similarity : "",
         favoriteText: row.isFavorite ? "Yes" : "No"
       };
     });
@@ -94,16 +71,74 @@ sap.ui.define([
       fileName: filePrefix + "_FILTERED_" + count + "_rows_" + timestamp + ".xlsx"
     });
 
-    return sheet.build()
-      .finally(function () {
-        sheet.destroy();
-      });
+    return sheet.build().finally(function () {
+      sheet.destroy();
+    });
+  }
+
+  function escapeCsvValue(value) {
+    if (value === null || value === undefined) {
+      return "";
+    }
+    return '"' + String(value).replace(/"/g, '""') + '"';
+  }
+
+  function downloadCsv(rows, filePrefix) {
+    const timestamp = new Date()
+      .toISOString()
+      .replace(/[:.]/g, "-")
+      .replace("T", "_")
+      .slice(0, 19);
+
+    const headers = [
+      "Rank",
+      "T-Code",
+      "Program",
+      "Description",
+      "Domain",
+      "Module",
+      "Cluster",
+      "Similarity",
+      "Favorite"
+    ];
+
+    const lines = [headers.join(",")];
+
+    (rows || []).forEach(function (row) {
+      lines.push([
+        escapeCsvValue(row.rank || ""),
+        escapeCsvValue(row.tcode || ""),
+        escapeCsvValue(row.program || ""),
+        escapeCsvValue(row.desc || ""),
+        escapeCsvValue(row.domain || ""),
+        escapeCsvValue(row.module || ""),
+        escapeCsvValue(row.cluster || ""),
+        escapeCsvValue(row.similarity !== undefined && row.similarity !== null ? row.similarity : ""),
+        escapeCsvValue(row.isFavorite ? "Yes" : "No")
+      ].join(","));
+    });
+
+    const csvContent = "\uFEFF" + lines.join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const fileName = filePrefix + "_" + timestamp + ".csv";
+
+    const link = document.createElement("a");
+    const url = window.URL.createObjectURL(blob);
+
+    link.href = url;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    window.URL.revokeObjectURL(url);
   }
 
   return Controller.extend("pwc.monitoring.monitoringui.controller.kmeans", {
 
     onInit: function () {
       const aFavorites = this._loadFavorites();
+      const aRecentSearches = this._loadRecentSearches();
 
       this.getView().setModel(new JSONModel({
         all: [],
@@ -115,6 +150,10 @@ sap.ui.define([
         favorites: aFavorites,
         showFavorites: true
       }), "favModel");
+
+      this.getView().setModel(new JSONModel({
+        recentSearches: aRecentSearches
+      }), "searchModel");
     },
 
     onSearch: async function () {
@@ -146,7 +185,9 @@ sap.ui.define([
         const favorites = this._loadFavorites();
 
         const enriched = results.map(function (item) {
-          return Object.assign({}, item, {
+          const classified = TCodeClassificationHelper.enrichItem(item);
+
+          return Object.assign({}, classified, {
             isFavorite: favorites.some(function (fav) {
               return fav.tcode === item.tcode;
             })
@@ -154,12 +195,12 @@ sap.ui.define([
         });
 
         const recModel = this.getView().getModel("recModel");
-
         recModel.setProperty("/all", enriched);
         recModel.setProperty("/filterText", "");
 
         this.getView().getModel("favModel").setProperty("/favorites", favorites);
 
+        this._saveRecentSearch(tcode);
         this._applyResultFilter();
 
         if (!results.length) {
@@ -174,9 +215,80 @@ sap.ui.define([
       }
     },
 
-    // =====================================================
-    // Result filtering
-    // =====================================================
+    onQuickSuggestionPress: function (oEvent) {
+      const sValue = oEvent.getSource().getText() || "";
+      if (!sValue) {
+        return;
+      }
+
+      this.byId("tcodeInput").setValue(sValue);
+      this.onSearch();
+    },
+
+    onRecentSearchPress: function (oEvent) {
+      const oContext = oEvent.getSource().getBindingContext("searchModel");
+      const sValue = oContext.getProperty("text");
+
+      if (!sValue) {
+        return;
+      }
+
+      this.byId("tcodeInput").setValue(sValue);
+      this.onSearch();
+    },
+
+    onRemoveRecentSearch: function (oEvent) {
+      const oContext = oEvent.getSource().getBindingContext("searchModel");
+      const sValue = oContext.getProperty("text");
+
+      let aRecent = this._loadRecentSearches();
+
+      aRecent = aRecent.filter(function (item) {
+        return item.text !== sValue;
+      });
+
+      localStorage.setItem(RECENT_SEARCHES_KEY, JSON.stringify(aRecent));
+      this.getView().getModel("searchModel").setProperty("/recentSearches", aRecent);
+
+      MessageToast.show("Removed: " + sValue);
+    },
+
+    onClearRecentSearches: function () {
+      localStorage.removeItem(RECENT_SEARCHES_KEY);
+      this.getView().getModel("searchModel").setProperty("/recentSearches", []);
+      MessageToast.show("Recent searches cleared");
+    },
+
+    _loadRecentSearches: function () {
+      try {
+        return JSON.parse(localStorage.getItem(RECENT_SEARCHES_KEY)) || [];
+      } catch (e) {
+        return [];
+      }
+    },
+
+    _saveRecentSearch: function (sSearchText) {
+      if (!sSearchText) {
+        return;
+      }
+
+      let aRecent = this._loadRecentSearches();
+
+      aRecent = aRecent.filter(function (item) {
+        return String(item.text).toLowerCase() !== String(sSearchText).toLowerCase();
+      });
+
+      aRecent.unshift({
+        text: sSearchText
+      });
+
+      if (aRecent.length > MAX_RECENT_SEARCHES) {
+        aRecent = aRecent.slice(0, MAX_RECENT_SEARCHES);
+      }
+
+      localStorage.setItem(RECENT_SEARCHES_KEY, JSON.stringify(aRecent));
+      this.getView().getModel("searchModel").setProperty("/recentSearches", aRecent);
+    },
 
     onResultFilterChange: function (oEvent) {
       const value =
@@ -184,16 +296,12 @@ sap.ui.define([
         oEvent.getSource().getValue() ||
         "";
 
-      this.getView()
-        .getModel("recModel")
-        .setProperty("/filterText", value.trim());
-
+      this.getView().getModel("recModel").setProperty("/filterText", value.trim());
       this._applyResultFilter();
     },
 
     onClearResultFilter: function () {
       const recModel = this.getView().getModel("recModel");
-
       recModel.setProperty("/filterText", "");
 
       const sf = this.byId("sfTcodeResultFilter");
@@ -218,6 +326,8 @@ sap.ui.define([
             includesIC(item.tcode, filterText) ||
             includesIC(item.program, filterText) ||
             includesIC(item.desc, filterText) ||
+            includesIC(item.domain, filterText) ||
+            includesIC(item.module, filterText) ||
             includesIC(item.cluster, filterText) ||
             includesIC(item.similarity, filterText) ||
             includesIC(item.rank, filterText)
@@ -228,21 +338,15 @@ sap.ui.define([
       recModel.setProperty("/rows", rows);
     },
 
-    // =====================================================
-    // Copy
-    // =====================================================
-
     onCopyTcode: function (oEvent) {
       const oContext = oEvent.getSource().getBindingContext("recModel");
       const sTcode = oContext.getProperty("tcode");
-
       this._copyText(sTcode);
     },
 
     onCopyFavoriteTcode: function (oEvent) {
       const oContext = oEvent.getSource().getBindingContext("favModel");
       const sTcode = oContext.getProperty("tcode");
-
       this._copyText(sTcode);
     },
 
@@ -277,9 +381,31 @@ sap.ui.define([
       }
     },
 
-    // =====================================================
-    // Favorites
-    // =====================================================
+    onViewDetails: function (oEvent) {
+      const oContext = oEvent.getSource().getBindingContext("recModel");
+      const oItem = oContext.getObject();
+
+      const sMessage =
+        "T-Code: " + (oItem.tcode || "") + "\n" +
+        "Program: " + (oItem.program || "") + "\n" +
+        "Description: " + (oItem.desc || "") + "\n" +
+        "Domain: " + (oItem.domain || "") + "\n" +
+        "Module: " + (oItem.module || "") + "\n" +
+        "Cluster: " + (oItem.cluster || "") + "\n" +
+        "Similarity: " + (oItem.similarity || "") + "\n" +
+        "Classification Score: " + (oItem.clusterScore || 0);
+
+      MessageBox.information(sMessage, {
+        title: "Recommendation Details"
+      });
+    },
+
+    onOpenDocumentation: function () {
+      window.open(
+        "https://help.sap.com/docs/SAP_S4HANA_CLOUD/a630d57fc5004c6383e7a81efee7a8bb/576fa8d8c74443b18c622068b6f55fa4.html?locale=en-US",
+        "_blank"
+      );
+    },
 
     onToggleFavorite: function (oEvent) {
       const oContext = oEvent.getSource().getBindingContext("recModel");
@@ -303,6 +429,8 @@ sap.ui.define([
           tcode: oItem.tcode,
           program: oItem.program,
           desc: oItem.desc,
+          domain: oItem.domain,
+          module: oItem.module,
           cluster: oItem.cluster,
           similarity: oItem.similarity,
           isFavorite: true
@@ -338,7 +466,6 @@ sap.ui.define([
     onToggleFavoritesPanel: function () {
       const oFavModel = this.getView().getModel("favModel");
       const bCurrent = oFavModel.getProperty("/showFavorites");
-
       oFavModel.setProperty("/showFavorites", !bCurrent);
     },
 
@@ -357,7 +484,6 @@ sap.ui.define([
       });
 
       recModel.setProperty("/all", aUpdated);
-
       this._applyResultFilter();
     },
 
@@ -373,19 +499,12 @@ sap.ui.define([
       localStorage.setItem(FAVORITES_KEY, JSON.stringify(aFavorites));
     },
 
-    // =====================================================
-    // Excel exports
-    // =====================================================
-
     onExportFilteredResultsExcel: function () {
       const recModel = this.getView().getModel("recModel");
       const rows = recModel.getProperty("/rows") || [];
       const count = rows.length;
 
       MessageToast.show("Exporting " + count + " filtered T-Code rows");
-
-      console.log("[EXPORT FILTERED T-CODES] rows count:", count);
-      console.log("[EXPORT FILTERED T-CODES] rows:", rows);
 
       exportRowsToExcel(rows, "SAP_Basis_TCode_Recommendations")
         .then(function () {
@@ -395,6 +514,20 @@ sap.ui.define([
           console.error("[EXPORT FILTERED T-CODES] failed:", err);
           MessageToast.show("T-Code Excel export failed");
         });
+    },
+
+    onExportFilteredResultsCsv: function () {
+      const recModel = this.getView().getModel("recModel");
+      const rows = recModel.getProperty("/rows") || [];
+      const count = rows.length;
+
+      if (!count) {
+        MessageToast.show("No filtered results to export");
+        return;
+      }
+
+      downloadCsv(rows, "SAP_Basis_TCode_Recommendations");
+      MessageToast.show("CSV exported: " + count + " rows");
     },
 
     onExportFavoritesExcel: function () {
@@ -409,9 +542,6 @@ sap.ui.define([
       });
 
       MessageToast.show("Exporting " + count + " favorite T-Codes");
-
-      console.log("[EXPORT FAVORITE T-CODES] rows count:", count);
-      console.log("[EXPORT FAVORITE T-CODES] rows:", rows);
 
       exportRowsToExcel(rows, "SAP_Basis_TCode_Favorites")
         .then(function () {

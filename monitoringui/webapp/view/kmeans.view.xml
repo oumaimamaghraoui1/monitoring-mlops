@@ -52,6 +52,69 @@
               press=".onToggleFavoritesPanel"
               class="sapUiTinyMarginBottom"/>
           </HBox>
+
+          <!-- Quick Suggestions -->
+          <VBox class="sapUiSmallMarginTop" alignItems="Center">
+            <Text
+              text="Quick suggestions"
+              class="subtleText sapUiTinyMarginBottom"/>
+
+            <HBox wrap="Wrap" justifyContent="Center">
+              <Button text="SU01" type="Transparent" press=".onQuickSuggestionPress" class="sapUiTinyMarginEnd sapUiTinyMarginBottom"/>
+              <Button text="PFCG" type="Transparent" press=".onQuickSuggestionPress" class="sapUiTinyMarginEnd sapUiTinyMarginBottom"/>
+              <Button text="ST22" type="Transparent" press=".onQuickSuggestionPress" class="sapUiTinyMarginEnd sapUiTinyMarginBottom"/>
+              <Button text="SM37" type="Transparent" press=".onQuickSuggestionPress" class="sapUiTinyMarginEnd sapUiTinyMarginBottom"/>
+              <Button text="SCC4" type="Transparent" press=".onQuickSuggestionPress" class="sapUiTinyMarginBottom"/>
+            </HBox>
+          </VBox>
+
+          <!-- Recent Searches -->
+          <VBox
+            class="sapUiSmallMarginTop"
+            alignItems="Center"
+            visible="{= ${searchModel>/recentSearches}.length > 0 }">
+
+            <HBox alignItems="Center" class="sapUiTinyMarginBottom">
+              <Text text="Recent searches" class="subtleText sapUiTinyMarginEnd"/>
+              <Button
+                text="Clear All"
+                type="Transparent"
+                press=".onClearRecentSearches"/>
+            </HBox>
+
+            <List
+              items="{searchModel>/recentSearches}"
+              width="32rem"
+              class="sapUiTinyMarginTop">
+
+              <CustomListItem>
+                <HBox justifyContent="SpaceBetween" alignItems="Center" width="100%">
+                  <HBox alignItems="Center">
+                    <core:Icon
+                      src="sap-icon://history"
+                      size="0.9rem"
+                      class="sapUiTinyMarginEnd"/>
+                    <Text text="{searchModel>text}"/>
+                  </HBox>
+
+                  <HBox alignItems="Center">
+                    <Button
+                      icon="sap-icon://search"
+                      type="Transparent"
+                      tooltip="Reuse search"
+                      press=".onRecentSearchPress"
+                      class="sapUiTinyMarginEnd"/>
+
+                    <Button
+                      icon="sap-icon://decline"
+                      type="Transparent"
+                      tooltip="Remove from history"
+                      press=".onRemoveRecentSearch"/>
+                  </HBox>
+                </HBox>
+              </CustomListItem>
+            </List>
+          </VBox>
         </VBox>
 
         <!-- Favorites Panel -->
@@ -98,7 +161,9 @@
                 <HBox justifyContent="SpaceBetween" alignItems="Center" width="100%">
                   <VBox width="70%">
                     <HBox alignItems="Center">
-                      <Text text="♥" class="favoriteHeart favoriteHeartActive sapUiTinyMarginEnd"/>
+                      <core:Icon
+                        src="sap-icon://favorite"
+                        class="sapUiTinyMarginEnd"/>
                       <Title text="{favModel>tcode}" level="H6"/>
                     </HBox>
                     <Text text="{favModel>desc}" wrapping="true"/>
@@ -118,7 +183,7 @@
                       class="sapUiTinyMarginEnd"/>
 
                     <Button
-                      text="×"
+                      icon="sap-icon://decline"
                       type="Transparent"
                       tooltip="Remove from favorites"
                       press=".onRemoveFavorite"
@@ -187,10 +252,17 @@
                       class="sapUiSmallMarginEnd"/>
 
                     <Button
-                      text="Export Filtered Excel"
+                      text="Export Excel"
                       icon="sap-icon://excel-attachment"
                       type="Emphasized"
-                      press=".onExportFilteredResultsExcel"/>
+                      press=".onExportFilteredResultsExcel"
+                      class="sapUiTinyMarginEnd"/>
+
+                    <Button
+                      text="Export CSV"
+                      icon="sap-icon://download"
+                      type="Transparent"
+                      press=".onExportFilteredResultsCsv"/>
                   </HBox>
 
                 </HBox>
@@ -240,6 +312,9 @@
                 <Column width="10rem" hAlign="End">
                   <Text text="Similarity"/>
                 </Column>
+                <Column width="10rem" hAlign="Center">
+                  <Text text="Actions"/>
+                </Column>
               </columns>
 
               <items>
@@ -255,7 +330,7 @@
                       press=".onCopyTcode"/>
 
                     <Button
-                      text="{= ${recModel>isFavorite} ? '♥' : '♡' }"
+                      icon="{= ${recModel>isFavorite} ? 'sap-icon://favorite' : 'sap-icon://unfavorite' }"
                       type="Transparent"
                       tooltip="Toggle favorite"
                       press=".onToggleFavorite"
@@ -265,6 +340,28 @@
                     <Text text="{recModel>desc}" wrapping="true"/>
                     <ObjectStatus text="{recModel>cluster}" state="Information"/>
                     <ObjectNumber number="{recModel>similarity}"/>
+
+                    <HBox justifyContent="Center" alignItems="Center" wrap="NoWrap">
+                      <Button
+                        icon="sap-icon://action"
+                        type="Transparent"
+                        tooltip="Open in SAP"
+                        press=".onOpenInSap"
+                        class="sapUiTinyMarginEnd"/>
+
+                      <Button
+                        icon="sap-icon://inspect"
+                        type="Transparent"
+                        tooltip="View Details"
+                        press=".onViewDetails"
+                        class="sapUiTinyMarginEnd"/>
+
+                      <Button
+                        icon="sap-icon://world"
+                        type="Transparent"
+                        tooltip="Search on Google"
+                        press=".onOpenDocumentation"/>
+                    </HBox>
                   </cells>
                 </ColumnListItem>
               </items>

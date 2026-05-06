@@ -822,3 +822,265 @@
 .cardIconSlate {
   color: #475569;
 }
+/* ===============================
+   PAGE GENERALE
+   =============================== */
+.riskPage {
+    background: linear-gradient(180deg, #f8fbff 0%, #f3f7fb 100%);
+}
+
+.riskContent {
+    gap: 0.5rem;
+}
+
+.riskIntroStrip {
+    border-radius: 0.75rem;
+    border-left: 0.35rem solid #2563eb;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+/* ===============================
+   KPI CARDS
+   =============================== */
+.kpiCard {
+    min-width: 11rem;
+    width: 11.5rem;
+    min-height: 8.5rem;
+    padding: 1rem;
+    margin: 0.5rem;
+    border-radius: 1rem;
+    box-shadow: 0 6px 18px rgba(15, 23, 42, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.7);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.kpiCard:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.12);
+}
+
+.kpiIcon {
+    margin-bottom: 0.5rem;
+}
+
+.kpiTitle {
+    margin-bottom: 0.35rem;
+    font-weight: 600;
+}
+
+.kpiNumber {
+    margin-top: 0.25rem;
+}
+
+/* High */
+.kpiHigh {
+    background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+    border-left: 0.4rem solid #dc2626;
+}
+.kpiHigh .kpiIcon,
+.kpiHigh .sapUiIcon,
+.kpiHigh .sapMTitle {
+    color: #b91c1c !important;
+}
+
+/* Medium */
+.kpiMedium {
+    background: linear-gradient(135deg, #ffedd5 0%, #fed7aa 100%);
+    border-left: 0.4rem solid #d97706;
+}
+.kpiMedium .kpiIcon,
+.kpiMedium .sapUiIcon,
+.kpiMedium .sapMTitle {
+    color: #b45309 !important;
+}
+
+/* Low */
+.kpiLow {
+    background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+    border-left: 0.4rem solid #2563eb;
+}
+.kpiLow .kpiIcon,
+.kpiLow .sapUiIcon,
+.kpiLow .sapMTitle {
+    color: #1d4ed8 !important;
+}
+
+/* Normal */
+.kpiNormal {
+    background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%);
+    border-left: 0.4rem solid #059669;
+}
+.kpiNormal .kpiIcon,
+.kpiNormal .sapUiIcon,
+.kpiNormal .sapMTitle {
+    color: #047857 !important;
+}
+
+/* ===============================
+   PANELS / WIDGETS
+   =============================== */
+.styledPanel {
+    border-radius: 1rem !important;
+    overflow: hidden;
+    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08);
+    border: 1px solid #e5e7eb;
+    background-color: #ffffff;
+}
+
+.chartPanel {
+    margin-bottom: 1rem;
+}
+
+.coloredPanel {
+    position: relative;
+}
+
+.coloredPanel::before {
+    content: "";
+    display: block;
+    height: 0.35rem;
+    width: 100%;
+}
+
+/* Couleurs de widgets */
+.panelBlue::before {
+    background: linear-gradient(90deg, #2563eb, #60a5fa);
+}
+
+.panelPurple::before {
+    background: linear-gradient(90deg, #7c3aed, #a78bfa);
+}
+
+.panelCyan::before {
+    background: linear-gradient(90deg, #0891b2, #67e8f9);
+}
+
+.panelGreen::before {
+    background: linear-gradient(90deg, #059669, #6ee7b7);
+}
+
+/* Fond léger coloré */
+.panelBlue {
+    background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+}
+
+.panelPurple {
+    background: linear-gradient(180deg, #ffffff 0%, #fbf8ff 100%);
+}
+
+.panelCyan {
+    background: linear-gradient(180deg, #ffffff 0%, #f4fbfd 100%);
+}
+
+.panelGreen {
+    background: linear-gradient(180deg, #ffffff 0%, #f6fef9 100%);
+}
+
+/* ===============================
+   TITRES / ICONS
+   =============================== */
+.subtleText {
+    color: #6b7280;
+    font-size: 0.92rem;
+}
+
+.cardIconBlue {
+    color: #2563eb !important;
+}
+
+.cardIconPurple {
+    color: #7c3aed !important;
+}
+
+.cardIconGreen {
+    color: #059669 !important;
+}
+
+/* ===============================
+   STATUS BADGE
+   =============================== */
+.auditStatusBadge {
+    padding: 0.3rem 0.8rem;
+    border-radius: 999px;
+    background-color: #ecfdf5;
+    border: 1px solid #a7f3d0;
+}
+
+/* ===============================
+   FILTRES
+   =============================== */
+.riskSearchField .sapMSF {
+    border-radius: 0.75rem;
+    border: 1px solid #cbd5e1;
+    background-color: #ffffff;
+}
+
+.riskSearchField .sapMSF:hover {
+    border-color: #60a5fa;
+}
+
+.riskClearBtn {
+    border-radius: 0.6rem;
+}
+
+.riskSegmentedBtn .sapMSegBBtn {
+    border-radius: 0.5rem !important;
+}
+
+.riskSegmentedBtn .sapMSegBBtnSel {
+    background-color: #2563eb !important;
+    color: #ffffff !important;
+    border-color: #2563eb !important;
+}
+
+/* ===============================
+   TABLE
+   =============================== */
+.riskTableColored {
+    border-radius: 0.75rem;
+    overflow: hidden;
+}
+
+.tableHeaderToolbar {
+    background: linear-gradient(90deg, #ecfdf5 0%, #f0fdf4 100%) !important;
+    border-bottom: 1px solid #d1fae5;
+}
+
+.niceTable .sapMListTblHeaderCell {
+    background-color: #f8fafc;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.niceTable .sapMListTblHeaderCell .sapMText {
+    font-weight: 700;
+    color: #334155;
+}
+
+.tableRowHover {
+    transition: background-color 0.2s ease;
+}
+
+.tableRowHover:hover {
+    background-color: #f8fafc !important;
+}
+
+.niceTable .sapMListTblRow:nth-child(even) {
+    background-color: #fcfcfd;
+}
+
+/* ===============================
+   RESPONSIVE
+   =============================== */
+@media (max-width: 1024px) {
+    .kpiCard {
+        width: 45%;
+        min-width: 12rem;
+    }
+}
+
+@media (max-width: 640px) {
+    .kpiCard {
+        width: 100%;
+        min-width: unset;
+    }
+}
