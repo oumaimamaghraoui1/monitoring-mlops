@@ -4,23 +4,43 @@ sap.ui.define([
   "sap/ui/export/Spreadsheet",
   "sap/m/MessageToast",
   "sap/m/MessageBox",
+  "sap/m/ResponsivePopover",
+  "sap/m/Button",
+  "sap/m/VBox",
+  "sap/m/HBox",
+  "sap/m/Text",
+  "sap/m/Title",
+  "sap/ui/core/Icon",
   "pwc/monitoring/monitoringui/utils/TCodeClassificationHelper"
-], function (Controller, JSONModel, Spreadsheet, MessageToast, MessageBox, TCodeClassificationHelper) {
+], function (
+  Controller,
+  JSONModel,
+  Spreadsheet,
+  MessageToast,
+  MessageBox,
+  ResponsivePopover,
+  Button,
+  VBox,
+  HBox,
+  Text,
+  Title,
+  Icon,
+  TCodeClassificationHelper
+) {
   "use strict";
 
   const FAVORITES_KEY = "sapBasisFavorites";
   const RECENT_SEARCHES_KEY = "sapBasisRecentSearches";
   const MAX_RECENT_SEARCHES = 4;
+  const TOUR_SEEN_KEY = "sapBasisGuidedTourSeen";
 
   function includesIC(hay, needle) {
     if (!needle) {
       return true;
     }
-
     if (!hay) {
       return false;
     }
-
     return String(hay).toLowerCase().includes(String(needle).toLowerCase());
   }
 
@@ -56,7 +76,6 @@ sap.ui.define([
 
   function exportRowsToExcel(rows, filePrefix) {
     const count = rows.length;
-
     const timestamp = new Date()
       .toISOString()
       .replace(/[:.]/g, "-")
@@ -91,15 +110,8 @@ sap.ui.define([
       .slice(0, 19);
 
     const headers = [
-      "Rank",
-      "T-Code",
-      "Program",
-      "Description",
-      "Domain",
-      "Module",
-      "Cluster",
-      "Similarity",
-      "Favorite"
+      "Rank", "T-Code", "Program", "Description", "Domain",
+      "Module", "Cluster", "Similarity", "Favorite"
     ];
 
     const lines = [headers.join(",")];
@@ -130,7 +142,6 @@ sap.ui.define([
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-
     window.URL.revokeObjectURL(url);
   }
 
@@ -154,6 +165,284 @@ sap.ui.define([
       this.getView().setModel(new JSONModel({
         recentSearches: aRecentSearches
       }), "searchModel");
+
+      this._tourIndex = 0;
+      this._tourPopover = null;
+      this._highlightedControl = null;
+
+      this._tourSteps = [
+        {
+          controlId: "tcodeInput",
+          title: "Search anything SAP-related",
+          text: "Start with a T-Code like SU01, ST22, MM01, or broader keywords such as bank, invoice, supplier, or workflow.",
+          icon: "sap-icon://search",
+          colorClass: "tourThemeBlue"
+        },
+        {
+          controlId: "searchBtn",
+          title: "Run the recommendation engine",
+          text: "Click Search to retrieve AI-based recommendations and similarity-ranked matches.",
+          icon: "sap-icon://begin",
+          colorClass: "tourThemePurple"
+        },
+        {
+          controlId: "quickSuggestionsBox",
+          title: "Use quick examples",
+          text: "These shortcuts help you test the app instantly with common SAP and Basis scenarios.",
+          icon: "sap-icon://lightbulb",
+          colorClass: "tourThemeOrange"
+        },
+        {
+          controlId: "favoritesBtn",
+          title: "Save useful transactions",
+          text: "Use Favorites to keep important T-Codes nearby and build your own shortlist.",
+          icon: "sap-icon://favorite",
+          colorClass: "tourThemePink"
+        }
+      ];
+    },
+
+    onAfterRendering: function () {
+      // Force auto-start for now to validate the feature.
+      setTimeout(function () {
+        this.startGuidedTour();
+      }.bind(this), 1200);
+    },
+
+    onStartTourPress: function () {
+      this.startGuidedTour();
+    },
+
+    startGuidedTour: function () {
+      this._tourIndex = 0;
+      this._clearTourHighlight();
+
+      if (this._tourPopover) {
+        this._tourPopover.close();
+      }
+
+      setTimeout(function () {
+        this._openTourStep();
+      }.bind(this), 150);
+    },
+
+    _clearTourHighlight: function () {
+      if (this._highlightedControl) {
+        this._highlightedControl.removeStyleClass("tourTargetHighlight");
+        this._highlightedControl = null;
+      }
+    },
+
+    _createTourPopover: function () {
+      if (this._tourPopover) {
+        return;
+      }
+
+      this._tourIcon = new Icon({
+        src: "sap-icon://lightbulb",
+        size: "1.15rem"
+      }).addStyleClass("modernTourIcon");
+
+      this._tourTitle = new Title({
+        text: "",
+        level: "H5"
+      }).addStyleClass("modernTourTitle");
+
+      this._tourStepLabel = new Text({
+        text: ""
+      }).addStyleClass("modernTourStepBadge");
+
+      this._tourText = new Text({
+        text: "",
+        wrapping: true
+      }).addStyleClass("modernTourText");
+
+      this._tourDotsText = new Text({
+        text: ""
+      }).addStyleClass("modernTourDots");
+
+      this._tourPrevBtn = new Button({
+        text: "Previous",
+        press: this._onTourPrevious.bind(this)
+      }).addStyleClass("modernTourSecondaryBtn");
+
+      this._tourNextBtn = new Button({
+        text: "Next",
+        type: "Emphasized",
+        press: this._onTourNext.bind(this)
+      }).addStyleClass("modernTourPrimaryBtn");
+
+      this._tourSkipBtn = new Button({
+        text: "Skip",
+        type: "Transparent",
+        press: this._onTourSkip.bind(this)
+      }).addStyleClass("modernTourSkipBtn");
+
+      const oHeaderLeft = new HBox({
+        alignItems: "Center",
+        items: [
+          this._tourIcon,
+          new VBox({
+            class: "sapUiTinyMarginBegin",
+            items: [this._tourTitle]
+          })
+        ]
+      });
+
+      const oHeaderRow = new HBox({
+        alignItems: "Center",
+        justifyContent: "SpaceBetween",
+        items: [oHeaderLeft, this._tourStepLabel]
+      }).addStyleClass("modernTourHeaderRow");
+
+      const oFooterRow = new HBox({
+        alignItems: "Center",
+        justifyContent: "SpaceBetween",
+        items: [
+          this._tourSkipBtn,
+          new HBox({
+            alignItems: "Center",
+            items: [this._tourPrevBtn, this._tourNextBtn]
+          }).addStyleClass("modernTourActions")
+        ]
+      }).addStyleClass("modernTourFooterRow");
+
+      this._tourPopover = new ResponsivePopover({
+        showHeader: false,
+        placement: "Bottom",
+        contentWidth: "25rem",
+        content: new VBox({
+          class: "modernTourContent",
+          items: [oHeaderRow, this._tourText, this._tourDotsText, oFooterRow]
+        })
+      });
+
+      this._tourPopover.addStyleClass("modernTourPopover");
+      this.getView().addDependent(this._tourPopover);
+    },
+
+    _buildDots: function () {
+      let s = "";
+      for (let i = 0; i < this._tourSteps.length; i++) {
+        s += (i === this._tourIndex ? "●" : "○");
+        if (i < this._tourSteps.length - 1) {
+          s += " ";
+        }
+      }
+      return s;
+    },
+
+    _applyTourThemeClass: function (sClass) {
+      const aClasses = [
+        "tourThemeBlue",
+        "tourThemePurple",
+        "tourThemeOrange",
+        "tourThemePink",
+        "tourThemeGreen",
+        "tourThemeCyan"
+      ];
+
+      aClasses.forEach(function (c) {
+        this._tourPopover.removeStyleClass(c);
+      }.bind(this));
+
+      if (sClass) {
+        this._tourPopover.addStyleClass(sClass);
+      }
+    },
+
+    _openTourStep: function () {
+      this._createTourPopover();
+
+      const oStep = this._tourSteps[this._tourIndex];
+      if (!oStep) {
+        return;
+      }
+
+      const oControl = this.byId(oStep.controlId);
+
+      if (!oControl || !oControl.getDomRef()) {
+        console.warn("Tour step control not ready:", oStep.controlId);
+
+        setTimeout(function () {
+          const oRetryControl = this.byId(oStep.controlId);
+
+          if (!oRetryControl || !oRetryControl.getDomRef()) {
+            console.warn("Tour step skipped after retry:", oStep.controlId);
+
+            if (this._tourIndex < this._tourSteps.length - 1) {
+              this._tourIndex += 1;
+              this._openTourStep();
+            } else {
+              this._finishGuidedTour();
+            }
+            return;
+          }
+
+          this._showTourOnControl(oRetryControl, oStep);
+        }.bind(this), 500);
+
+        return;
+      }
+
+      this._showTourOnControl(oControl, oStep);
+    },
+
+    _showTourOnControl: function (oControl, oStep) {
+      this._clearTourHighlight();
+      oControl.addStyleClass("tourTargetHighlight");
+      this._highlightedControl = oControl;
+
+      this._tourIcon.setSrc(oStep.icon || "sap-icon://lightbulb");
+      this._tourTitle.setText(oStep.title);
+      this._tourText.setText(oStep.text);
+      this._tourStepLabel.setText((this._tourIndex + 1) + " / " + this._tourSteps.length);
+      this._tourDotsText.setText(this._buildDots());
+
+      this._tourPrevBtn.setEnabled(this._tourIndex > 0);
+      this._tourNextBtn.setText(this._tourIndex === this._tourSteps.length - 1 ? "Finish" : "Next");
+
+      this._applyTourThemeClass(oStep.colorClass);
+
+      this._tourPopover.close();
+
+      setTimeout(function () {
+        this._tourPopover.openBy(oControl);
+      }.bind(this), 120);
+    },
+
+    _onTourNext: function () {
+      if (this._tourIndex >= this._tourSteps.length - 1) {
+        this._finishGuidedTour();
+        return;
+      }
+
+      this._tourIndex += 1;
+      this._openTourStep();
+    },
+
+    _onTourPrevious: function () {
+      if (this._tourIndex <= 0) {
+        return;
+      }
+
+      this._tourIndex -= 1;
+      this._openTourStep();
+    },
+
+    _onTourSkip: function () {
+      this._finishGuidedTour();
+    },
+
+    _finishGuidedTour: function () {
+      localStorage.setItem(TOUR_SEEN_KEY, "true");
+      this._clearTourHighlight();
+
+      if (this._tourPopover) {
+        this._tourPopover.close();
+      }
+
+      MessageToast.show("Tour completed");
     },
 
     onSearch: async function () {
@@ -186,7 +475,6 @@ sap.ui.define([
 
         const enriched = results.map(function (item) {
           const classified = TCodeClassificationHelper.enrichItem(item);
-
           return Object.assign({}, classified, {
             isFavorite: favorites.some(function (fav) {
               return fav.tcode === item.tcode;
@@ -314,7 +602,6 @@ sap.ui.define([
 
     _applyResultFilter: function () {
       const recModel = this.getView().getModel("recModel");
-
       const all = recModel.getProperty("/all") || [];
       const filterText = recModel.getProperty("/filterText") || "";
 
@@ -400,9 +687,17 @@ sap.ui.define([
       });
     },
 
-    onOpenDocumentation: function () {
+    onOpenDocumentation: function (oEvent) {
+      const oContext = oEvent.getSource().getBindingContext("recModel");
+      const sTcode = oContext.getProperty("tcode");
+
+      if (!sTcode) {
+        MessageToast.show("No T-Code available");
+        return;
+      }
+
       window.open(
-        "https://help.sap.com/docs/SAP_S4HANA_CLOUD/a630d57fc5004c6383e7a81efee7a8bb/576fa8d8c74443b18c622068b6f55fa4.html?locale=en-US",
+        "https://www.google.com/search?q=SAP+" + encodeURIComponent(sTcode) + "+tcode+documentation",
         "_blank"
       );
     },
@@ -421,7 +716,6 @@ sap.ui.define([
         aFavorites = aFavorites.filter(function (fav) {
           return fav.tcode !== oItem.tcode;
         });
-
         MessageToast.show("Removed from favorites: " + oItem.tcode);
       } else {
         aFavorites.push({
@@ -435,13 +729,11 @@ sap.ui.define([
           similarity: oItem.similarity,
           isFavorite: true
         });
-
         MessageToast.show("Added to favorites: " + oItem.tcode);
       }
 
       this._saveFavorites(aFavorites);
       this.getView().getModel("favModel").setProperty("/favorites", aFavorites);
-
       this._refreshResultFavoriteState();
     },
 
@@ -457,7 +749,6 @@ sap.ui.define([
 
       this._saveFavorites(aFavorites);
       this.getView().getModel("favModel").setProperty("/favorites", aFavorites);
-
       this._refreshResultFavoriteState();
 
       MessageToast.show("Removed from favorites: " + oItem.tcode);

@@ -39,6 +39,7 @@
               class="sapUiTinyMarginEnd sapUiTinyMarginBottom"/>
 
             <Button
+              id="searchBtn"
               text="Search"
               icon="sap-icon://search"
               type="Emphasized"
@@ -46,15 +47,23 @@
               class="sapUiTinyMarginEnd sapUiTinyMarginBottom"/>
 
             <Button
+              id="favoritesBtn"
               text="Favorites"
               icon="sap-icon://list"
               type="Transparent"
               press=".onToggleFavoritesPanel"
+              class="sapUiTinyMarginEnd sapUiTinyMarginBottom"/>
+
+            <Button
+              id="startTourBtn"
+              text="Tour"
+              icon="sap-icon://sys-help"
+              type="Transparent"
+              press=".onStartTourPress"
               class="sapUiTinyMarginBottom"/>
           </HBox>
 
-          <!-- Quick Suggestions -->
-          <VBox class="sapUiSmallMarginTop" alignItems="Center">
+          <VBox id="quickSuggestionsBox" class="sapUiSmallMarginTop" alignItems="Center">
             <Text
               text="Quick suggestions"
               class="subtleText sapUiTinyMarginBottom"/>
@@ -68,8 +77,8 @@
             </HBox>
           </VBox>
 
-          <!-- Recent Searches -->
           <VBox
+            id="recentSearchesBox"
             class="sapUiSmallMarginTop"
             alignItems="Center"
             visible="{= ${searchModel>/recentSearches}.length > 0 }">
@@ -117,8 +126,8 @@
           </VBox>
         </VBox>
 
-        <!-- Favorites Panel -->
         <Panel
+          id="favoritesPanel"
           expandable="true"
           expanded="{favModel>/showFavorites}"
           visible="{= ${favModel>/favorites}.length > 0 }"
@@ -195,10 +204,10 @@
           </VBox>
         </Panel>
 
-        <!-- Results -->
         <Panel
-          headerText="Recommendation Results"
-          class="styledPanel sapUiMediumMarginBottom">
+  id="resultsPanel"
+  headerText="Recommendation Results"
+  class="styledPanel sapUiMediumMarginBottom">
 
           <VBox class="sapUiMediumMargin">
 
@@ -214,8 +223,8 @@
               text="Explore ranked matches returned by the recommendation engine."
               class="subtleText sapUiSmallMarginBottom"/>
 
-            <!-- Result filters and actions -->
             <Panel
+              id="resultFilterPanel"
               headerText="T-Code Result Filters"
               expandable="true"
               expanded="true"
@@ -288,33 +297,15 @@
               </headerToolbar>
 
               <columns>
-                <Column width="6rem">
-                  <Text text="Rank"/>
-                </Column>
-                <Column width="10rem">
-                  <Text text="Code"/>
-                </Column>
-                <Column width="5rem" hAlign="Center">
-                  <Text text="Copy"/>
-                </Column>
-                <Column width="5rem" hAlign="Center">
-                  <Text text="Fav"/>
-                </Column>
-                <Column width="12rem">
-                  <Text text="Program"/>
-                </Column>
-                <Column width="24rem">
-                  <Text text="Description"/>
-                </Column>
-                <Column width="8rem">
-                  <Text text="Cluster"/>
-                </Column>
-                <Column width="10rem" hAlign="End">
-                  <Text text="Similarity"/>
-                </Column>
-                <Column width="10rem" hAlign="Center">
-                  <Text text="Actions"/>
-                </Column>
+                <Column width="6rem"><Text text="Rank"/></Column>
+                <Column width="10rem"><Text text="Code"/></Column>
+                <Column width="5rem" hAlign="Center"><Text text="Copy"/></Column>
+                <Column width="5rem" hAlign="Center"><Text text="Fav"/></Column>
+                <Column width="12rem"><Text text="Program"/></Column>
+                <Column width="24rem"><Text text="Description"/></Column>
+                <Column width="8rem"><Text text="Cluster"/></Column>
+                <Column width="10rem" hAlign="End"><Text text="Similarity"/></Column>
+                <Column width="10rem" hAlign="Center"><Text text="Actions"/></Column>
               </columns>
 
               <items>
@@ -342,13 +333,6 @@
                     <ObjectNumber number="{recModel>similarity}"/>
 
                     <HBox justifyContent="Center" alignItems="Center" wrap="NoWrap">
-                      <Button
-                        icon="sap-icon://action"
-                        type="Transparent"
-                        tooltip="Open in SAP"
-                        press=".onOpenInSap"
-                        class="sapUiTinyMarginEnd"/>
-
                       <Button
                         icon="sap-icon://inspect"
                         type="Transparent"
