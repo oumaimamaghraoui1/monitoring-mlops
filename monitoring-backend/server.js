@@ -126,6 +126,14 @@ app.get("/slow-api", async (req,res)=>{
   await new Promise(r => setTimeout(r,2000));
   res.send("Slow dependency ✅");
 });
+app.get("/trigger-runtime-alert", async (req, res) => {
+  await new Promise(resolve => setTimeout(resolve, 2500));
+
+  const start = Date.now();
+  while (Date.now() - start < 350) {}
+
+  res.send("Runtime alert trigger executed ✅");
+});
 app.get("/slow-api-random", async (req, res) => {
   const delay = Math.floor(Math.random() * 2500);
   await new Promise(resolve => setTimeout(resolve, delay));

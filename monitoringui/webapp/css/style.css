@@ -2003,3 +2003,37 @@
   font-size: 0.72rem;
   color: #94a3b8;
 }
+.cardCornerHelpHost {
+  position: relative;
+}
+
+.cardCornerHelpBtn {
+  position: absolute !important;
+  top: -0.35rem;
+  right: -0.35rem;
+  z-index: 20;
+  min-width: auto !important;
+  width: 1.9rem !important;
+  height: 1.9rem !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+.cardCornerHelpBtn .sapMBtnInner {
+  min-width: 1.9rem !important;
+  width: 1.9rem !important;
+  height: 1.9rem !important;
+  border: none !important;
+  background: transparent !important;
+  padding: 0 !important;
+}
+
+.cardCornerHelpBtn .sapMBtnIcon {
+  font-size: 0.95rem !important;
+  color: #111827 !important;
+  opacity: 1 !important;
+}
+
+.cardCornerHelpBtn:hover .sapMBtnIcon {
+  color: #000000 !important;
+}

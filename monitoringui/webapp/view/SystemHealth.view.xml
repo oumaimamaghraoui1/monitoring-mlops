@@ -38,9 +38,14 @@
             <f:layoutData>
               <l:GridData span="L6 M12 S12"/>
             </f:layoutData>
-
             <f:content>
-              <VBox class="sapUiMediumMargin">
+              <VBox class="sapUiMediumMargin cardCornerHelpHost">
+                <Button
+                  icon="sap-icon://question-mark"
+                  type="Transparent"
+                  tooltip="FR: Utilisation CPU du backend. Mesure la charge de traitement actuelle. Une valeur élevée prolongée peut indiquer une saturation.&#10;EN: Backend CPU usage. Measures current processing load. Sustained high values may indicate saturation."
+                  class="cardCornerHelpBtn"/>
+
                 <HBox alignItems="Center" class="sapUiSmallMarginBottom">
                   <core:Icon
                     src="sap-icon://process"
@@ -74,7 +79,7 @@
                       <Button
                         icon="sap-icon://question-mark"
                         type="Transparent"
-                        tooltip="Delta shows how much the current CPU value changed compared with the previous reading."
+                        tooltip="FR: Delta = variation entre la valeur actuelle et la mesure précédente.&#10;EN: Delta = difference between the current value and the previous sample."
                         class="metricHelpBtnCorner"/>
                     </HBox>
                     <Text text="Delta" class="metricMiniLabel"/>
@@ -86,7 +91,7 @@
                       <Button
                         icon="sap-icon://question-mark"
                         type="Transparent"
-                        tooltip="Peak 2 min is the highest CPU usage observed during the last two minutes."
+                        tooltip="FR: Pic 2 min = valeur CPU la plus élevée observée sur les 2 dernières minutes.&#10;EN: Peak 2 min = highest CPU value observed during the last 2 minutes."
                         class="metricHelpBtnCorner"/>
                     </HBox>
                     <Text text="Peak 2 min" class="metricMiniLabel"/>
@@ -109,9 +114,14 @@
             <f:layoutData>
               <l:GridData span="L6 M12 S12"/>
             </f:layoutData>
-
             <f:content>
-              <VBox class="sapUiMediumMargin">
+              <VBox class="sapUiMediumMargin cardCornerHelpHost">
+                <Button
+                  icon="sap-icon://question-mark"
+                  type="Transparent"
+                  tooltip="FR: RSS = mémoire RAM totale consommée par le processus Node.js. Permet de suivre la pression mémoire globale.&#10;EN: RSS = total RAM used by the Node.js process. Helps track overall memory pressure."
+                  class="cardCornerHelpBtn"/>
+
                 <HBox alignItems="Center" class="sapUiSmallMarginBottom">
                   <core:Icon
                     src="sap-icon://database"
@@ -145,7 +155,7 @@
                       <Button
                         icon="sap-icon://question-mark"
                         type="Transparent"
-                        tooltip="Delta shows how much memory usage changed compared with the previous reading."
+                        tooltip="FR: Delta = variation entre la mémoire actuelle et la mesure précédente.&#10;EN: Delta = difference between current memory usage and the previous sample."
                         class="metricHelpBtnCorner"/>
                     </HBox>
                     <Text text="Delta" class="metricMiniLabel"/>
@@ -157,7 +167,7 @@
                       <Button
                         icon="sap-icon://question-mark"
                         type="Transparent"
-                        tooltip="Peak 2 min is the highest memory usage observed during the last two minutes."
+                        tooltip="FR: Pic 2 min = valeur mémoire la plus élevée observée sur les 2 dernières minutes.&#10;EN: Peak 2 min = highest memory value observed during the last 2 minutes."
                         class="metricHelpBtnCorner"/>
                     </HBox>
                     <Text text="Peak 2 min" class="metricMiniLabel"/>
@@ -180,9 +190,14 @@
             <f:layoutData>
               <l:GridData span="L3 M6 S12"/>
             </f:layoutData>
-
             <f:content>
-              <VBox class="sapUiMediumMargin">
+              <VBox class="sapUiMediumMargin cardCornerHelpHost">
+                <Button
+                  icon="sap-icon://question-mark"
+                  type="Transparent"
+                  tooltip="FR: Score global de santé du backend. Il synthétise CPU, latence, GC et event loop. 80-100 = sain, 40-79 = neutre, 0-39 = critique.&#10;EN: Overall backend health score. It summarizes CPU, latency, GC and event loop behavior. 80-100 = healthy, 40-79 = neutral, 0-39 = critical."
+                  class="cardCornerHelpBtn"/>
+
                 <HBox alignItems="Center" class="sapUiSmallMarginBottom">
                   <core:Icon
                     src="sap-icon://sys-enter-2"
@@ -215,9 +230,14 @@
             <f:layoutData>
               <l:GridData span="L3 M6 S12"/>
             </f:layoutData>
-
             <f:content>
-              <VBox class="sapUiMediumMargin">
+              <VBox class="sapUiMediumMargin cardCornerHelpHost">
+                <Button
+                  icon="sap-icon://question-mark"
+                  type="Transparent"
+                  tooltip="FR: Temps de réponse backend. Mesure le temps nécessaire pour traiter une requête. Une hausse durable indique une dégradation de performance.&#10;EN: Backend response time. Measures how long a request takes to complete. Sustained increases indicate performance degradation."
+                  class="cardCornerHelpBtn"/>
+
                 <HBox alignItems="Center" class="sapUiSmallMarginBottom">
                   <core:Icon
                     src="sap-icon://history"
@@ -250,9 +270,14 @@
             <f:layoutData>
               <l:GridData span="L3 M6 S12"/>
             </f:layoutData>
-
             <f:content>
-              <VBox class="sapUiMediumMargin">
+              <VBox class="sapUiMediumMargin cardCornerHelpHost">
+                <Button
+                  icon="sap-icon://question-mark"
+                  type="Transparent"
+                  tooltip="FR: Retard de l’event loop Node.js. Indique combien le thread principal est bloqué. Des pics élevés signalent une surcharge ou du code bloquant.&#10;EN: Node.js event loop lag. Indicates how much the main thread is blocked. High spikes may signal overload or blocking code."
+                  class="cardCornerHelpBtn"/>
+
                 <HBox alignItems="Center" class="sapUiSmallMarginBottom">
                   <core:Icon
                     src="sap-icon://synchronize"
@@ -285,9 +310,14 @@
             <f:layoutData>
               <l:GridData span="L3 M6 S12"/>
             </f:layoutData>
-
             <f:content>
-              <VBox class="sapUiMediumMargin">
+              <VBox class="sapUiMediumMargin cardCornerHelpHost">
+                <Button
+                  icon="sap-icon://question-mark"
+                  type="Transparent"
+                  tooltip="FR: Durée du Garbage Collector. Mesure le temps passé à libérer la mémoire. Des durées élevées peuvent provoquer des ralentissements.&#10;EN: Garbage Collector duration. Measures time spent reclaiming memory. High durations can cause slowdowns."
+                  class="cardCornerHelpBtn"/>
+
                 <HBox alignItems="Center" class="sapUiSmallMarginBottom">
                   <core:Icon
                     src="sap-icon://delete"
@@ -320,9 +350,14 @@
             <f:layoutData>
               <l:GridData span="L3 M6 S12"/>
             </f:layoutData>
-
             <f:content>
-              <VBox class="sapUiMediumMargin">
+              <VBox class="sapUiMediumMargin cardCornerHelpHost">
+                <Button
+                  icon="sap-icon://question-mark"
+                  type="Transparent"
+                  tooltip="FR: Taux de croissance du heap en MB/min. Une hausse continue peut signaler une fuite mémoire ou une pression mémoire anormale.&#10;EN: Heap growth rate in MB/min. Continuous increase may indicate a memory leak or abnormal memory pressure."
+                  class="cardCornerHelpBtn"/>
+
                 <HBox alignItems="Center" class="sapUiSmallMarginBottom">
                   <core:Icon
                     src="sap-icon://trend-up"
@@ -355,9 +390,14 @@
             <f:layoutData>
               <l:GridData span="L3 M6 S12"/>
             </f:layoutData>
-
             <f:content>
-              <VBox class="sapUiMediumMargin">
+              <VBox class="sapUiMediumMargin cardCornerHelpHost">
+                <Button
+                  icon="sap-icon://question-mark"
+                  type="Transparent"
+                  tooltip="FR: Temps écoulé depuis le dernier démarrage du backend. Une valeur faible peut indiquer un redémarrage récent ou instable.&#10;EN: Time elapsed since the backend last started. A low value may indicate a recent or unstable restart."
+                  class="cardCornerHelpBtn"/>
+
                 <HBox alignItems="Center" class="sapUiSmallMarginBottom">
                   <core:Icon
                     src="sap-icon://time-entry-request"

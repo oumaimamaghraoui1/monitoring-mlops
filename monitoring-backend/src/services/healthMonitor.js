@@ -25,8 +25,8 @@ new PerformanceObserver((list) => {
 }).observe({ entryTypes: ["gc"] });
 
 const SAMPLE_INTERVAL_MS = 2000;
-const HEALTH_ALERT_SCORE = 40;
-const ALERT_COOLDOWN_MS = 300000;
+const HEALTH_ALERT_SCORE = 71;
+const ALERT_COOLDOWN_MS = 3000;
 
 let samplerTimer = null;
 let lastLoop = process.hrtime.bigint();
@@ -102,7 +102,67 @@ Reduce heavy async tasks or increase threadpool size.`
 
   return map[cause] || "Runtime anomaly detected.";
 }
+function getRecommendedActions(cause) {
+  const map = {
+    CPU_SATURATION: [
+      "Scale the application instance or increase CPU resources.",
+      "Inspect CPU-intensive jobs, loops, or synchronous processing.",
+      "Review recent deployments for inefficient code paths.",
+      "Check whether traffic spikes are saturating compute capacity."
+    ],
 
+    MEMORY_PRESSURE: [
+      "Inspect heap usage for memory leaks or abnormal object retention.",
+      "Review recent changes involving caching, buffers, or large payloads.",
+      "Restart the service if memory pressure keeps increasing.",
+      "Capture heap snapshots if the issue persists."
+    ],
+
+    DEPENDENCY_LATENCY: [
+      "Check upstream and downstream service response times.",
+      "Review failed or slow dependency calls in traces and logs.",
+      "Validate network connectivity and timeout configuration.",
+      "Escalate to the dependent service owner if latency remains high."
+    ],
+
+    QUERY_LATENCY: [
+      "Inspect slow database queries and execution plans.",
+      "Check for locking, missing indexes, or connection saturation.",
+      "Review recent schema or query changes.",
+      "Validate database health and response time."
+    ],
+
+    REQUEST_BACKLOG: [
+      "Check request throughput versus processing capacity.",
+      "Scale application instances if request queues are increasing.",
+      "Investigate slow handlers or blocking middleware.",
+      "Review load balancer and concurrency configuration."
+    ],
+
+    CONNECTION_SATURATION: [
+      "Inspect connection pool usage and active sessions.",
+      "Increase connection pool limits if safe to do so.",
+      "Review network bottlenecks and retry storms.",
+      "Scale horizontally if connection demand exceeds capacity."
+    ],
+
+    THREAD_POOL_STARVATION: [
+      "Inspect long-running async or worker-thread tasks.",
+      "Reduce blocking background work where possible.",
+      "Tune thread pool size if your workload requires it.",
+      "Review file, crypto, or compression-heavy operations."
+    ],
+
+    UNKNOWN: [
+      "Review the observability dashboard to confirm whether the issue is sustained.",
+      "Inspect logs and traces for correlated anomalies.",
+      "Check recent deployments, configuration changes, or dependency issues.",
+      "Escalate to platform support if the degradation persists."
+    ]
+  };
+
+  return map[cause] || map.UNKNOWN;
+}
 //==============================
 // ✅ ML RCA (ONCE)
 //==============================
@@ -149,36 +209,77 @@ async function raiseAlert() {
   const ml = await getSmartRecommendation();
   const cause = ml?.cause || "UNKNOWN";
   const explanation = interpretCauseSmart(cause);
+  const actions = getRecommendedActions(cause);
+
+  const healthScore = Math.round(state.healthScore);
+  const cpu = Number(state.cpu).toFixed(2);
+  const latency = Math.round(global.lastRequestLatency || 0);
+  const lag = Math.round(state.elLagMs || 0);
+  const rssMb = Math.round(state.rss / ONE_MB);
+  const heapUsedMb = Math.round(state.heapUsed / ONE_MB);
+  const heapGrowth = Number(state.heapGrowthRate || 0).toFixed(2);
+  const gcDuration = Number(state.gcTimeMs || 0).toFixed(2);
+
+  const severityLabel =
+    healthScore < 40 ? "CRITICAL" :
+    healthScore < 70 ? "WARNING" :
+    "DEGRADED";
+
+  const operationalStatus =
+    healthScore < 40 ? "Critical" :
+    healthScore < 70 ? "Warning" :
+    "Degraded";
+
+  const body = `
+Runtime degradation has been detected for the monitored backend service.
+
+Status
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Health Score : ${healthScore}%
+Status       : ${operationalStatus}
+Detected RCA : ${cause}
+
+Runtime Metrics
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+• CPU Usage         : ${cpu}%
+• Request Latency   : ${latency} ms
+• Event Loop Lag    : ${lag} ms
+• RSS Memory        : ${rssMb} MB
+• Heap Used         : ${heapUsedMb} MB
+• Heap Growth Rate  : ${heapGrowth} MB/min
+• GC Duration       : ${gcDuration} ms
+
+Root Cause Analysis
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+${explanation}
+
+Recommended Actions
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+1. ${actions[0]}
+2. ${actions[1]}
+3. ${actions[2]}
+4. ${actions[3]}
+`;
 
   NotificationService.notify({
     eventType: "runtime.degradation",
     severity: "HIGH",
-    subject: `⚠ Runtime Health Degradation (${state.healthScore}%)`,
-    body: `
-🚨 Runtime Degradation Detected
-
-Health Score: ${state.healthScore}%
-CPU Usage: ${state.cpu}%
-Latency: ${Math.round(global.lastRequestLatency || 0)} ms
-Event Loop Lag: ${state.elLagMs} ms
-Heap RSS: ${Math.round(state.rss / ONE_MB)} MB
-Heap Used: ${Math.round(state.heapUsed / ONE_MB)} MB
-Heap Growth Rate: ${state.heapGrowthRate} MB/min
-
-🧠 Root Cause Analysis:
-${cause}
-
-${explanation}
-`,
+    subject: `⚠ Runtime Health Degradation (${healthScore}%)`,
+    body,
     resource: {
       resourceName: "monitoring-backend",
       resourceType: "application"
-    }
+    },
+    tags: {
+  environment: process.env.NODE_ENV || "dev",
+  alertType: "runtime.degradation",
+  detectedCause: cause,
+  status: operationalStatus.toLowerCase()
+}
   }).catch((e) => {
     console.error("❌ NOTIFY FAILED:", e.message);
   });
 }
-
 //==============================
 async function sample() {
   const now = Date.now();
