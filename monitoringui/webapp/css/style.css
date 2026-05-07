@@ -1245,3 +1245,618 @@
 .tourThemeCyan .sapMPopoverArr:after {
   background: #ffffff !important;
 }
+.semiGaugeWrapper {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 190px;
+}
+
+.semiGaugeCardInner {
+  width: 100%;
+  max-width: 320px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.semiGaugeSvg {
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.semiGaugeValue {
+  font-size: 1.7rem;
+  font-weight: 700;
+  fill: #0f172a;
+}
+
+.semiGaugeLabel {
+  font-size: 0.8rem;
+  font-weight: 500;
+  fill: #64748b;
+}
+.semiGaugeWrapper {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 190px;
+}
+
+.semiGaugeCardInner {
+  width: 100%;
+  max-width: 320px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.semiGaugeSvg {
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.semiGaugeValue {
+  font-size: 1.7rem;
+  font-weight: 700;
+  fill: #0f172a;
+}
+
+.semiGaugeLabel {
+  font-size: 0.8rem;
+  font-weight: 500;
+  fill: #64748b;
+}
+
+.memoryTrendWrapper {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 190px;
+}
+
+.memoryTrendCardInner {
+  width: 100%;
+  max-width: 340px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.memoryTrendSvg {
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.memoryAreaPath {
+  fill: rgba(124, 58, 237, 0.14);
+}
+
+.memoryLinePath {
+  fill: none;
+  stroke: #8b5cf6;
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.memoryLastPoint {
+  fill: #8b5cf6;
+  stroke: #ffffff;
+  stroke-width: 2;
+}
+
+.memoryGridLine {
+  stroke: #e5e7eb;
+  stroke-width: 1;
+  stroke-dasharray: 4 4;
+}
+
+.memoryChartTopValue {
+  font-size: 0.82rem;
+  font-weight: 700;
+  fill: #6d28d9;
+}
+
+.memoryChartAxisLabel {
+  font-size: 0.72rem;
+  fill: #94a3b8;
+}
+
+.memoryTrendEmpty {
+  width: 100%;
+  text-align: center;
+  color: #94a3b8;
+  font-size: 0.9rem;
+  padding: 2rem 0;
+}
+.metricMiniHelpBox {
+  position: relative;
+  padding-top: 1rem;
+}
+
+.metricHelpBtnCorner {
+  position: absolute !important;
+  top: 0.35rem;
+  right: 0.35rem;
+  min-width: auto !important;
+  height: auto !important;
+  z-index: 2;
+}
+
+.metricHelpBtnCorner .sapMBtnInner {
+  min-width: 1.2rem !important;
+  width: 1.2rem !important;
+  height: 1.2rem !important;
+  border: none !important;
+  background: transparent !important;
+  padding: 0 !important;
+}
+
+.metricHelpBtnCorner .sapMBtnIcon {
+  font-size: 0.78rem !important;
+  color: #111827 !important;
+  opacity: 0.9;
+}
+
+.metricHelpBtnCorner:hover .sapMBtnIcon {
+  color: #000000 !important;
+  opacity: 1;
+}
+/* =========================
+   CPU / MEMORY MINI STAT BOXES
+   ========================= */
+.metricMiniStats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.9rem;
+  margin-top: 0.35rem;
+  margin-bottom: 0.75rem;
+}
+
+.metricMiniBox {
+  position: relative;
+  min-width: 8rem;
+  padding: 0.85rem 0.95rem;
+  border-radius: 16px;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+  border: 1px solid #e7edf6;
+  box-shadow:
+    0 6px 18px rgba(15, 23, 42, 0.05),
+    inset 0 1px 0 rgba(255,255,255,0.85);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  box-sizing: border-box;
+}
+
+.metricMiniBox:hover {
+  transform: translateY(-1px);
+  box-shadow:
+    0 10px 22px rgba(15, 23, 42, 0.07),
+    inset 0 1px 0 rgba(255,255,255,0.9);
+}
+
+.metricMiniPrimary {
+  background: linear-gradient(180deg, #eff8ff 0%, #f8fbff 100%);
+  border: 1px solid #d8eaff;
+}
+
+.metricMiniPrimaryPurple {
+  background: linear-gradient(180deg, #faf5ff 0%, #fcfaff 100%);
+  border: 1px solid #eadcff;
+}
+
+.metricMiniLabel {
+  display: block;
+  font-size: 0.73rem;
+  color: #475569;
+  font-weight: 700;
+  margin-bottom: 0.25rem;
+  line-height: 1rem;
+}
+
+.metricMiniValue {
+  display: block;
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: #0f172a;
+  line-height: 1.25rem;
+}
+
+.metricMiniValuePurple {
+  color: #7c3aed;
+}
+
+/* Help icon inside box corner */
+.metricMiniHelpBox {
+  position: relative;
+  padding-top: 0.95rem;
+  padding-right: 1.8rem;
+}
+
+.metricHelpBtnCorner {
+  position: absolute !important;
+  top: 0.35rem;
+  right: 0.35rem;
+  min-width: auto !important;
+  width: 1.2rem !important;
+  height: 1.2rem !important;
+  z-index: 2;
+}
+
+.metricHelpBtnCorner .sapMBtnInner {
+  min-width: 1.2rem !important;
+  width: 1.2rem !important;
+  height: 1.2rem !important;
+  border: none !important;
+  background: transparent !important;
+  padding: 0 !important;
+}
+
+.metricHelpBtnCorner .sapMBtnIcon {
+  font-size: 0.8rem !important;
+  color: #111827 !important;
+  opacity: 0.95;
+}
+
+.metricHelpBtnCorner:hover .sapMBtnIcon {
+  color: #000000 !important;
+  opacity: 1;
+}
+/* =========================
+   MINI STAT BOXES
+   ========================= */
+.metricMiniStats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.9rem;
+  margin-top: 0.35rem;
+  margin-bottom: 0.75rem;
+}
+
+.metricMiniBox {
+  position: relative;
+  min-width: 8rem;
+  padding: 0.85rem 0.95rem;
+  border-radius: 16px;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+  border: 1px solid #e7edf6;
+  box-shadow:
+    0 6px 18px rgba(15, 23, 42, 0.05),
+    inset 0 1px 0 rgba(255,255,255,0.85);
+  box-sizing: border-box;
+}
+
+.metricMiniPrimary {
+  background: linear-gradient(180deg, #eff8ff 0%, #f8fbff 100%);
+  border: 1px solid #d8eaff;
+}
+
+.metricMiniPrimaryPurple {
+  background: linear-gradient(180deg, #faf5ff 0%, #fcfaff 100%);
+  border: 1px solid #eadcff;
+}
+
+.metricMiniLabel {
+  display: block;
+  font-size: 0.73rem;
+  color: #475569;
+  font-weight: 700;
+  margin-bottom: 0.25rem;
+  line-height: 1rem;
+}
+
+.metricMiniValue {
+  display: block;
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: #0f172a;
+  line-height: 1.25rem;
+}
+
+.metricMiniValuePurple {
+  color: #7c3aed;
+}
+
+.metricMiniHelpBox {
+  position: relative;
+  padding-top: 0.85rem;
+  padding-right: 1.6rem;
+}
+
+.metricHelpCornerBox {
+  position: absolute;
+  top: 0.35rem;
+  right: 0.35rem;
+  z-index: 3;
+  align-items: center;
+  justify-content: center;
+}
+
+.metricHelpBtnCorner {
+  margin: 0 !important;
+  padding: 0 !important;
+  min-width: auto !important;
+  width: 1.1rem !important;
+  height: 1.1rem !important;
+}
+
+.metricHelpBtnCorner .sapMBtnInner {
+  min-width: 1.1rem !important;
+  width: 1.1rem !important;
+  height: 1.1rem !important;
+  border: none !important;
+  background: transparent !important;
+  padding: 0 !important;
+}
+
+.metricHelpBtnCorner .sapMBtnIcon {
+  font-size: 0.78rem !important;
+  color: #111827 !important;
+  opacity: 1 !important;
+}
+
+/* =========================
+   CPU GAUGE
+   ========================= */
+.semiGaugeWrapper {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 210px;
+}
+
+.semiGaugeCardInner {
+  width: 100%;
+  max-width: 340px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.semiGaugeSvg {
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.semiGaugeValue {
+  font-size: 1.9rem;
+  font-weight: 800;
+  fill: #0f172a;
+}
+
+.semiGaugeLabel {
+  font-size: 0.84rem;
+  font-weight: 500;
+  fill: #64748b;
+}
+
+/* =========================
+   MEMORY TREND
+   ========================= */
+.memoryTrendWrapper {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 250px;
+}
+
+.memoryMonitorCard {
+  width: 100%;
+  max-width: 500px;
+}
+
+.memoryMonitorHeader {
+  display: flex;
+  align-items: center;
+  margin-bottom: 0.55rem;
+}
+
+.memoryLegendDot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: #8b5cf6;
+  margin-right: 0.5rem;
+  box-shadow: 0 0 0 6px rgba(139, 92, 246, 0.12);
+}
+
+.memoryHeaderLabel {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #6d28d9;
+}
+
+.memoryTrendSvg {
+  width: 100%;
+  height: auto;
+  overflow: visible;
+  border-radius: 18px;
+  background: linear-gradient(180deg, #fcfaff 0%, #f8f4ff 100%);
+  border: 1px solid #efe7ff;
+}
+
+.memoryAreaPath {
+  fill: rgba(139, 92, 246, 0.16);
+}
+
+.memoryLinePath {
+  fill: none;
+  stroke: #8b5cf6;
+  stroke-width: 4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.memoryLastPoint {
+  fill: #8b5cf6;
+  stroke: #ffffff;
+  stroke-width: 3;
+}
+
+.memoryPeakPoint {
+  fill: #a855f7;
+  stroke: #ffffff;
+  stroke-width: 3;
+}
+
+.memoryGridLine {
+  stroke: #e9ddff;
+  stroke-width: 1;
+  stroke-dasharray: 4 5;
+}
+
+.memoryPeakLabel {
+  font-size: 0.78rem;
+  font-weight: 700;
+  fill: #6d28d9;
+}
+
+.memoryCurrentLabel {
+  font-size: 0.76rem;
+  font-weight: 700;
+  fill: #8b5cf6;
+}
+
+.memoryFooterLabels {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 0.35rem;
+  color: #94a3b8;
+  font-size: 0.72rem;
+  padding: 0 0.2rem;
+}
+
+.memoryTrendEmpty {
+  width: 100%;
+  text-align: center;
+  color: #94a3b8;
+  font-size: 0.9rem;
+  padding: 2rem 0;
+}
+
+/* =========================
+   HEALTH SCORE RING
+   ========================= */
+.scoreRingWrapper {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 190px;
+}
+
+.scoreRingCard {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.scoreRingSvg {
+  width: 140px;
+  height: 140px;
+  overflow: visible;
+}
+
+.scoreRingTrack {
+  fill: none;
+  stroke: #e5e7eb;
+  stroke-width: 14;
+}
+
+.scoreRingProgress {
+  fill: none;
+  stroke-width: 14;
+  stroke-linecap: round;
+  transform: rotate(-90deg);
+  transform-origin: 70px 70px;
+}
+
+.scoreRingValue {
+  font-size: 1.7rem;
+  font-weight: 800;
+  fill: #0f172a;
+}
+
+.scoreRingUnit {
+  font-size: 0.78rem;
+  font-weight: 600;
+  fill: #64748b;
+}
+
+.scoreRingCategory {
+  margin-top: 0.35rem;
+  font-size: 0.92rem;
+  font-weight: 800;
+}
+
+/* =========================
+   RESPONSE TREND
+   ========================= */
+.responseTrendWrapper {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 170px;
+}
+
+.responseTrendCard {
+  width: 100%;
+  max-width: 300px;
+}
+
+.responseTrendSvg {
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.responseTrendBase {
+  stroke: #dbeafe;
+  stroke-width: 2;
+}
+
+.responseTrendLine {
+  fill: none;
+  stroke: #2563eb;
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.responseTrendPoint {
+  fill: #2563eb;
+  stroke: #ffffff;
+  stroke-width: 2;
+}
+
+.responseTrendValue {
+  font-size: 0.78rem;
+  font-weight: 700;
+  fill: #1d4ed8;
+}
+
+.responseFooterLabels {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 0.25rem;
+  font-size: 0.72rem;
+  color: #94a3b8;
+}
+
+.responseTrendEmpty {
+  width: 100%;
+  text-align: center;
+  color: #94a3b8;
+  font-size: 0.9rem;
+  padding: 1.5rem 0;
+}

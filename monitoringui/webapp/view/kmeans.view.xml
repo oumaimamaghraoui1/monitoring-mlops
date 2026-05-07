@@ -5,8 +5,25 @@
   xmlns:core="sap.ui.core">
 
   <Page title="SAP Basis Intelligence">
+<headerContent>
+      <Button
+        id="btnGoSecurity"
+        text="Security Events"
+        icon="sap-icon://shield"
+        press=".onGoSecurity"/>
 
+      <Button
+        text="System Health"
+        icon="sap-icon://sys-monitor"
+        press=".onGoSystemHealth"/>
+
+      <Button
+        text="AI Risk Monitor"
+        icon="sap-icon://ai"
+        press=".goRisk"/>
+    </headerContent>
     <content>
+   
       <VBox class="sapUiContentPadding aiSearchPage" width="100%">
 
         <VBox class="searchHeroSection sapUiMediumMarginBottom" alignItems="Center" width="100%">

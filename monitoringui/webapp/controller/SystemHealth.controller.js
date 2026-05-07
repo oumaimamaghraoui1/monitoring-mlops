@@ -2,119 +2,457 @@ sap.ui.define([
   "sap/ui/core/mvc/Controller",
   "sap/ui/model/json/JSONModel"
 ], function (Controller, JSONModel) {
-
   "use strict";
 
-  return Controller.extend(
-    "pwc.monitoring.monitoringui.controller.SystemHealth", {
+  return Controller.extend("pwc.monitoring.monitoringui.controller.SystemHealth", {
 
-      onInit: function () {
+    onInit: function () {
+      const oModel = new JSONModel({});
+      this.getView().setModel(oModel, "metrics");
 
-        const model = new JSONModel({});
-        this.getView().setModel(model, "metrics");
+      this._cpuHistory = [];
+      this._memHistory = [];
+      this._healthHistory = [];
+      this._respHistory = [];
+      this._maxHistoryPoints = 40; // ~2 min with 3 sec refresh
 
-        this._interval = setInterval(() => {
-          this.onRefresh();
-        }, 3000);
-
+      this._interval = setInterval(function () {
         this.onRefresh();
-      },
+      }.bind(this), 3000);
 
-      onRefresh: function () {
-
-        const BACKEND =
-          "https://port8090-workspaces-ws-dl8fm.eu10.applicationstudio.cloud.sap";
-
-        fetch(BACKEND + "/metrics/runtime", {
-  method: "GET",
-  credentials: "include"
-})
-          .then(r => r.json())
-          .then(data => {
-
-            // TEXT
-            data.cpuText =
-              (data.cpu || 0).toFixed(1) + " %";
-
-            data.memText =
-              (data.rss / 1024 / 1024).toFixed(1) + " MB";
-
-            data.respText =
-              (data.responseTimeMs || 0).toFixed(0) + " ms";
-
-            data.gcText =
-              (data.gcTimeMs || 0).toFixed(2) + " ms";
-
-            data.heapText =
-              (data.heapGrowthRate || 0) + " MB/min";
-
-            data.healthText =
-              (data.healthScore || 0) + " %";
-
-            data.uptimeText =
-              (data.uptimeSec || 0) + " sec";
-
-            // STATES
-            data.cpuState =
-              data.cpu > 85 ? "Error" :
-              data.cpu > 60 ? "Warning" :
-              "Success";
-
-            data.lagState =
-              data.elLagMs > 250 ? "Error" :
-              data.elLagMs > 80 ? "Warning" :
-              "Success";
-
-            data.respState =
-              data.responseTimeMs > 500 ? "Error" :
-              data.responseTimeMs > 200 ? "Warning" :
-              "Success";
-
-            data.gcState =
-              data.gcTimeMs > 100 ? "Error" :
-              data.gcTimeMs > 40 ? "Warning" :
-              "Success";
-
-            data.heapState =
-              data.heapGrowthRate > 5 ? "Error" :
-              data.heapGrowthRate > 2 ? "Warning" :
-              "Success";
-
-            data.healthState =
-              data.healthScore < 40 ? "Error" :
-              data.healthScore < 70 ? "Warning" :
-              "Success";
-
-            this.getView()
-              .getModel("metrics")
-              .setData(data);
-
-          })
-          .catch(err => {
-            console.error("Runtime API error", err);
-          });
-      },
-      goRisk: function () {
-  this.getOwnerComponent()
-      .getRouter()
-      .navTo("risk", {}, false);
-},
-onGoSecurity: function () {
-
-  this.getOwnerComponent()
-      .getRouter()
-      .navTo("security", {}, false);
-
-},
-goKmeans: function () {
-      this.getOwnerComponent().getRouter().navTo("kmeans", {}, false);
+      this.onRefresh();
     },
-      onExit: function () {
-        if (this._interval) {
-          clearInterval(this._interval);
-        }
+
+    onAfterRendering: function () {
+      this._renderCpuGauge();
+      this._renderMemoryTrend();
+      this._renderHealthScoreChart();
+      this._renderResponseTimeChart();
+    },
+
+    onRefresh: function () {
+      const BACKEND = "https://port8090-workspaces-ws-dl8fm.eu10.applicationstudio.cloud.sap";
+
+      fetch(BACKEND + "/metrics/runtime", {
+        method: "GET",
+        credentials: "include"
+      })
+        .then(function (response) {
+          if (!response.ok) {
+            throw new Error("HTTP " + response.status);
+          }
+          return response.json();
+        })
+        .then(function (data) {
+          data = data || {};
+
+          data.cpu = Number(data.cpu || 0);
+          data.rss = Number(data.rss || 0);
+          data.responseTimeMs = Number(data.responseTimeMs || 0);
+          data.gcTimeMs = Number(data.gcTimeMs || 0);
+          data.heapGrowthRate = Number(data.heapGrowthRate || 0);
+          data.healthScore = Number(data.healthScore || 0);
+          data.uptimeSec = Number(data.uptimeSec || 0);
+          data.elLagMs = Number(data.elLagMs || 0);
+
+          const memMb = data.rss / 1024 / 1024;
+
+          this._pushHistoryPoint(this._cpuHistory, data.cpu);
+          this._pushHistoryPoint(this._memHistory, memMb);
+          this._pushHistoryPoint(this._healthHistory, data.healthScore);
+          this._pushHistoryPoint(this._respHistory, data.responseTimeMs);
+
+          const prevCpu = this._getPreviousValue(this._cpuHistory, data.cpu);
+          const prevMem = this._getPreviousValue(this._memHistory, memMb);
+
+          const cpuDelta = data.cpu - prevCpu;
+          const memDelta = memMb - prevMem;
+
+          const memPeak = this._getPeakValue(this._memHistory);
+          const cpuPeak = this._getPeakValue(this._cpuHistory);
+
+          data.cpuText = data.cpu.toFixed(1) + " %";
+          data.memText = memMb.toFixed(1) + " MB";
+          data.respText = data.responseTimeMs.toFixed(0) + " ms";
+          data.gcText = data.gcTimeMs.toFixed(2) + " ms";
+          data.heapText = data.heapGrowthRate.toFixed(2) + " MB/min";
+          data.healthText = data.healthScore.toFixed(0) + " %";
+          data.uptimeText = data.uptimeSec.toFixed(0) + " sec";
+
+          data.cpuPrevText = prevCpu.toFixed(1) + " %";
+          data.memPrevText = prevMem.toFixed(1) + " MB";
+
+          data.cpuDeltaText = (cpuDelta >= 0 ? "+" : "") + cpuDelta.toFixed(1) + " %";
+          data.memDeltaText = (memDelta >= 0 ? "+" : "") + memDelta.toFixed(1) + " MB";
+
+          data.cpuPeakText = cpuPeak.toFixed(1) + " %";
+          data.memPeakText = memPeak.toFixed(1) + " MB";
+
+          data.cpuState =
+            data.cpu > 85 ? "Error" :
+            data.cpu > 60 ? "Warning" :
+            "Success";
+
+          data.lagState =
+            data.elLagMs > 250 ? "Error" :
+            data.elLagMs > 80 ? "Warning" :
+            "Success";
+
+          data.respState =
+            data.responseTimeMs > 500 ? "Error" :
+            data.responseTimeMs > 200 ? "Warning" :
+            "Success";
+
+          data.gcState =
+            data.gcTimeMs > 100 ? "Error" :
+            data.gcTimeMs > 40 ? "Warning" :
+            "Success";
+
+          data.heapState =
+            data.heapGrowthRate > 5 ? "Error" :
+            data.heapGrowthRate > 2 ? "Warning" :
+            "Success";
+
+          data.healthState =
+            data.healthScore < 40 ? "Error" :
+            data.healthScore < 70 ? "Warning" :
+            "Success";
+
+          this.getView().getModel("metrics").setData(data);
+
+          this._renderCpuGauge();
+          this._renderMemoryTrend();
+          this._renderHealthScoreChart();
+          this._renderResponseTimeChart();
+        }.bind(this))
+        .catch(function (err) {
+          console.error("Runtime API error", err);
+        });
+    },
+
+    _pushHistoryPoint: function (historyArray, value) {
+      historyArray.push({
+        time: new Date(),
+        value: Number(value || 0)
+      });
+
+      if (historyArray.length > this._maxHistoryPoints) {
+        historyArray.shift();
+      }
+    },
+
+    _getPreviousValue: function (historyArray, fallbackValue) {
+      if (!historyArray || historyArray.length < 2) {
+        return Number(fallbackValue || 0);
+      }
+      return Number(historyArray[historyArray.length - 2].value || 0);
+    },
+
+    _getPeakValue: function (historyArray) {
+      if (!historyArray || !historyArray.length) {
+        return 0;
+      }
+      return Math.max.apply(null, historyArray.map(function (p) {
+        return Number(p.value || 0);
+      }));
+    },
+
+    _renderCpuGauge: function () {
+      const oMetrics = this.getView().getModel("metrics");
+      if (!oMetrics) {
+        return;
       }
 
-    });
-    
+      let cpuValue = Number(oMetrics.getProperty("/cpu") || 0);
+      cpuValue = Math.max(0, Math.min(100, cpuValue));
+
+      const radius = 90;
+      const strokeWidth = 16;
+      const centerX = 110;
+      const centerY = 110;
+
+      const polarToCartesian = function (cx, cy, r, angle) {
+        const rad = (angle - 90) * Math.PI / 180;
+        return {
+          x: cx + (r * Math.cos(rad)),
+          y: cy + (r * Math.sin(rad))
+        };
+      };
+
+      const describeArc = function (cx, cy, r, startAngle, endAngle) {
+        const start = polarToCartesian(cx, cy, r, endAngle);
+        const end = polarToCartesian(cx, cy, r, startAngle);
+        const largeArcFlag = endAngle - startAngle <= 180 ? "0" : "1";
+
+        return [
+          "M", start.x, start.y,
+          "A", r, r, 0, largeArcFlag, 0, end.x, end.y
+        ].join(" ");
+      };
+
+      const valueAngle = 180 * (cpuValue / 100);
+      const greenArc = describeArc(centerX, centerY, radius, 270, 330);
+      const yellowArc = describeArc(centerX, centerY, radius, 330, 390);
+      const redArc = describeArc(centerX, centerY, radius, 390, 450);
+      const activeArc = describeArc(centerX, centerY, radius, 270, 270 + valueAngle);
+
+      let activeColor = "#22c55e";
+      if (cpuValue >= 70) {
+        activeColor = "#f59e0b";
+      }
+      if (cpuValue >= 85) {
+        activeColor = "#ef4444";
+      }
+
+      const sSvg = `
+        <div class="semiGaugeCardInner">
+          <svg viewBox="0 0 220 140" class="semiGaugeSvg" aria-label="CPU Usage Gauge">
+            <path d="${greenArc}" stroke="#22c55e" stroke-width="${strokeWidth}" fill="none" stroke-linecap="round" opacity="0.20"></path>
+            <path d="${yellowArc}" stroke="#facc15" stroke-width="${strokeWidth}" fill="none" stroke-linecap="round" opacity="0.20"></path>
+            <path d="${redArc}" stroke="#ef4444" stroke-width="${strokeWidth}" fill="none" stroke-linecap="round" opacity="0.20"></path>
+            <path d="${activeArc}" stroke="${activeColor}" stroke-width="${strokeWidth}" fill="none" stroke-linecap="round"></path>
+
+            <text x="110" y="92" text-anchor="middle" class="semiGaugeValue">${cpuValue.toFixed(1)}%</text>
+            <text x="110" y="114" text-anchor="middle" class="semiGaugeLabel">CPU Load</text>
+          </svg>
+        </div>
+      `;
+
+      const el = document.getElementById("cpuGaugeContainer");
+      if (el) {
+        el.innerHTML = sSvg;
+      }
+    },
+
+    _renderMemoryTrend: function () {
+      const el = document.getElementById("memTrendContainer");
+      if (!el) {
+        return;
+      }
+
+      const history = this._memHistory || [];
+
+      if (!history.length) {
+        el.innerHTML = "<div class='memoryTrendEmpty'>Waiting for memory samples...</div>";
+        return;
+      }
+
+      const width = 460;
+      const height = 210;
+      const leftPad = 18;
+      const rightPad = 18;
+      const topPad = 26;
+      const bottomPad = 34;
+      const innerWidth = width - leftPad - rightPad;
+      const innerHeight = height - topPad - bottomPad;
+
+      const values = history.map(function (p) {
+        return Number(p.value || 0);
+      });
+
+      const minVal = Math.min.apply(null, values);
+      const maxVal = Math.max.apply(null, values);
+      const yMin = Math.max(0, minVal * 0.92);
+      const yMax = maxVal === minVal ? maxVal + 10 : maxVal * 1.08;
+      const range = yMax - yMin || 1;
+
+      const points = history.map(function (point, index) {
+        const x = leftPad + (history.length === 1 ? innerWidth / 2 : (index * innerWidth / (history.length - 1)));
+        const y = topPad + ((yMax - point.value) / range) * innerHeight;
+        return { x: x, y: y, value: point.value, index: index };
+      });
+
+      const linePath = points.map(function (p, i) {
+        return (i === 0 ? "M" : "L") + " " + p.x + " " + p.y;
+      }).join(" ");
+
+      const areaPath =
+        linePath +
+        " L " + points[points.length - 1].x + " " + (topPad + innerHeight) +
+        " L " + points[0].x + " " + (topPad + innerHeight) +
+        " Z";
+
+      const lastPoint = points[points.length - 1];
+      const currentValue = values[values.length - 1];
+
+      let peakIndex = 0;
+      values.forEach(function (v, i) {
+        if (v >= values[peakIndex]) {
+          peakIndex = i;
+        }
+      });
+      const peakPoint = points[peakIndex];
+      const peakValue = values[peakIndex];
+
+      const gridLines = [0.25, 0.5, 0.75].map(function (ratio) {
+        const y = topPad + innerHeight * ratio;
+        return `<line x1="${leftPad}" y1="${y}" x2="${width - rightPad}" y2="${y}" class="memoryGridLine"></line>`;
+      }).join("");
+
+      const svg = `
+        <div class="memoryMonitorCard">
+          <div class="memoryMonitorHeader">
+            <div class="memoryLegendDot"></div>
+            <div class="memoryHeaderLabel">RSS Trend · last 2 min</div>
+          </div>
+
+          <svg viewBox="0 0 ${width} ${height}" class="memoryTrendSvg" aria-label="Memory Trend">
+            ${gridLines}
+            <path d="${areaPath}" class="memoryAreaPath"></path>
+            <path d="${linePath}" class="memoryLinePath"></path>
+
+            <circle cx="${peakPoint.x}" cy="${peakPoint.y}" r="5.5" class="memoryPeakPoint"></circle>
+            <circle cx="${lastPoint.x}" cy="${lastPoint.y}" r="5" class="memoryLastPoint"></circle>
+
+            <text x="${peakPoint.x}" y="${peakPoint.y - 14}" text-anchor="middle" class="memoryPeakLabel">
+              Peak ${peakValue.toFixed(1)} MB
+            </text>
+
+            <text x="${lastPoint.x - 6}" y="${lastPoint.y - 14}" text-anchor="end" class="memoryCurrentLabel">
+              ${currentValue.toFixed(1)} MB
+            </text>
+          </svg>
+
+          <div class="memoryFooterLabels">
+            <span>2 min ago</span>
+            <span>now</span>
+          </div>
+        </div>
+      `;
+
+      el.innerHTML = svg;
+    },
+
+    _renderHealthScoreChart: function () {
+      const el = document.getElementById("healthScoreChartContainer");
+      if (!el) {
+        return;
+      }
+
+      const score = Math.max(0, Math.min(100, Number(this.getView().getModel("metrics").getProperty("/healthScore") || 0)));
+
+      let color = "#ef4444";
+      let label = "Unhealthy";
+      if (score >= 40 && score < 80) {
+        color = "#f59e0b";
+        label = "Neutral";
+      }
+      if (score >= 80) {
+        color = "#0ea5e9";
+        label = "Healthy";
+      }
+
+      const radius = 52;
+      const cx = 70;
+      const cy = 70;
+      const circumference = 2 * Math.PI * radius;
+      const progress = circumference * (1 - score / 100);
+
+      const svg = `
+        <div class="scoreRingCard">
+          <svg viewBox="0 0 140 140" class="scoreRingSvg" aria-label="Health Score">
+            <circle cx="${cx}" cy="${cy}" r="${radius}" class="scoreRingTrack"></circle>
+            <circle
+              cx="${cx}"
+              cy="${cy}"
+              r="${radius}"
+              class="scoreRingProgress"
+              style="stroke:${color}; stroke-dasharray:${circumference}; stroke-dashoffset:${progress};">
+            </circle>
+            <text x="70" y="66" text-anchor="middle" class="scoreRingValue">${score.toFixed(0)}</text>
+            <text x="70" y="86" text-anchor="middle" class="scoreRingUnit">/ 100</text>
+          </svg>
+          <div class="scoreRingCategory" style="color:${color};">${label}</div>
+        </div>
+      `;
+
+      el.innerHTML = svg;
+    },
+
+    _renderResponseTimeChart: function () {
+      const el = document.getElementById("respTrendContainer");
+      if (!el) {
+        return;
+      }
+
+      const history = this._respHistory || [];
+
+      if (!history.length) {
+        el.innerHTML = "<div class='responseTrendEmpty'>Waiting for response samples...</div>";
+        return;
+      }
+
+      const width = 280;
+      const height = 150;
+      const leftPad = 14;
+      const rightPad = 14;
+      const topPad = 20;
+      const bottomPad = 26;
+      const innerWidth = width - leftPad - rightPad;
+      const innerHeight = height - topPad - bottomPad;
+
+      const values = history.map(function (p) {
+        return Number(p.value || 0);
+      });
+
+      const minVal = Math.min.apply(null, values);
+      const maxVal = Math.max.apply(null, values);
+      const yMin = Math.max(0, minVal * 0.9);
+      const yMax = maxVal === minVal ? maxVal + 30 : maxVal * 1.1;
+      const range = yMax - yMin || 1;
+
+      const points = history.map(function (point, index) {
+        const x = leftPad + (history.length === 1 ? innerWidth / 2 : (index * innerWidth / (history.length - 1)));
+        const y = topPad + ((yMax - point.value) / range) * innerHeight;
+        return { x: x, y: y, value: point.value };
+      });
+
+      const linePath = points.map(function (p, i) {
+        return (i === 0 ? "M" : "L") + " " + p.x + " " + p.y;
+      }).join(" ");
+
+      const lastPoint = points[points.length - 1];
+      const currentValue = values[values.length - 1];
+
+      const svg = `
+        <div class="responseTrendCard">
+          <svg viewBox="0 0 ${width} ${height}" class="responseTrendSvg" aria-label="Response Time Trend">
+            <line x1="${leftPad}" y1="${topPad + innerHeight}" x2="${width - rightPad}" y2="${topPad + innerHeight}" class="responseTrendBase"></line>
+            <path d="${linePath}" class="responseTrendLine"></path>
+            <circle cx="${lastPoint.x}" cy="${lastPoint.y}" r="4.5" class="responseTrendPoint"></circle>
+            <text x="${width - rightPad}" y="14" text-anchor="end" class="responseTrendValue">${currentValue.toFixed(0)} ms</text>
+          </svg>
+          <div class="responseFooterLabels">
+            <span>2 min</span>
+            <span>now</span>
+          </div>
+        </div>
+      `;
+
+      el.innerHTML = svg;
+    },
+
+    onGoSecurity: function () {
+      this.getOwnerComponent().getRouter().navTo("security", {}, false);
+    },
+
+    onGoSystemHealth: function () {
+      this.getOwnerComponent().getRouter().navTo("systemHealth", {}, false);
+    },
+
+    goRisk: function () {
+      this.getOwnerComponent().getRouter().navTo("risk", {}, false);
+    },
+
+    goKmeans: function () {
+      this.getOwnerComponent().getRouter().navTo("kmeans", {}, false);
+    },
+
+    onExit: function () {
+      if (this._interval) {
+        clearInterval(this._interval);
+      }
+    }
+
+  });
 });

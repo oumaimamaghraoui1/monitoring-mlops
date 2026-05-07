@@ -212,6 +212,17 @@ sap.ui.define([
     onStartTourPress: function () {
       this.startGuidedTour();
     },
+   onGoSecurity: function () {
+      this.getOwnerComponent().getRouter().navTo("security", {}, false);
+    },
+
+onGoSystemHealth: function () {
+      this.getOwnerComponent().getRouter().navTo("system", {}, false);
+    },
+
+ goRisk: function () {
+      this.getOwnerComponent().getRouter().navTo("risk", {}, false);
+    },
 
     startGuidedTour: function () {
       this._tourIndex = 0;

@@ -30,7 +30,7 @@
         press=".goRisk"/>
 
       <Button
-        text="AI Recommendation"
+        text="Basis Intelligence"
         icon="sap-icon://lightbulb"
         type="Accept"
         press=".goKmeans"/>
