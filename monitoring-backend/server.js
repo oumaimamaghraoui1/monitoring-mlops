@@ -126,6 +126,11 @@ app.get("/slow-api", async (req,res)=>{
   await new Promise(r => setTimeout(r,2000));
   res.send("Slow dependency ✅");
 });
+app.get("/slow-api-random", async (req, res) => {
+  const delay = Math.floor(Math.random() * 2500);
+  await new Promise(resolve => setTimeout(resolve, delay));
+  res.send(`Slow dependency ✅ ${delay} ms`);
+});
 // =============================
 // ✅ EVENT LOOP STARVATION TEST
 // =============================

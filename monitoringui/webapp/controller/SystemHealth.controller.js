@@ -14,7 +14,11 @@ sap.ui.define([
       this._memHistory = [];
       this._healthHistory = [];
       this._respHistory = [];
-      this._maxHistoryPoints = 40; // ~2 min with 3 sec refresh
+      this._lagHistory = [];
+      this._gcHistory = [];
+      this._heapHistory = [];
+      this._uptimeHistory = [];
+      this._maxHistoryPoints = 40;
 
       this._interval = setInterval(function () {
         this.onRefresh();
@@ -28,6 +32,10 @@ sap.ui.define([
       this._renderMemoryTrend();
       this._renderHealthScoreChart();
       this._renderResponseTimeChart();
+      this._renderLagChart();
+      this._renderGcChart();
+      this._renderHeapChart();
+      this._renderUptimeChart();
     },
 
     onRefresh: function () {
@@ -48,7 +56,7 @@ sap.ui.define([
 
           data.cpu = Number(data.cpu || 0);
           data.rss = Number(data.rss || 0);
-          data.responseTimeMs = Number(data.responseTimeMs || 0);
+          data.responseTimeMs = Number(data.responseTimeMs || data.lastRequestLatency || 0);
           data.gcTimeMs = Number(data.gcTimeMs || 0);
           data.heapGrowthRate = Number(data.heapGrowthRate || 0);
           data.healthScore = Number(data.healthScore || 0);
@@ -61,6 +69,10 @@ sap.ui.define([
           this._pushHistoryPoint(this._memHistory, memMb);
           this._pushHistoryPoint(this._healthHistory, data.healthScore);
           this._pushHistoryPoint(this._respHistory, data.responseTimeMs);
+          this._pushHistoryPoint(this._lagHistory, data.elLagMs);
+          this._pushHistoryPoint(this._gcHistory, data.gcTimeMs);
+          this._pushHistoryPoint(this._heapHistory, data.heapGrowthRate);
+          this._pushHistoryPoint(this._uptimeHistory, data.uptimeSec);
 
           const prevCpu = this._getPreviousValue(this._cpuHistory, data.cpu);
           const prevMem = this._getPreviousValue(this._memHistory, memMb);
@@ -77,7 +89,7 @@ sap.ui.define([
           data.gcText = data.gcTimeMs.toFixed(2) + " ms";
           data.heapText = data.heapGrowthRate.toFixed(2) + " MB/min";
           data.healthText = data.healthScore.toFixed(0) + " %";
-          data.uptimeText = data.uptimeSec.toFixed(0) + " sec";
+          data.uptimeText = this._formatUptime(data.uptimeSec);
 
           data.cpuPrevText = prevCpu.toFixed(1) + " %";
           data.memPrevText = prevMem.toFixed(1) + " MB";
@@ -124,10 +136,34 @@ sap.ui.define([
           this._renderMemoryTrend();
           this._renderHealthScoreChart();
           this._renderResponseTimeChart();
+          this._renderLagChart();
+          this._renderGcChart();
+          this._renderHeapChart();
+          this._renderUptimeChart();
         }.bind(this))
         .catch(function (err) {
           console.error("Runtime API error", err);
         });
+    },
+
+    _formatUptime: function (seconds) {
+      seconds = Math.floor(Number(seconds || 0));
+
+      const days = Math.floor(seconds / 86400);
+      const hours = Math.floor((seconds % 86400) / 3600);
+      const minutes = Math.floor((seconds % 3600) / 60);
+      const secs = seconds % 60;
+
+      if (days > 0) {
+        return days + "d " + hours + "h";
+      }
+      if (hours > 0) {
+        return hours + "h " + minutes + "m";
+      }
+      if (minutes > 0) {
+        return minutes + "m " + secs + "s";
+      }
+      return secs + " sec";
     },
 
     _pushHistoryPoint: function (historyArray, value) {
@@ -155,6 +191,57 @@ sap.ui.define([
       return Math.max.apply(null, historyArray.map(function (p) {
         return Number(p.value || 0);
       }));
+    },
+
+    _buildLineChartSvg: function (history, options) {
+      if (!history || !history.length) {
+        return options.emptyText || "";
+      }
+
+      const width = options.width || 280;
+      const height = options.height || 150;
+      const leftPad = options.leftPad || 14;
+      const rightPad = options.rightPad || 14;
+      const topPad = options.topPad || 20;
+      const bottomPad = options.bottomPad || 26;
+      const innerWidth = width - leftPad - rightPad;
+      const innerHeight = height - topPad - bottomPad;
+
+      const values = history.map(function (p) {
+        return Number(p.value || 0);
+      });
+
+      const minVal = Math.min.apply(null, values);
+      const maxVal = Math.max.apply(null, values);
+      const yMin = Math.max(0, options.yMin !== undefined ? options.yMin : minVal * 0.9);
+      const yMax = maxVal === minVal ? maxVal + (options.flatPadding || 10) : maxVal * (options.yMaxMultiplier || 1.1);
+      const range = yMax - yMin || 1;
+
+      const points = history.map(function (point, index) {
+        const x = leftPad + (history.length === 1 ? innerWidth / 2 : (index * innerWidth / (history.length - 1)));
+        const y = topPad + ((yMax - point.value) / range) * innerHeight;
+        return { x: x, y: y, value: point.value };
+      });
+
+      const linePath = points.map(function (p, i) {
+        return (i === 0 ? "M" : "L") + " " + p.x + " " + p.y;
+      }).join(" ");
+
+      const lastPoint = points[points.length - 1];
+      const currentValue = values[values.length - 1];
+
+      return `
+        <svg viewBox="0 0 ${width} ${height}" class="${options.svgClass}" aria-label="${options.ariaLabel}">
+          <line x1="${leftPad}" y1="${topPad + innerHeight}" x2="${width - rightPad}" y2="${topPad + innerHeight}" class="${options.baseClass}"></line>
+          <path d="${linePath}" class="${options.lineClass}"></path>
+          <circle cx="${lastPoint.x}" cy="${lastPoint.y}" r="4.5" class="${options.pointClass}"></circle>
+          <text x="${width - rightPad}" y="14" text-anchor="end" class="${options.valueClass}">${currentValue.toFixed(options.decimals || 0)} ${options.unit || ""}</text>
+        </svg>
+        <div class="${options.footerClass}">
+          <span>2 min</span>
+          <span>now</span>
+        </div>
+      `;
     },
 
     _renderCpuGauge: function () {
@@ -207,11 +294,10 @@ sap.ui.define([
       const sSvg = `
         <div class="semiGaugeCardInner">
           <svg viewBox="0 0 220 140" class="semiGaugeSvg" aria-label="CPU Usage Gauge">
-            <path d="${greenArc}" stroke="#22c55e" stroke-width="${strokeWidth}" fill="none" stroke-linecap="round" opacity="0.20"></path>
-            <path d="${yellowArc}" stroke="#facc15" stroke-width="${strokeWidth}" fill="none" stroke-linecap="round" opacity="0.20"></path>
-            <path d="${redArc}" stroke="#ef4444" stroke-width="${strokeWidth}" fill="none" stroke-linecap="round" opacity="0.20"></path>
-            <path d="${activeArc}" stroke="${activeColor}" stroke-width="${strokeWidth}" fill="none" stroke-linecap="round"></path>
-
+            <path d="${greenArc}" stroke="#22c55e" stroke-width="16" fill="none" stroke-linecap="round" opacity="0.20"></path>
+            <path d="${yellowArc}" stroke="#facc15" stroke-width="16" fill="none" stroke-linecap="round" opacity="0.20"></path>
+            <path d="${redArc}" stroke="#ef4444" stroke-width="16" fill="none" stroke-linecap="round" opacity="0.20"></path>
+            <path d="${activeArc}" stroke="${activeColor}" stroke-width="16" fill="none" stroke-linecap="round"></path>
             <text x="110" y="92" text-anchor="middle" class="semiGaugeValue">${cpuValue.toFixed(1)}%</text>
             <text x="110" y="114" text-anchor="middle" class="semiGaugeLabel">CPU Load</text>
           </svg>
@@ -231,7 +317,6 @@ sap.ui.define([
       }
 
       const history = this._memHistory || [];
-
       if (!history.length) {
         el.innerHTML = "<div class='memoryTrendEmpty'>Waiting for memory samples...</div>";
         return;
@@ -246,10 +331,7 @@ sap.ui.define([
       const innerWidth = width - leftPad - rightPad;
       const innerHeight = height - topPad - bottomPad;
 
-      const values = history.map(function (p) {
-        return Number(p.value || 0);
-      });
-
+      const values = history.map(function (p) { return Number(p.value || 0); });
       const minVal = Math.min.apply(null, values);
       const maxVal = Math.max.apply(null, values);
       const yMin = Math.max(0, minVal * 0.92);
@@ -281,6 +363,7 @@ sap.ui.define([
           peakIndex = i;
         }
       });
+
       const peakPoint = points[peakIndex];
       const peakValue = values[peakIndex];
 
@@ -300,17 +383,10 @@ sap.ui.define([
             ${gridLines}
             <path d="${areaPath}" class="memoryAreaPath"></path>
             <path d="${linePath}" class="memoryLinePath"></path>
-
             <circle cx="${peakPoint.x}" cy="${peakPoint.y}" r="5.5" class="memoryPeakPoint"></circle>
             <circle cx="${lastPoint.x}" cy="${lastPoint.y}" r="5" class="memoryLastPoint"></circle>
-
-            <text x="${peakPoint.x}" y="${peakPoint.y - 14}" text-anchor="middle" class="memoryPeakLabel">
-              Peak ${peakValue.toFixed(1)} MB
-            </text>
-
-            <text x="${lastPoint.x - 6}" y="${lastPoint.y - 14}" text-anchor="end" class="memoryCurrentLabel">
-              ${currentValue.toFixed(1)} MB
-            </text>
+            <text x="${peakPoint.x}" y="${peakPoint.y - 14}" text-anchor="middle" class="memoryPeakLabel">Peak ${peakValue.toFixed(1)} MB</text>
+            <text x="${lastPoint.x - 6}" y="${lastPoint.y - 14}" text-anchor="end" class="memoryCurrentLabel">${currentValue.toFixed(1)} MB</text>
           </svg>
 
           <div class="memoryFooterLabels">
@@ -376,9 +452,74 @@ sap.ui.define([
       }
 
       const history = this._respHistory || [];
-
       if (!history.length) {
         el.innerHTML = "<div class='responseTrendEmpty'>Waiting for response samples...</div>";
+        return;
+      }
+
+      el.innerHTML = `
+        <div class="responseTrendCard">
+          ${this._buildLineChartSvg(history, {
+            width: 280,
+            height: 150,
+            svgClass: "responseTrendSvg",
+            ariaLabel: "Response Time Trend",
+            baseClass: "responseTrendBase",
+            lineClass: "responseTrendLine",
+            pointClass: "responseTrendPoint",
+            valueClass: "responseTrendValue",
+            footerClass: "responseFooterLabels",
+            decimals: 0,
+            unit: "ms",
+            flatPadding: 30,
+            yMaxMultiplier: 1.1
+          })}
+        </div>
+      `;
+    },
+
+    _renderLagChart: function () {
+      const el = document.getElementById("lagTrendContainer");
+      if (!el) {
+        return;
+      }
+
+      const history = this._lagHistory || [];
+      if (!history.length) {
+        el.innerHTML = "<div class='lagTrendEmpty'>Waiting for lag samples...</div>";
+        return;
+      }
+
+      el.innerHTML = `
+        <div class="lagTrendCard">
+          ${this._buildLineChartSvg(history, {
+            width: 280,
+            height: 150,
+            svgClass: "lagTrendSvg",
+            ariaLabel: "Event Loop Lag Trend",
+            baseClass: "lagTrendBase",
+            lineClass: "lagTrendLine",
+            pointClass: "lagTrendPoint",
+            valueClass: "lagTrendValue",
+            footerClass: "lagFooterLabels",
+            decimals: 0,
+            unit: "ms",
+            flatPadding: 20,
+            yMaxMultiplier: 1.15
+          })}
+        </div>
+      `;
+    },
+
+    _renderGcChart: function () {
+      const el = document.getElementById("gcTrendContainer");
+      if (!el) {
+        return;
+      }
+
+      const history = this._gcHistory || [];
+      if (!history.length) {
+        el.innerHTML = "<div class='gcTrendEmpty'>Waiting for GC samples...</div>";
         return;
       }
 
@@ -391,45 +532,92 @@ sap.ui.define([
       const innerWidth = width - leftPad - rightPad;
       const innerHeight = height - topPad - bottomPad;
 
-      const values = history.map(function (p) {
-        return Number(p.value || 0);
-      });
-
-      const minVal = Math.min.apply(null, values);
+      const values = history.map(function (p) { return Number(p.value || 0); });
       const maxVal = Math.max.apply(null, values);
-      const yMin = Math.max(0, minVal * 0.9);
-      const yMax = maxVal === minVal ? maxVal + 30 : maxVal * 1.1;
-      const range = yMax - yMin || 1;
+      const barWidth = innerWidth / history.length - 2;
 
-      const points = history.map(function (point, index) {
-        const x = leftPad + (history.length === 1 ? innerWidth / 2 : (index * innerWidth / (history.length - 1)));
-        const y = topPad + ((yMax - point.value) / range) * innerHeight;
-        return { x: x, y: y, value: point.value };
-      });
+      const bars = history.map(function (point, index) {
+        const x = leftPad + index * (innerWidth / history.length);
+        const h = maxVal > 0 ? (point.value / maxVal) * innerHeight : 2;
+        const y = topPad + innerHeight - h;
+        const cls = index === history.length - 1 ? "gcBar gcBarActive" : "gcBar";
+        return `<rect x="${x}" y="${y}" width="${Math.max(barWidth, 2)}" height="${Math.max(h, 2)}" class="${cls}"></rect>`;
+      }).join("");
 
-      const linePath = points.map(function (p, i) {
-        return (i === 0 ? "M" : "L") + " " + p.x + " " + p.y;
-      }).join(" ");
-
-      const lastPoint = points[points.length - 1];
-      const currentValue = values[values.length - 1];
-
-      const svg = `
-        <div class="responseTrendCard">
-          <svg viewBox="0 0 ${width} ${height}" class="responseTrendSvg" aria-label="Response Time Trend">
-            <line x1="${leftPad}" y1="${topPad + innerHeight}" x2="${width - rightPad}" y2="${topPad + innerHeight}" class="responseTrendBase"></line>
-            <path d="${linePath}" class="responseTrendLine"></path>
-            <circle cx="${lastPoint.x}" cy="${lastPoint.y}" r="4.5" class="responseTrendPoint"></circle>
-            <text x="${width - rightPad}" y="14" text-anchor="end" class="responseTrendValue">${currentValue.toFixed(0)} ms</text>
+      el.innerHTML = `
+        <div class="gcTrendCard">
+          <svg viewBox="0 0 ${width} ${height}" class="gcTrendSvg" aria-label="GC Duration Trend">
+            <line x1="${leftPad}" y1="${topPad + innerHeight}" x2="${width - rightPad}" y2="${topPad + innerHeight}" class="gcTrendBase"></line>
+            ${bars}
+            <text x="${width - rightPad}" y="14" text-anchor="end" class="gcTrendValue">${values[values.length - 1].toFixed(2)} ms</text>
           </svg>
-          <div class="responseFooterLabels">
+          <div class="gcFooterLabels">
             <span>2 min</span>
             <span>now</span>
           </div>
         </div>
       `;
+    },
 
-      el.innerHTML = svg;
+    _renderHeapChart: function () {
+      const el = document.getElementById("heapTrendContainer");
+      if (!el) {
+        return;
+      }
+
+      const history = this._heapHistory || [];
+      if (!history.length) {
+        el.innerHTML = "<div class='heapTrendEmpty'>Waiting for heap growth samples...</div>";
+        return;
+      }
+
+      el.innerHTML = `
+        <div class="heapTrendCard">
+          ${this._buildLineChartSvg(history, {
+            width: 280,
+            height: 150,
+            svgClass: "heapTrendSvg",
+            ariaLabel: "Heap Growth Trend",
+            baseClass: "heapTrendBase",
+            lineClass: "heapTrendLine",
+            pointClass: "heapTrendPoint",
+            valueClass: "heapTrendValue",
+            footerClass: "heapFooterLabels",
+            decimals: 2,
+            unit: "MB/min",
+            flatPadding: 2,
+            yMaxMultiplier: 1.15
+          })}
+        </div>
+      `;
+    },
+
+    _renderUptimeChart: function () {
+      const el = document.getElementById("uptimeChartContainer");
+      if (!el) {
+        return;
+      }
+
+      const oMetrics = this.getView().getModel("metrics");
+      const uptimeSec = Number(oMetrics.getProperty("/uptimeSec") || 0);
+      const maxDisplaySec = 7200; // 2h visual cap
+      const progress = Math.max(0, Math.min(100, (uptimeSec / maxDisplaySec) * 100));
+
+      el.innerHTML = `
+        <div class="uptimeTrackCard">
+          <div class="uptimeTrackHeader">
+            <span class="uptimeTrackValue">${this._formatUptime(uptimeSec)}</span>
+            <span class="uptimeTrackCaption">stable runtime</span>
+          </div>
+          <div class="uptimeTrackBar">
+            <div class="uptimeTrackFill" style="width:${progress}%"></div>
+          </div>
+          <div class="uptimeFooterLabels">
+            <span>start</span>
+            <span>now</span>
+          </div>
+        </div>
+      `;
     },
 
     onGoSecurity: function () {

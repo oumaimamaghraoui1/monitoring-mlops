@@ -264,11 +264,18 @@
                 <ObjectStatus
                   text="{= ${metrics>/elLagMs} + ' ms'}"
                   state="{metrics>/lagState}"
-                  class="kpiStatus"/>
+                  class="kpiStatus sapUiTinyMarginBottom"/>
 
                 <Text
                   text="Node.js overload delay."
-                  class="sapUiTinyMarginTop subtleText"/>
+                  class="sapUiTinyMarginBottom subtleText"/>
+
+                <VBox alignItems="Center" justifyContent="Center" class="sapUiSmallMarginTop">
+                  <core:HTML
+                    id="lagTrendHtml"
+                    preferDOM="true"
+                    content="&lt;div id='lagTrendContainer' class='lagTrendWrapper'&gt;&lt;/div&gt;"/>
+                </VBox>
               </VBox>
             </f:content>
           </f:Card>
@@ -292,11 +299,18 @@
                 <ObjectStatus
                   text="{metrics>/gcText}"
                   state="{metrics>/gcState}"
-                  class="kpiStatus"/>
+                  class="kpiStatus sapUiTinyMarginBottom"/>
 
                 <Text
                   text="Garbage collector runtime."
-                  class="sapUiTinyMarginTop subtleText"/>
+                  class="sapUiTinyMarginBottom subtleText"/>
+
+                <VBox alignItems="Center" justifyContent="Center" class="sapUiSmallMarginTop">
+                  <core:HTML
+                    id="gcTrendHtml"
+                    preferDOM="true"
+                    content="&lt;div id='gcTrendContainer' class='gcTrendWrapper'&gt;&lt;/div&gt;"/>
+                </VBox>
               </VBox>
             </f:content>
           </f:Card>
@@ -320,11 +334,18 @@
                 <ObjectStatus
                   text="{metrics>/heapText}"
                   state="{metrics>/heapState}"
-                  class="kpiStatus"/>
+                  class="kpiStatus sapUiTinyMarginBottom"/>
 
                 <Text
                   text="Memory growth trend."
-                  class="sapUiTinyMarginTop subtleText"/>
+                  class="sapUiTinyMarginBottom subtleText"/>
+
+                <VBox alignItems="Center" justifyContent="Center" class="sapUiSmallMarginTop">
+                  <core:HTML
+                    id="heapTrendHtml"
+                    preferDOM="true"
+                    content="&lt;div id='heapTrendContainer' class='heapTrendWrapper'&gt;&lt;/div&gt;"/>
+                </VBox>
               </VBox>
             </f:content>
           </f:Card>
@@ -348,11 +369,18 @@
                 <ObjectStatus
                   text="{metrics>/uptimeText}"
                   state="Success"
-                  class="kpiStatus"/>
+                  class="kpiStatus sapUiTinyMarginBottom"/>
 
                 <Text
                   text="Backend running time."
-                  class="sapUiTinyMarginTop subtleText"/>
+                  class="sapUiTinyMarginBottom subtleText"/>
+
+                <VBox alignItems="Center" justifyContent="Center" class="sapUiSmallMarginTop">
+                  <core:HTML
+                    id="uptimeChartHtml"
+                    preferDOM="true"
+                    content="&lt;div id='uptimeChartContainer' class='uptimeChartWrapper'&gt;&lt;/div&gt;"/>
+                </VBox>
               </VBox>
             </f:content>
           </f:Card>

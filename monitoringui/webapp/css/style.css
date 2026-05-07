@@ -1860,3 +1860,146 @@
   font-size: 0.9rem;
   padding: 1.5rem 0;
 }
+/* ===== additional small charts ===== */
+
+.lagTrendWrapper,
+.gcTrendWrapper,
+.heapTrendWrapper,
+.uptimeChartWrapper {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 170px;
+}
+
+.lagTrendCard,
+.gcTrendCard,
+.heapTrendCard,
+.uptimeTrackCard {
+  width: 100%;
+  max-width: 300px;
+}
+
+.lagTrendSvg,
+.gcTrendSvg,
+.heapTrendSvg {
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.lagTrendBase,
+.gcTrendBase,
+.heapTrendBase {
+  stroke: #e5e7eb;
+  stroke-width: 2;
+}
+
+.lagTrendLine {
+  fill: none;
+  stroke: #f59e0b;
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.lagTrendPoint {
+  fill: #f59e0b;
+  stroke: #ffffff;
+  stroke-width: 2;
+}
+
+.lagTrendValue {
+  font-size: 0.78rem;
+  font-weight: 700;
+  fill: #d97706;
+}
+
+.lagFooterLabels,
+.gcFooterLabels,
+.heapFooterLabels {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 0.25rem;
+  font-size: 0.72rem;
+  color: #94a3b8;
+}
+
+.gcBar {
+  fill: rgba(239, 68, 68, 0.35);
+}
+
+.gcBarActive {
+  fill: #ef4444;
+}
+
+.gcTrendValue {
+  font-size: 0.78rem;
+  font-weight: 700;
+  fill: #dc2626;
+}
+
+.heapTrendLine {
+  fill: none;
+  stroke: #8b5cf6;
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.heapTrendPoint {
+  fill: #8b5cf6;
+  stroke: #ffffff;
+  stroke-width: 2;
+}
+
+.heapTrendValue {
+  font-size: 0.78rem;
+  font-weight: 700;
+  fill: #7c3aed;
+}
+
+.uptimeTrackHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.55rem;
+}
+
+.uptimeTrackValue {
+  font-size: 1rem;
+  font-weight: 800;
+  color: #059669;
+}
+
+.uptimeTrackCaption {
+  font-size: 0.72rem;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.uptimeTrackBar {
+  width: 100%;
+  height: 12px;
+  background: #dcfce7;
+  border-radius: 999px;
+  overflow: hidden;
+  border: 1px solid #bbf7d0;
+}
+
+.uptimeTrackFill {
+  height: 100%;
+  background: linear-gradient(90deg, #10b981 0%, #22c55e 100%);
+  border-radius: 999px;
+  transition: width 0.3s ease;
+}
+
+.uptimeFooterLabels {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 0.35rem;
+  font-size: 0.72rem;
+  color: #94a3b8;
+}
