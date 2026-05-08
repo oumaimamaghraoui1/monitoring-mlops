@@ -5,21 +5,16 @@
   xmlns:f="sap.f"
   xmlns:l="sap.ui.layout"
   xmlns:core="sap.ui.core"
-  xmlns:viz="sap.viz.ui5.controls"
   displayBlock="true">
+  
 
   <Page title="Backend Health and Root Cause Analysis Dashboard">
 
     <headerContent>
       <Button text="Refresh" icon="sap-icon://refresh" type="Emphasized" press=".onRefresh"/>
       <Button text="Security Events" icon="sap-icon://shield" press=".onGoSecurity"/>
-      <!--<Button text="Data Changes" press=".onGoDataChanges"/>-->
       <Button text="AI Risk Monitor" icon="sap-icon://ai" press=".goRisk"/>
-      <Button
-        text="Basis Intelligence"
-        icon="sap-icon://lightbulb"
-        type="Accept"
-        press=".goKmeans"/>
+      <Button text="Basis Intelligence" icon="sap-icon://lightbulb" type="Accept" press=".goKmeans"/>
     </headerContent>
 
     <content>
@@ -31,66 +26,152 @@
           showIcon="true"
           class="sapUiSmallMarginBottom"/>
 
-        <l:Grid width="100%" defaultSpan="L12 M12 S12" class="sapUiResponsiveMargin">
+        <!-- ================================= -->
+        <!-- ROW 0 : OPS SUMMARY + EXPORT      -->
+        <!-- ================================= -->
+        <l:Grid width="100%" defaultSpan="L12 M12 S12" class="sapUiSmallMarginBottom compactHealthRow">
 
-          <!-- CPU CARD -->
+          <f:Card class="healthCard opsSummaryCard">
+            <f:layoutData>
+              <l:GridData span="L8 M12 S12"/>
+            </f:layoutData>
+            <f:content>
+              <VBox class="sapUiMediumMargin">
+                <HBox alignItems="Center" justifyContent="SpaceBetween" class="sapUiSmallMarginBottom">
+                  <HBox alignItems="Center">
+                    <core:Icon src="sap-icon://activity-items" size="1.2rem" class="cardIconBlue sapUiTinyMarginEnd"/>
+                    <Title text="Operations Summary" level="H4"/>
+                  </HBox>
+
+                  <Button
+                    text="Reset All"
+                    icon="sap-icon://reset"
+                    type="Reject"
+                    tooltip="Reset all counters and stored incidents"
+                    press=".onResetAll"/>
+                </HBox>
+
+                <HBox wrap="Wrap" class="opsSummaryWrap">
+                  <VBox class="opsMiniCard">
+                    <Text text="Incidents Today" class="opsMiniLabel"/>
+                    <Text text="{metrics>/operations/incidentsToday}" class="opsMiniValue"/>
+                  </VBox>
+
+                  <VBox class="opsMiniCard">
+                    <Text text="Alerts Triggered" class="opsMiniLabel"/>
+                    <Text text="{metrics>/operations/alertsTriggered}" class="opsMiniValue"/>
+                  </VBox>
+
+                  <VBox class="opsMiniCard">
+                    <Text text="Last Anomaly" class="opsMiniLabel"/>
+                    <Text text="{metrics>/operations/lastAnomalyText}" class="opsMiniValueSmall"/>
+                  </VBox>
+
+                  <VBox class="opsMiniCard">
+                    <Text text="Incident Streak" class="opsMiniLabel"/>
+                    <Text text="{metrics>/operations/incidentStreak}" class="opsMiniValue"/>
+                  </VBox>
+
+                  <VBox class="opsMiniCard">
+                    <Text text="Detected Cause" class="opsMiniLabel"/>
+                    <Text text="{metrics>/detectedCauseText}" class="opsMiniValueSmall"/>
+                  </VBox>
+                </HBox>
+              </VBox>
+            </f:content>
+          </f:Card>
+
+          <f:Card class="healthCard exportCard">
+            <f:layoutData>
+              <l:GridData span="L4 M12 S12"/>
+            </f:layoutData>
+            <f:content>
+              <VBox class="sapUiMediumMargin exportPanelModern">
+  <HBox alignItems="Center" class="sapUiSmallMarginBottom">
+    <core:Icon src="sap-icon://download" size="1.2rem" class="cardIconGreen sapUiTinyMarginEnd"/>
+    <Title text="Export / Snapshot" level="H4"/>
+  </HBox>
+
+  <HBox wrap="Wrap" class="exportIconGrid">
+    <Button
+      icon="sap-icon://download-from-cloud"
+      type="Transparent"
+      tooltip="Export Metrics JSON"
+      press=".onExportMetricsJson"
+      class="exportIconOnlyBtn"/>
+
+    <Button
+      icon="sap-icon://excel-attachment"
+      type="Transparent"
+      tooltip="Download Incident Snapshot CSV"
+      press=".onDownloadIncidentSnapshot"
+      class="exportIconOnlyBtn"/>
+
+    <Button
+      icon="sap-icon://copy"
+      type="Transparent"
+      tooltip="Copy Diagnostic Summary"
+      press=".onCopyDiagnosticSummary"
+      class="exportIconOnlyBtn"/>
+
+    <Button
+      icon="sap-icon://pdf-attachment"
+      type="Transparent"
+      tooltip="Download AI PDF Summary"
+      press=".onDownloadPdfSummary"
+      class="exportIconOnlyBtn exportPdfIconBtn"/>
+  </HBox>
+</VBox>
+            </f:content>
+          </f:Card>
+
+        </l:Grid>
+
+        <!-- ===================== -->
+        <!-- ROW 1 : HERO METRICS -->
+        <!-- ===================== -->
+        <l:Grid width="100%" defaultSpan="L12 M12 S12" class="sapUiSmallMarginBottom compactHealthRow">
+
+          <!-- CPU -->
           <f:Card class="healthCard cpuCard">
             <f:layoutData>
               <l:GridData span="L6 M12 S12"/>
             </f:layoutData>
             <f:content>
               <VBox class="sapUiMediumMargin cardCornerHelpHost">
-                <Button
-                  icon="sap-icon://question-mark"
-                  type="Transparent"
+                <Button icon="sap-icon://question-mark" type="Transparent"
                   tooltip="FR: Utilisation CPU du backend. Mesure la charge de traitement actuelle. Une valeur élevée prolongée peut indiquer une saturation.&#10;EN: Backend CPU usage. Measures current processing load. Sustained high values may indicate saturation."
                   class="cardCornerHelpBtn"/>
 
                 <HBox alignItems="Center" class="sapUiSmallMarginBottom">
-                  <core:Icon
-                    src="sap-icon://process"
-                    size="1.2rem"
-                    class="cardIconBlue sapUiTinyMarginEnd"/>
+                  <core:Icon src="sap-icon://process" size="1.2rem" class="cardIconBlue sapUiTinyMarginEnd"/>
                   <Title text="CPU Usage" level="H4"/>
                 </HBox>
 
-                <ObjectStatus
-                  text="{metrics>/cpuText}"
-                  state="{metrics>/cpuState}"
-                  class="sapUiTinyMarginBottom"/>
-
-                <Text
-                  text="Measures backend processing load."
-                  class="sapUiTinyMarginBottom subtleText"/>
+                <ObjectStatus text="{metrics>/cpuText}" state="{metrics>/cpuState}" class="sapUiTinyMarginBottom"/>
+                <Text text="Measures backend processing load." class="sapUiTinyMarginBottom subtleText"/>
 
                 <HBox class="metricMiniStats sapUiSmallMarginBottom" wrap="Wrap">
                   <VBox class="metricMiniBox metricMiniPrimary">
                     <Text text="Current" class="metricMiniLabel"/>
                     <Text text="{metrics>/cpuText}" class="metricMiniValue"/>
                   </VBox>
-
                   <VBox class="metricMiniBox">
                     <Text text="Previous" class="metricMiniLabel"/>
                     <Text text="{metrics>/cpuPrevText}" class="metricMiniValue"/>
                   </VBox>
-
                   <VBox class="metricMiniBox metricMiniHelpBox">
                     <HBox class="metricHelpCornerBox">
-                      <Button
-                        icon="sap-icon://question-mark"
-                        type="Transparent"
+                      <Button icon="sap-icon://question-mark" type="Transparent"
                         tooltip="FR: Delta = variation entre la valeur actuelle et la mesure précédente.&#10;EN: Delta = difference between the current value and the previous sample."
                         class="metricHelpBtnCorner"/>
                     </HBox>
                     <Text text="Delta" class="metricMiniLabel"/>
                     <Text text="{metrics>/cpuDeltaText}" class="metricMiniValue"/>
                   </VBox>
-
                   <VBox class="metricMiniBox metricMiniHelpBox">
                     <HBox class="metricHelpCornerBox">
-                      <Button
-                        icon="sap-icon://question-mark"
-                        type="Transparent"
+                      <Button icon="sap-icon://question-mark" type="Transparent"
                         tooltip="FR: Pic 2 min = valeur CPU la plus élevée observée sur les 2 dernières minutes.&#10;EN: Peak 2 min = highest CPU value observed during the last 2 minutes."
                         class="metricHelpBtnCorner"/>
                     </HBox>
@@ -100,73 +181,52 @@
                 </HBox>
 
                 <VBox alignItems="Center" justifyContent="Center" class="sapUiSmallMarginTop">
-                  <core:HTML
-                    id="cpuGaugeHtml"
-                    preferDOM="true"
-                    content="&lt;div id='cpuGaugeContainer' class='semiGaugeWrapper'&gt;&lt;/div&gt;"/>
+                  <core:HTML id="cpuGaugeHtml" preferDOM="true" content="&lt;div id='cpuGaugeContainer' class='semiGaugeWrapper'&gt;&lt;/div&gt;"/>
                 </VBox>
               </VBox>
             </f:content>
           </f:Card>
 
-          <!-- MEMORY CARD -->
+          <!-- MEMORY -->
           <f:Card class="healthCard memCard">
             <f:layoutData>
               <l:GridData span="L6 M12 S12"/>
             </f:layoutData>
             <f:content>
               <VBox class="sapUiMediumMargin cardCornerHelpHost">
-                <Button
-                  icon="sap-icon://question-mark"
-                  type="Transparent"
+                <Button icon="sap-icon://question-mark" type="Transparent"
                   tooltip="FR: RSS = mémoire RAM totale consommée par le processus Node.js. Permet de suivre la pression mémoire globale.&#10;EN: RSS = total RAM used by the Node.js process. Helps track overall memory pressure."
                   class="cardCornerHelpBtn"/>
 
                 <HBox alignItems="Center" class="sapUiSmallMarginBottom">
-                  <core:Icon
-                    src="sap-icon://database"
-                    size="1.2rem"
-                    class="cardIconPurple sapUiTinyMarginEnd"/>
+                  <core:Icon src="sap-icon://database" size="1.2rem" class="cardIconPurple sapUiTinyMarginEnd"/>
                   <Title text="Memory (RSS)" level="H4"/>
                 </HBox>
 
-                <ObjectStatus
-                  text="{metrics>/memText}"
-                  state="Information"
-                  class="sapUiTinyMarginBottom"/>
-
-                <Text
-                  text="Total RAM used by Node.js over the last 2 minutes."
-                  class="sapUiTinyMarginBottom subtleText"/>
+                <ObjectStatus text="{metrics>/memText}" state="Information" class="sapUiTinyMarginBottom"/>
+                <Text text="Total RAM used by Node.js over the last 2 minutes." class="sapUiTinyMarginBottom subtleText"/>
 
                 <HBox class="metricMiniStats sapUiSmallMarginBottom" wrap="Wrap">
                   <VBox class="metricMiniBox metricMiniPrimary metricMiniPrimaryPurple">
                     <Text text="Current" class="metricMiniLabel"/>
                     <Text text="{metrics>/memText}" class="metricMiniValue metricMiniValuePurple"/>
                   </VBox>
-
                   <VBox class="metricMiniBox">
                     <Text text="Previous" class="metricMiniLabel"/>
                     <Text text="{metrics>/memPrevText}" class="metricMiniValue metricMiniValuePurple"/>
                   </VBox>
-
                   <VBox class="metricMiniBox metricMiniHelpBox">
                     <HBox class="metricHelpCornerBox">
-                      <Button
-                        icon="sap-icon://question-mark"
-                        type="Transparent"
+                      <Button icon="sap-icon://question-mark" type="Transparent"
                         tooltip="FR: Delta = variation entre la mémoire actuelle et la mesure précédente.&#10;EN: Delta = difference between current memory usage and the previous sample."
                         class="metricHelpBtnCorner"/>
                     </HBox>
                     <Text text="Delta" class="metricMiniLabel"/>
                     <Text text="{metrics>/memDeltaText}" class="metricMiniValue metricMiniValuePurple"/>
                   </VBox>
-
                   <VBox class="metricMiniBox metricMiniHelpBox">
                     <HBox class="metricHelpCornerBox">
-                      <Button
-                        icon="sap-icon://question-mark"
-                        type="Transparent"
+                      <Button icon="sap-icon://question-mark" type="Transparent"
                         tooltip="FR: Pic 2 min = valeur mémoire la plus élevée observée sur les 2 dernières minutes.&#10;EN: Peak 2 min = highest memory value observed during the last 2 minutes."
                         class="metricHelpBtnCorner"/>
                     </HBox>
@@ -176,90 +236,56 @@
                 </HBox>
 
                 <VBox alignItems="Center" justifyContent="Center" class="sapUiSmallMarginTop">
-                  <core:HTML
-                    id="memTrendHtml"
-                    preferDOM="true"
-                    content="&lt;div id='memTrendContainer' class='memoryTrendWrapper'&gt;&lt;/div&gt;"/>
+                  <core:HTML id="memTrendHtml" preferDOM="true" content="&lt;div id='memTrendContainer' class='memoryTrendWrapper'&gt;&lt;/div&gt;"/>
                 </VBox>
               </VBox>
             </f:content>
           </f:Card>
 
-          <!-- HEALTH SCORE -->
-          <f:Card class="healthCard greenAccentCard">
-            <f:layoutData>
-              <l:GridData span="L3 M6 S12"/>
-            </f:layoutData>
+        </l:Grid>
+
+        <!-- ====================== -->
+        <!-- ROW 2 : SMALL KPI ROW -->
+        <!-- ====================== -->
+        <l:Grid width="100%" defaultSpan="L12 M12 S12" class="sapUiSmallMarginBottom compactHealthRow">
+
+          <!-- HEALTH -->
+          <f:Card class="healthCard greenAccentCard healthScoreCompactCard">
+            <f:layoutData><l:GridData span="L3 M6 S12"/></f:layoutData>
             <f:content>
               <VBox class="sapUiMediumMargin cardCornerHelpHost">
-                <Button
-                  icon="sap-icon://question-mark"
-                  type="Transparent"
+                <Button icon="sap-icon://question-mark" type="Transparent"
                   tooltip="FR: Score global de santé du backend. Il synthétise CPU, latence, GC et event loop. 80-100 = sain, 40-79 = neutre, 0-39 = critique.&#10;EN: Overall backend health score. It summarizes CPU, latency, GC and event loop behavior. 80-100 = healthy, 40-79 = neutral, 0-39 = critical."
                   class="cardCornerHelpBtn"/>
-
                 <HBox alignItems="Center" class="sapUiSmallMarginBottom">
-                  <core:Icon
-                    src="sap-icon://sys-enter-2"
-                    size="1.2rem"
-                    class="cardIconGreen sapUiTinyMarginEnd"/>
+                  <core:Icon src="sap-icon://sys-enter-2" size="1.2rem" class="cardIconGreen sapUiTinyMarginEnd"/>
                   <Title text="Health Score" level="H4"/>
                 </HBox>
-
-                <ObjectStatus
-                  text="{metrics>/healthText}"
-                  state="{metrics>/healthState}"
-                  class="kpiStatus sapUiTinyMarginBottom"/>
-
-                <Text
-                  text="Overall runtime stability."
-                  class="sapUiTinyMarginBottom subtleText"/>
-
+                <ObjectStatus text="{metrics>/healthText}" state="{metrics>/healthState}" class="kpiStatus sapUiTinyMarginBottom"/>
+                <Text text="Overall runtime stability." class="sapUiTinyMarginBottom subtleText"/>
                 <VBox alignItems="Center" justifyContent="Center" class="sapUiSmallMarginTop">
-                  <core:HTML
-                    id="healthScoreChartHtml"
-                    preferDOM="true"
-                    content="&lt;div id='healthScoreChartContainer' class='scoreRingWrapper'&gt;&lt;/div&gt;"/>
+                  <core:HTML id="healthScoreChartHtml" preferDOM="true" content="&lt;div id='healthScoreChartContainer' class='scoreRingWrapper'&gt;&lt;/div&gt;"/>
                 </VBox>
               </VBox>
             </f:content>
           </f:Card>
 
-          <!-- RESPONSE TIME -->
+          <!-- RESPONSE -->
           <f:Card class="healthCard blueAccentCard">
-            <f:layoutData>
-              <l:GridData span="L3 M6 S12"/>
-            </f:layoutData>
+            <f:layoutData><l:GridData span="L3 M6 S12"/></f:layoutData>
             <f:content>
               <VBox class="sapUiMediumMargin cardCornerHelpHost">
-                <Button
-                  icon="sap-icon://question-mark"
-                  type="Transparent"
+                <Button icon="sap-icon://question-mark" type="Transparent"
                   tooltip="FR: Temps de réponse backend. Mesure le temps nécessaire pour traiter une requête. Une hausse durable indique une dégradation de performance.&#10;EN: Backend response time. Measures how long a request takes to complete. Sustained increases indicate performance degradation."
                   class="cardCornerHelpBtn"/>
-
                 <HBox alignItems="Center" class="sapUiSmallMarginBottom">
-                  <core:Icon
-                    src="sap-icon://history"
-                    size="1.2rem"
-                    class="cardIconBlue sapUiTinyMarginEnd"/>
+                  <core:Icon src="sap-icon://history" size="1.2rem" class="cardIconBlue sapUiTinyMarginEnd"/>
                   <Title text="Response Time" level="H4"/>
                 </HBox>
-
-                <ObjectStatus
-                  text="{metrics>/respText}"
-                  state="{metrics>/respState}"
-                  class="kpiStatus sapUiTinyMarginBottom"/>
-
-                <Text
-                  text="Backend execution latency."
-                  class="sapUiTinyMarginBottom subtleText"/>
-
+                <ObjectStatus text="{metrics>/respText}" state="{metrics>/respState}" class="kpiStatus sapUiTinyMarginBottom"/>
+                <Text text="Backend execution latency." class="sapUiTinyMarginBottom subtleText"/>
                 <VBox alignItems="Center" justifyContent="Center" class="sapUiSmallMarginTop">
-                  <core:HTML
-                    id="respTrendHtml"
-                    preferDOM="true"
-                    content="&lt;div id='respTrendContainer' class='responseTrendWrapper'&gt;&lt;/div&gt;"/>
+                  <core:HTML id="respTrendHtml" preferDOM="true" content="&lt;div id='respTrendContainer' class='responseTrendWrapper'&gt;&lt;/div&gt;"/>
                 </VBox>
               </VBox>
             </f:content>
@@ -267,39 +293,20 @@
 
           <!-- EVENT LOOP -->
           <f:Card class="healthCard orangeAccentCard">
-            <f:layoutData>
-              <l:GridData span="L3 M6 S12"/>
-            </f:layoutData>
+            <f:layoutData><l:GridData span="L3 M6 S12"/></f:layoutData>
             <f:content>
               <VBox class="sapUiMediumMargin cardCornerHelpHost">
-                <Button
-                  icon="sap-icon://question-mark"
-                  type="Transparent"
+                <Button icon="sap-icon://question-mark" type="Transparent"
                   tooltip="FR: Retard de l’event loop Node.js. Indique combien le thread principal est bloqué. Des pics élevés signalent une surcharge ou du code bloquant.&#10;EN: Node.js event loop lag. Indicates how much the main thread is blocked. High spikes may signal overload or blocking code."
                   class="cardCornerHelpBtn"/>
-
                 <HBox alignItems="Center" class="sapUiSmallMarginBottom">
-                  <core:Icon
-                    src="sap-icon://synchronize"
-                    size="1.2rem"
-                    class="cardIconOrange sapUiTinyMarginEnd"/>
+                  <core:Icon src="sap-icon://synchronize" size="1.2rem" class="cardIconOrange sapUiTinyMarginEnd"/>
                   <Title text="Event Loop Lag" level="H4"/>
                 </HBox>
-
-                <ObjectStatus
-                  text="{= ${metrics>/elLagMs} + ' ms'}"
-                  state="{metrics>/lagState}"
-                  class="kpiStatus sapUiTinyMarginBottom"/>
-
-                <Text
-                  text="Node.js overload delay."
-                  class="sapUiTinyMarginBottom subtleText"/>
-
+                <ObjectStatus text="{= ${metrics>/elLagMs} + ' ms'}" state="{metrics>/lagState}" class="kpiStatus sapUiTinyMarginBottom"/>
+                <Text text="Node.js overload delay." class="sapUiTinyMarginBottom subtleText"/>
                 <VBox alignItems="Center" justifyContent="Center" class="sapUiSmallMarginTop">
-                  <core:HTML
-                    id="lagTrendHtml"
-                    preferDOM="true"
-                    content="&lt;div id='lagTrendContainer' class='lagTrendWrapper'&gt;&lt;/div&gt;"/>
+                  <core:HTML id="lagTrendHtml" preferDOM="true" content="&lt;div id='lagTrendContainer' class='lagTrendWrapper'&gt;&lt;/div&gt;"/>
                 </VBox>
               </VBox>
             </f:content>
@@ -307,79 +314,48 @@
 
           <!-- GC -->
           <f:Card class="healthCard redAccentCard">
-            <f:layoutData>
-              <l:GridData span="L3 M6 S12"/>
-            </f:layoutData>
+            <f:layoutData><l:GridData span="L3 M6 S12"/></f:layoutData>
             <f:content>
               <VBox class="sapUiMediumMargin cardCornerHelpHost">
-                <Button
-                  icon="sap-icon://question-mark"
-                  type="Transparent"
+                <Button icon="sap-icon://question-mark" type="Transparent"
                   tooltip="FR: Durée du Garbage Collector. Mesure le temps passé à libérer la mémoire. Des durées élevées peuvent provoquer des ralentissements.&#10;EN: Garbage Collector duration. Measures time spent reclaiming memory. High durations can cause slowdowns."
                   class="cardCornerHelpBtn"/>
-
                 <HBox alignItems="Center" class="sapUiSmallMarginBottom">
-                  <core:Icon
-                    src="sap-icon://delete"
-                    size="1.2rem"
-                    class="cardIconRed sapUiTinyMarginEnd"/>
+                  <core:Icon src="sap-icon://delete" size="1.2rem" class="cardIconRed sapUiTinyMarginEnd"/>
                   <Title text="GC Duration" level="H4"/>
                 </HBox>
-
-                <ObjectStatus
-                  text="{metrics>/gcText}"
-                  state="{metrics>/gcState}"
-                  class="kpiStatus sapUiTinyMarginBottom"/>
-
-                <Text
-                  text="Garbage collector runtime."
-                  class="sapUiTinyMarginBottom subtleText"/>
-
+                <ObjectStatus text="{metrics>/gcText}" state="{metrics>/gcState}" class="kpiStatus sapUiTinyMarginBottom"/>
+                <Text text="Garbage collector runtime." class="sapUiTinyMarginBottom subtleText"/>
                 <VBox alignItems="Center" justifyContent="Center" class="sapUiSmallMarginTop">
-                  <core:HTML
-                    id="gcTrendHtml"
-                    preferDOM="true"
-                    content="&lt;div id='gcTrendContainer' class='gcTrendWrapper'&gt;&lt;/div&gt;"/>
+                  <core:HTML id="gcTrendHtml" preferDOM="true" content="&lt;div id='gcTrendContainer' class='gcTrendWrapper'&gt;&lt;/div&gt;"/>
                 </VBox>
               </VBox>
             </f:content>
           </f:Card>
 
+        </l:Grid>
+
+        <!-- ====================== -->
+        <!-- ROW 3 : FINAL 2 CARDS -->
+        <!-- ====================== -->
+        <l:Grid width="100%" defaultSpan="L12 M12 S12" class="sapUiSmallMarginBottom compactHealthRow">
+
           <!-- HEAP -->
           <f:Card class="healthCard purpleAccentCard">
-            <f:layoutData>
-              <l:GridData span="L3 M6 S12"/>
-            </f:layoutData>
+            <f:layoutData><l:GridData span="L6 M12 S12"/></f:layoutData>
             <f:content>
               <VBox class="sapUiMediumMargin cardCornerHelpHost">
-                <Button
-                  icon="sap-icon://question-mark"
-                  type="Transparent"
+                <Button icon="sap-icon://question-mark" type="Transparent"
                   tooltip="FR: Taux de croissance du heap en MB/min. Une hausse continue peut signaler une fuite mémoire ou une pression mémoire anormale.&#10;EN: Heap growth rate in MB/min. Continuous increase may indicate a memory leak or abnormal memory pressure."
                   class="cardCornerHelpBtn"/>
-
                 <HBox alignItems="Center" class="sapUiSmallMarginBottom">
-                  <core:Icon
-                    src="sap-icon://trend-up"
-                    size="1.2rem"
-                    class="cardIconPurple sapUiTinyMarginEnd"/>
+                  <core:Icon src="sap-icon://trend-up" size="1.2rem" class="cardIconPurple sapUiTinyMarginEnd"/>
                   <Title text="Heap Growth Rate" level="H4"/>
                 </HBox>
-
-                <ObjectStatus
-                  text="{metrics>/heapText}"
-                  state="{metrics>/heapState}"
-                  class="kpiStatus sapUiTinyMarginBottom"/>
-
-                <Text
-                  text="Memory growth trend."
-                  class="sapUiTinyMarginBottom subtleText"/>
-
+                <ObjectStatus text="{metrics>/heapText}" state="{metrics>/heapState}" class="kpiStatus sapUiTinyMarginBottom"/>
+                <Text text="Memory growth trend." class="sapUiTinyMarginBottom subtleText"/>
                 <VBox alignItems="Center" justifyContent="Center" class="sapUiSmallMarginTop">
-                  <core:HTML
-                    id="heapTrendHtml"
-                    preferDOM="true"
-                    content="&lt;div id='heapTrendContainer' class='heapTrendWrapper'&gt;&lt;/div&gt;"/>
+                  <core:HTML id="heapTrendHtml" preferDOM="true" content="&lt;div id='heapTrendContainer' class='heapTrendWrapper'&gt;&lt;/div&gt;"/>
                 </VBox>
               </VBox>
             </f:content>
@@ -387,45 +363,115 @@
 
           <!-- UPTIME -->
           <f:Card class="healthCard greenAccentCard">
-            <f:layoutData>
-              <l:GridData span="L3 M6 S12"/>
-            </f:layoutData>
+            <f:layoutData><l:GridData span="L6 M12 S12"/></f:layoutData>
             <f:content>
               <VBox class="sapUiMediumMargin cardCornerHelpHost">
-                <Button
-                  icon="sap-icon://question-mark"
-                  type="Transparent"
+                <Button icon="sap-icon://question-mark" type="Transparent"
                   tooltip="FR: Temps écoulé depuis le dernier démarrage du backend. Une valeur faible peut indiquer un redémarrage récent ou instable.&#10;EN: Time elapsed since the backend last started. A low value may indicate a recent or unstable restart."
                   class="cardCornerHelpBtn"/>
-
                 <HBox alignItems="Center" class="sapUiSmallMarginBottom">
-                  <core:Icon
-                    src="sap-icon://time-entry-request"
-                    size="1.2rem"
-                    class="cardIconGreen sapUiTinyMarginEnd"/>
+                  <core:Icon src="sap-icon://time-entry-request" size="1.2rem" class="cardIconGreen sapUiTinyMarginEnd"/>
                   <Title text="Uptime" level="H4"/>
                 </HBox>
-
-                <ObjectStatus
-                  text="{metrics>/uptimeText}"
-                  state="Success"
-                  class="kpiStatus sapUiTinyMarginBottom"/>
-
-                <Text
-                  text="Backend running time."
-                  class="sapUiTinyMarginBottom subtleText"/>
-
+                <ObjectStatus text="{metrics>/uptimeText}" state="Success" class="kpiStatus sapUiTinyMarginBottom"/>
+                <Text text="Backend running time." class="sapUiTinyMarginBottom subtleText"/>
                 <VBox alignItems="Center" justifyContent="Center" class="sapUiSmallMarginTop">
-                  <core:HTML
-                    id="uptimeChartHtml"
-                    preferDOM="true"
-                    content="&lt;div id='uptimeChartContainer' class='uptimeChartWrapper'&gt;&lt;/div&gt;"/>
+                  <core:HTML id="uptimeChartHtml" preferDOM="true" content="&lt;div id='uptimeChartContainer' class='uptimeChartWrapper'&gt;&lt;/div&gt;"/>
                 </VBox>
               </VBox>
             </f:content>
           </f:Card>
 
         </l:Grid>
+
+        <!-- ================================= -->
+        <!-- ROW 4 : EVENTS + CAUSE DIST       -->
+        <!-- ================================= -->
+        <l:Grid width="100%" defaultSpan="L12 M12 S12" class="sapUiSmallMarginTop compactHealthRow">
+
+          <f:Card class="healthCard eventTimelineCard">
+            <f:layoutData>
+              <l:GridData span="L9 M12 S12"/>
+            </f:layoutData>
+            <f:content>
+              <VBox class="sapUiMediumMargin">
+
+                <HBox alignItems="Center" justifyContent="SpaceBetween" class="sapUiSmallMarginBottom">
+                  <HBox alignItems="Center">
+                    <core:Icon src="sap-icon://history" size="1.2rem" class="cardIconBlue sapUiTinyMarginEnd"/>
+                    <Title text="Recent Runtime Events" level="H4"/>
+                  </HBox>
+
+                  <HBox class="runtimeEventsTableToolbar">
+                    <Button
+                      icon="sap-icon://excel-attachment"
+                      type="Transparent"
+                      tooltip="Export events to Excel"
+                      press=".onExportEventsExcel"/>
+                    <Button
+                      icon="sap-icon://download"
+                      type="Transparent"
+                      tooltip="Export events to CSV"
+                      press=".onExportEventsCsv"/>
+                    <Button
+                      icon="sap-icon://delete"
+                      type="Reject"
+                      text="Reset"
+                      tooltip="Reset stored incident history"
+                      press=".onResetIncidents"/>
+                  </HBox>
+                </HBox>
+
+                <Table items="{metrics>/events}" class="runtimeEventsTable">
+                  <columns>
+                    <Column><Text text="Timestamp"/></Column>
+                    <Column><Text text="Alert Type"/></Column>
+                    <Column><Text text="Severity"/></Column>
+                    <Column><Text text="Detected Cause"/></Column>
+                    <Column><Text text="Health Score"/></Column>
+                    <Column><Text text="Summary"/></Column>
+                  </columns>
+
+                  <items>
+                    <ColumnListItem>
+                      <cells>
+                        <Text text="{metrics>timestamp}"/>
+                        <Text text="{metrics>alertType}"/>
+                        <ObjectStatus
+                          text="{metrics>severity}"
+                          state="{= ${metrics>severity} === 'Critical' ? 'Error' : ${metrics>severity} === 'Warning' ? 'Warning' : 'Success'}"/>
+                        <Text text="{metrics>detectedCause}"/>
+                        <Text text="{metrics>healthScore}"/>
+                        <Text text="{metrics>summary}"/>
+                      </cells>
+                    </ColumnListItem>
+                  </items>
+                </Table>
+              </VBox>
+            </f:content>
+          </f:Card>
+
+          <f:Card class="healthCard causeDistOuterCard">
+            <f:layoutData>
+              <l:GridData span="L3 M12 S12"/>
+            </f:layoutData>
+            <f:content>
+              <VBox class="sapUiMediumMargin">
+                <HBox alignItems="Center" class="sapUiSmallMarginBottom">
+                  <core:Icon src="sap-icon://pie-chart" size="1.2rem" class="cardIconPurple sapUiTinyMarginEnd"/>
+                  <Title text="Cause Distribution" level="H4"/>
+                </HBox>
+
+                <core:HTML
+                  id="causeDistHtml"
+                  preferDOM="true"
+                  content="&lt;div id='causeDistContainer' class='causeDistWrapper'&gt;&lt;/div&gt;"/>
+              </VBox>
+            </f:content>
+          </f:Card>
+
+        </l:Grid>
+
       </VBox>
     </content>
 
