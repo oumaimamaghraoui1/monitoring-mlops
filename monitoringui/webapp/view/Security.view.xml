@@ -7,11 +7,12 @@
   xmlns:vizData="sap.viz.ui5.data"
   xmlns:vizFeeds="sap.viz.ui5.controls.common.feeds">
 
-  <Page
-    title="Security Behaviour Monitoring (UEBA)"
-    showNavButton="true"
-    navButtonPress=".onBack">
-
+ <Page
+  title="Security Behaviour Monitoring (UEBA)"
+  class="securityPage"
+  showNavButton="true"
+  navButtonPress=".onBack">
+  
     <headerContent>
       <Button
         text="Refresh"

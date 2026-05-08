@@ -2624,16 +2624,15 @@
 }
 
 /* Top page grid tighter */
-.sapUiContentPadding {
-  padding-top: 0.75rem !important;
-  padding-bottom: 0.75rem !important;
+.systemHealthPage .sapUiContentPadding {
+  padding-top: 0.8rem !important;
+  padding-bottom: 0.8rem !important;
 }
 
-.sapUiResponsiveMargin {
+.systemHealthPage .sapUiResponsiveMargin {
   margin-top: 0.35rem !important;
   margin-bottom: 0.35rem !important;
 }
-
 /* Make cards sit closer vertically */
 .healthCard {
   margin-bottom: 0.4rem !important;
@@ -2972,4 +2971,634 @@
 /* Optional: make export card tighter */
 .exportCard .sapUiMediumMargin {
   margin: 0.8rem !important;
+}
+/* ==========================================================
+   RESTORE LOGS + SECURITY DASHBOARD KPI STYLING
+   This fixes global System Health compact overrides leaking
+   into Logs and Security pages.
+========================================================== */
+
+/* Restore normal page spacing for Logs and Security */
+.logsPage .sapUiContentPadding,
+.securityPage .sapUiContentPadding {
+  padding: 1rem !important;
+}
+
+.logsPage .sapUiMediumMarginTop,
+.securityPage .sapUiMediumMarginTop {
+  margin-top: 1rem !important;
+}
+
+.logsPage .sapUiMediumMarginBottom,
+.securityPage .sapUiMediumMarginBottom {
+  margin-bottom: 1rem !important;
+}
+
+.logsPage .sapUiSmallMarginBottom,
+.securityPage .sapUiSmallMarginBottom {
+  margin-bottom: 0.75rem !important;
+}
+
+/* Restore KPI size for Logs and Security */
+.logsPage .kpiCard,
+.securityPage .kpiCard {
+  width: 15rem !important;
+  min-width: 15rem !important;
+  min-height: 10rem !important;
+  padding: 1rem !important;
+  margin: 0.75rem !important;
+  border-radius: 1rem !important;
+  background: #ffffff !important;
+  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.08) !important;
+  border: 1px solid #e5e7eb !important;
+  border-top: 0.35rem solid transparent !important;
+  border-left: none !important;
+  text-align: center !important;
+  transition: transform 0.2s ease, box-shadow 0.2s ease !important;
+}
+
+.logsPage .kpiCard:hover,
+.securityPage .kpiCard:hover {
+  transform: translateY(-3px) !important;
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.13) !important;
+}
+
+/* Restore KPI icon/title/number sizing */
+.logsPage .kpiIcon,
+.securityPage .kpiIcon {
+  margin-bottom: 0.5rem !important;
+  color: #334155 !important;
+}
+
+.logsPage .kpiTitle,
+.securityPage .kpiTitle {
+  font-size: 1rem !important;
+  font-weight: 700 !important;
+  color: #1f2937 !important;
+  margin-bottom: 0.5rem !important;
+  text-align: center !important;
+  line-height: 1.25rem !important;
+}
+
+.logsPage .kpiText,
+.securityPage .kpiText {
+  color: #334155 !important;
+  font-weight: 500 !important;
+  text-align: center !important;
+}
+
+.logsPage .kpiNumber,
+.securityPage .kpiNumber {
+  margin-top: 0.25rem !important;
+}
+
+.logsPage .kpiNumber .sapMObjectNumberText,
+.securityPage .kpiNumber .sapMObjectNumberText {
+  font-size: 2rem !important;
+  font-weight: 800 !important;
+  line-height: 2.3rem !important;
+  color: #0f172a !important;
+}
+
+/* ==========================================================
+   LOGS PAGE KPI COLORS
+========================================================== */
+
+.logsPage .kpiBlue {
+  border-top-color: #2563eb !important;
+  background: linear-gradient(180deg, #ffffff 0%, #eff6ff 100%) !important;
+}
+
+.logsPage .kpiPurple {
+  border-top-color: #7c3aed !important;
+  background: linear-gradient(180deg, #ffffff 0%, #f5f3ff 100%) !important;
+}
+
+.logsPage .kpiOrange {
+  border-top-color: #d97706 !important;
+  background: linear-gradient(180deg, #ffffff 0%, #fff7ed 100%) !important;
+}
+
+.logsPage .kpiGreen {
+  border-top-color: #059669 !important;
+  background: linear-gradient(180deg, #ffffff 0%, #ecfdf5 100%) !important;
+}
+
+.logsPage .kpiBlue .kpiIcon,
+.logsPage .kpiBlue .sapUiIcon {
+  color: #2563eb !important;
+}
+
+.logsPage .kpiPurple .kpiIcon,
+.logsPage .kpiPurple .sapUiIcon {
+  color: #7c3aed !important;
+}
+
+.logsPage .kpiOrange .kpiIcon,
+.logsPage .kpiOrange .sapUiIcon {
+  color: #d97706 !important;
+}
+
+.logsPage .kpiGreen .kpiIcon,
+.logsPage .kpiGreen .sapUiIcon {
+  color: #059669 !important;
+}
+
+/* ==========================================================
+   SECURITY PAGE KPI COLORS
+========================================================== */
+
+.securityPage .kpiCrimson {
+  border-top-color: #dc2626 !important;
+  background: linear-gradient(180deg, #ffffff 0%, #fef2f2 100%) !important;
+}
+
+.securityPage .kpiGold {
+  border-top-color: #eab308 !important;
+  background: linear-gradient(180deg, #ffffff 0%, #fefce8 100%) !important;
+}
+
+.securityPage .kpiCyan {
+  border-top-color: #06b6d4 !important;
+  background: linear-gradient(180deg, #ffffff 0%, #ecfeff 100%) !important;
+}
+
+.securityPage .kpiSlate {
+  border-top-color: #64748b !important;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%) !important;
+}
+
+.securityPage .kpiCrimson .kpiIcon,
+.securityPage .kpiCrimson .sapUiIcon {
+  color: #dc2626 !important;
+}
+
+.securityPage .kpiGold .kpiIcon,
+.securityPage .kpiGold .sapUiIcon {
+  color: #ca8a04 !important;
+}
+
+.securityPage .kpiCyan .kpiIcon,
+.securityPage .kpiCyan .sapUiIcon {
+  color: #0891b2 !important;
+}
+
+.securityPage .kpiSlate .kpiIcon,
+.securityPage .kpiSlate .sapUiIcon {
+  color: #475569 !important;
+}
+
+/* ==========================================================
+   RESTORE MINI WIDGET COLORS
+========================================================== */
+
+.logsPage .miniStatCard,
+.securityPage .miniStatCard {
+  padding: 0.65rem 1rem !important;
+  border-radius: 999px !important;
+  margin-right: 0.75rem !important;
+  margin-bottom: 0.5rem !important;
+  box-shadow: 0 3px 10px rgba(15, 23, 42, 0.05) !important;
+}
+
+.logsPage .miniStatText,
+.securityPage .miniStatText {
+  font-weight: 700 !important;
+  color: #334155 !important;
+}
+
+.logsPage .miniStatIcon,
+.securityPage .miniStatIcon {
+  color: #475569 !important;
+}
+
+/* Logs mini stats */
+.logsPage .miniCreate {
+  background: #ecfdf5 !important;
+  border: 1px solid #a7f3d0 !important;
+}
+
+.logsPage .miniUpdate {
+  background: #fffbeb !important;
+  border: 1px solid #fde68a !important;
+}
+
+.logsPage .miniDelete {
+  background: #fef2f2 !important;
+  border: 1px solid #fecaca !important;
+}
+
+.logsPage .miniOther {
+  background: #eff6ff !important;
+  border: 1px solid #bfdbfe !important;
+}
+
+/* Security mini stats */
+.securityPage .miniLoginSec {
+  background: #fef2f2 !important;
+  border: 1px solid #fecaca !important;
+}
+
+.securityPage .miniTokenSec {
+  background: #fffbeb !important;
+  border: 1px solid #fde68a !important;
+}
+
+.securityPage .miniClientSec {
+  background: #ecfeff !important;
+  border: 1px solid #a5f3fc !important;
+}
+
+.securityPage .miniOtherSec {
+  background: #f8fafc !important;
+  border: 1px solid #cbd5e1 !important;
+}
+
+/* ==========================================================
+   RESTORE PANELS / CHARTS FOR LOGS + SECURITY
+========================================================== */
+
+.logsPage .styledPanel,
+.securityPage .styledPanel {
+  border-radius: 1rem !important;
+  overflow: hidden !important;
+  background: #ffffff !important;
+  box-shadow: 0 6px 20px rgba(15, 23, 42, 0.08) !important;
+  border: 1px solid #e5e7eb !important;
+}
+
+.logsPage .chartPanel,
+.securityPage .chartPanel {
+  min-width: 320px !important;
+  margin-bottom: 1rem !important;
+}
+
+.logsPage .subtleText,
+.securityPage .subtleText {
+  color: #6b7280 !important;
+  font-size: 0.92rem !important;
+  line-height: 1.4 !important;
+}
+
+/* Restore table look */
+.logsPage .niceTable,
+.securityPage .niceTable {
+  border-radius: 0.75rem !important;
+  overflow: hidden !important;
+  background: #ffffff !important;
+}
+
+.logsPage .niceTable .sapMListTblHeaderCell,
+.securityPage .niceTable .sapMListTblHeaderCell {
+  background: #f8fafc !important;
+  border-bottom: 1px solid #e5e7eb !important;
+}
+
+.logsPage .niceTable .sapMListTblHeaderCell .sapMText,
+.securityPage .niceTable .sapMListTblHeaderCell .sapMText {
+  font-weight: 700 !important;
+  color: #334155 !important;
+}
+
+.logsPage .tableRowHover:hover,
+.securityPage .tableRowHover:hover {
+  background-color: #f8fafc !important;
+}
+
+/* Make VizFrames normal size again on Logs/Security */
+.logsPage .sapVizFrame,
+.securityPage .sapVizFrame {
+  min-height: 320px !important;
+}
+
+/* Keep generic tiles normal only outside System Health */
+.logsPage .sapMGenericTile,
+.securityPage .sapMGenericTile {
+  height: auto !important;
+}
+
+/* ==========================================================
+   RESPONSIVE RESTORE
+========================================================== */
+
+@media (max-width: 1024px) {
+  .logsPage .kpiCard,
+  .securityPage .kpiCard {
+    width: 45% !important;
+    min-width: 13rem !important;
+  }
+}
+
+@media (max-width: 640px) {
+  .logsPage .kpiCard,
+  .securityPage .kpiCard {
+    width: 100% !important;
+    min-width: unset !important;
+  }
+}
+.systemHealthPage .sapUiContentPadding {
+  padding-top: 0.75rem !important;
+  padding-bottom: 0.75rem !important;
+}
+
+.systemHealthPage .sapUiResponsiveMargin {
+  margin-top: 0.35rem !important;
+  margin-bottom: 0.35rem !important;
+}
+/* ==========================================================
+   FINAL RESTORE FOR LOGS + SECURITY KPI WIDGET COLORS
+   Must stay at the VERY END of style.css
+========================================================== */
+
+/* ---------- Logs + Security KPI base shape ---------- */
+
+.logsPage .kpiCard,
+.securityPage .kpiCard,
+[id$="logsPage"] .kpiCard {
+  width: 17rem !important;
+  min-width: 17rem !important;
+  min-height: 10.8rem !important;
+  padding: 1.15rem !important;
+  margin: 0.85rem !important;
+
+  border-radius: 1rem !important;
+  background: #ffffff !important;
+
+  border-left: none !important;
+  border-right: none !important;
+  border-bottom: none !important;
+  border-top-width: 0.4rem !important;
+  border-top-style: solid !important;
+
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08) !important;
+  text-align: center !important;
+
+  transition: transform 0.2s ease, box-shadow 0.2s ease !important;
+}
+
+.logsPage .kpiCard:hover,
+.securityPage .kpiCard:hover,
+[id$="logsPage"] .kpiCard:hover {
+  transform: translateY(-3px) !important;
+  box-shadow: 0 14px 30px rgba(15, 23, 42, 0.13) !important;
+}
+
+/* ---------- KPI inner typography ---------- */
+
+.logsPage .kpiIcon,
+.securityPage .kpiIcon,
+[id$="logsPage"] .kpiIcon {
+  margin-bottom: 0.75rem !important;
+}
+
+.logsPage .kpiTitle,
+.securityPage .kpiTitle,
+[id$="logsPage"] .kpiTitle {
+  font-size: 1.05rem !important;
+  font-weight: 700 !important;
+  color: #1f2937 !important;
+  margin-bottom: 0.65rem !important;
+  text-align: center !important;
+  line-height: 1.25rem !important;
+}
+
+.logsPage .kpiText,
+.securityPage .kpiText,
+[id$="logsPage"] .kpiText {
+  color: #334155 !important;
+  font-weight: 500 !important;
+  text-align: center !important;
+}
+
+.logsPage .kpiNumber .sapMObjectNumberText,
+.securityPage .kpiNumber .sapMObjectNumberText,
+[id$="logsPage"] .kpiNumber .sapMObjectNumberText {
+  font-size: 2.25rem !important;
+  font-weight: 800 !important;
+  line-height: 2.5rem !important;
+  color: #0f172a !important;
+}
+
+/* ==========================================================
+   LOGS PAGE KPI COLORED TOP BORDERS
+========================================================== */
+
+/* Blue */
+.logsPage .kpiBlue,
+[id$="logsPage"] .kpiBlue {
+  border-top-color: #2563eb !important;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%) !important;
+}
+
+.logsPage .kpiBlue .sapUiIcon,
+.logsPage .kpiBlue .kpiIcon,
+[id$="logsPage"] .kpiBlue .sapUiIcon,
+[id$="logsPage"] .kpiBlue .kpiIcon {
+  color: #2563eb !important;
+}
+
+/* Purple */
+.logsPage .kpiPurple,
+[id$="logsPage"] .kpiPurple {
+  border-top-color: #7c3aed !important;
+  background: linear-gradient(180deg, #ffffff 0%, #fbf8ff 100%) !important;
+}
+
+.logsPage .kpiPurple .sapUiIcon,
+.logsPage .kpiPurple .kpiIcon,
+[id$="logsPage"] .kpiPurple .sapUiIcon,
+[id$="logsPage"] .kpiPurple .kpiIcon {
+  color: #7c3aed !important;
+}
+
+/* Orange */
+.logsPage .kpiOrange,
+[id$="logsPage"] .kpiOrange {
+  border-top-color: #d97706 !important;
+  background: linear-gradient(180deg, #ffffff 0%, #fff7ed 100%) !important;
+}
+
+.logsPage .kpiOrange .sapUiIcon,
+.logsPage .kpiOrange .kpiIcon,
+[id$="logsPage"] .kpiOrange .sapUiIcon,
+[id$="logsPage"] .kpiOrange .kpiIcon {
+  color: #d97706 !important;
+}
+
+/* Green */
+.logsPage .kpiGreen,
+[id$="logsPage"] .kpiGreen {
+  border-top-color: #059669 !important;
+  background: linear-gradient(180deg, #ffffff 0%, #f6fef9 100%) !important;
+}
+
+.logsPage .kpiGreen .sapUiIcon,
+.logsPage .kpiGreen .kpiIcon,
+[id$="logsPage"] .kpiGreen .sapUiIcon,
+[id$="logsPage"] .kpiGreen .kpiIcon {
+  color: #059669 !important;
+}
+
+/* ==========================================================
+   SECURITY PAGE KPI COLORED TOP BORDERS
+========================================================== */
+
+/* Crimson */
+.securityPage .kpiCrimson {
+  border-top-color: #dc2626 !important;
+  background: linear-gradient(180deg, #ffffff 0%, #fff7f7 100%) !important;
+}
+
+.securityPage .kpiCrimson .sapUiIcon,
+.securityPage .kpiCrimson .kpiIcon {
+  color: #dc2626 !important;
+}
+
+/* Gold */
+.securityPage .kpiGold {
+  border-top-color: #eab308 !important;
+  background: linear-gradient(180deg, #ffffff 0%, #fffdf2 100%) !important;
+}
+
+.securityPage .kpiGold .sapUiIcon,
+.securityPage .kpiGold .kpiIcon {
+  color: #ca8a04 !important;
+}
+
+/* Cyan */
+.securityPage .kpiCyan {
+  border-top-color: #06b6d4 !important;
+  background: linear-gradient(180deg, #ffffff 0%, #f2fdff 100%) !important;
+}
+
+.securityPage .kpiCyan .sapUiIcon,
+.securityPage .kpiCyan .kpiIcon {
+  color: #0891b2 !important;
+}
+
+/* Slate */
+.securityPage .kpiSlate {
+  border-top-color: #64748b !important;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%) !important;
+}
+
+.securityPage .kpiSlate .sapUiIcon,
+.securityPage .kpiSlate .kpiIcon {
+  color: #475569 !important;
+}
+
+/* ==========================================================
+   MINI STAT WIDGET COLORS RESTORE
+========================================================== */
+
+.logsPage .miniStatCard,
+.securityPage .miniStatCard,
+[id$="logsPage"] .miniStatCard {
+  padding: 0.65rem 1rem !important;
+  border-radius: 999px !important;
+  margin-right: 0.75rem !important;
+  margin-bottom: 0.5rem !important;
+  box-shadow: 0 3px 10px rgba(15, 23, 42, 0.05) !important;
+}
+
+.logsPage .miniStatText,
+.securityPage .miniStatText,
+[id$="logsPage"] .miniStatText {
+  font-weight: 700 !important;
+  color: #334155 !important;
+}
+
+.logsPage .miniStatIcon,
+.securityPage .miniStatIcon,
+[id$="logsPage"] .miniStatIcon {
+  color: #475569 !important;
+}
+
+/* Logs mini widgets */
+.logsPage .miniCreate,
+[id$="logsPage"] .miniCreate {
+  background: #ecfdf5 !important;
+  border: 1px solid #a7f3d0 !important;
+}
+
+.logsPage .miniUpdate,
+[id$="logsPage"] .miniUpdate {
+  background: #fffbeb !important;
+  border: 1px solid #fde68a !important;
+}
+
+.logsPage .miniDelete,
+[id$="logsPage"] .miniDelete {
+  background: #fef2f2 !important;
+  border: 1px solid #fecaca !important;
+}
+
+.logsPage .miniOther,
+[id$="logsPage"] .miniOther {
+  background: #eff6ff !important;
+  border: 1px solid #bfdbfe !important;
+}
+
+/* Security mini widgets */
+.securityPage .miniLoginSec {
+  background: #fef2f2 !important;
+  border: 1px solid #fecaca !important;
+}
+
+.securityPage .miniTokenSec {
+  background: #fffbeb !important;
+  border: 1px solid #fde68a !important;
+}
+
+.securityPage .miniClientSec {
+  background: #ecfeff !important;
+  border: 1px solid #a5f3fc !important;
+}
+
+.securityPage .miniOtherSec {
+  background: #f8fafc !important;
+  border: 1px solid #cbd5e1 !important;
+}
+
+/* ==========================================================
+   RESTORE LOGS TECHNICAL PANEL LOOK
+========================================================== */
+
+.logsPage .styledPanel,
+.securityPage .styledPanel,
+[id$="logsPage"] .styledPanel {
+  border-radius: 1rem !important;
+  overflow: hidden !important;
+  background: #ffffff !important;
+  border: 1px solid #e5e7eb !important;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08) !important;
+}
+
+.logsPage .subtleText,
+.securityPage .subtleText,
+[id$="logsPage"] .subtleText {
+  color: #6b7280 !important;
+  font-size: 0.92rem !important;
+}
+
+/* ==========================================================
+   RESPONSIVE
+========================================================== */
+
+@media (max-width: 1024px) {
+  .logsPage .kpiCard,
+  .securityPage .kpiCard,
+  [id$="logsPage"] .kpiCard {
+    width: 45% !important;
+    min-width: 13rem !important;
+  }
+}
+
+@media (max-width: 640px) {
+  .logsPage .kpiCard,
+  .securityPage .kpiCard,
+  [id$="logsPage"] .kpiCard {
+    width: 100% !important;
+    min-width: unset !important;
+  }
 }

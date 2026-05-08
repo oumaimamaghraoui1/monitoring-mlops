@@ -7,7 +7,10 @@
   xmlns:viz.data="sap.viz.ui5.data"
   xmlns:viz.feeds="sap.viz.ui5.controls.common.feeds">
 
-  <Page id="logsPage" title="Configuration Audit Logs">
+  <Page
+    id="logsPage"
+    title="Configuration Audit Logs"
+    class="logsPage">
 
     <headerContent>
       <Button
