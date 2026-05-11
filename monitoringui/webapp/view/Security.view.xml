@@ -7,12 +7,12 @@
   xmlns:vizData="sap.viz.ui5.data"
   xmlns:vizFeeds="sap.viz.ui5.controls.common.feeds">
 
- <Page
-  title="Security Behaviour Monitoring (UEBA)"
-  class="securityPage"
-  showNavButton="true"
-  navButtonPress=".onBack">
-  
+  <Page
+    title="Security Behaviour Monitoring (UEBA)"
+    class="securityPage"
+    showNavButton="true"
+    navButtonPress=".onBack">
+
     <headerContent>
       <Button
         text="Refresh"
@@ -52,7 +52,11 @@
           wrap="Wrap"
           class="sapUiMediumMarginBottom">
 
-          <VBox class="kpiCard kpiCrimson" alignItems="Center" justifyContent="Center">
+          <VBox
+            id="secKpiHigh"
+            class="kpiCard kpiCrimson"
+            alignItems="Center"
+            justifyContent="Center">
             <core:Icon src="sap-icon://warning2" size="1.6rem" class="kpiIcon"/>
             <Title text="High Behaviour Risk" level="H6" class="kpiTitle"/>
             <ObjectNumber
@@ -61,7 +65,11 @@
               class="kpiNumber"/>
           </VBox>
 
-          <VBox class="kpiCard kpiGold" alignItems="Center" justifyContent="Center">
+          <VBox
+            id="secKpiMedium"
+            class="kpiCard kpiGold"
+            alignItems="Center"
+            justifyContent="Center">
             <core:Icon src="sap-icon://alert" size="1.6rem" class="kpiIcon"/>
             <Title text="Medium Behaviour Risk" level="H6" class="kpiTitle"/>
             <ObjectNumber
@@ -70,7 +78,11 @@
               class="kpiNumber"/>
           </VBox>
 
-          <VBox class="kpiCard kpiCyan" alignItems="Center" justifyContent="Center">
+          <VBox
+            id="secKpiLow"
+            class="kpiCard kpiCyan"
+            alignItems="Center"
+            justifyContent="Center">
             <core:Icon src="sap-icon://activity-individual" size="1.6rem" class="kpiIcon"/>
             <Title text="Low Behaviour Risk" level="H6" class="kpiTitle"/>
             <ObjectNumber
@@ -79,7 +91,11 @@
               class="kpiNumber"/>
           </VBox>
 
-          <VBox class="kpiCard kpiSlate" alignItems="Center" justifyContent="Center">
+          <VBox
+            id="secKpiAll"
+            class="kpiCard kpiSlate"
+            alignItems="Center"
+            justifyContent="Center">
             <core:Icon src="sap-icon://list" size="1.6rem" class="kpiIcon"/>
             <Title text="Filtered Events" level="H6" class="kpiTitle"/>
             <ObjectNumber
@@ -96,22 +112,34 @@
           width="100%"
           class="sapUiSmallMarginBottom">
 
-          <HBox class="miniStatCard miniLoginSec" alignItems="Center">
+          <HBox
+            id="secMiniLogin"
+            class="miniStatCard miniLoginSec"
+            alignItems="Center">
             <core:Icon src="sap-icon://log" size="1rem" class="miniStatIcon sapUiTinyMarginEnd"/>
             <Text text="{= 'LOGIN: ' + (${security>/kpi/loginCount} || 0) }" class="miniStatText"/>
           </HBox>
 
-          <HBox class="miniStatCard miniTokenSec" alignItems="Center">
+          <HBox
+            id="secMiniToken"
+            class="miniStatCard miniTokenSec"
+            alignItems="Center">
             <core:Icon src="sap-icon://key" size="1rem" class="miniStatIcon sapUiTinyMarginEnd"/>
             <Text text="{= 'TOKEN: ' + (${security>/kpi/tokenCount} || 0) }" class="miniStatText"/>
           </HBox>
 
-          <HBox class="miniStatCard miniClientSec" alignItems="Center">
+          <HBox
+            id="secMiniClient"
+            class="miniStatCard miniClientSec"
+            alignItems="Center">
             <core:Icon src="sap-icon://shield" size="1rem" class="miniStatIcon sapUiTinyMarginEnd"/>
             <Text text="{= 'CLIENT: ' + (${security>/kpi/clientCount} || 0) }" class="miniStatText"/>
           </HBox>
 
-          <HBox class="miniStatCard miniOtherSec" alignItems="Center">
+          <HBox
+            id="secMiniOther"
+            class="miniStatCard miniOtherSec"
+            alignItems="Center">
             <core:Icon src="sap-icon://activity-items" size="1rem" class="miniStatIcon sapUiTinyMarginEnd"/>
             <Text text="{= 'OTHER: ' + (${security>/kpi/otherCount} || 0) }" class="miniStatText"/>
           </HBox>
@@ -148,13 +176,29 @@
                 uiConfig="{applicationSet:'fiori'}"
                 selectData=".onUserPieSelect"
                 vizProperties='{
-                  "plotArea":{
-                    "dataLabel":{"visible":true},
-                    "colorPalette":["#ef4444","#f59e0b","#3b82f6","#10b981","#8b5cf6","#14b8a6"]
+                  "title": {
+                    "visible": true,
+                    "text": "Security Events Distribution by User",
+                    "alignment": "center"
                   },
-                  "legend":{
-                    "visible":true,
-                    "layout":{"position":"bottom"}
+                  "plotArea": {
+                    "dataLabel": {
+                      "visible": true
+                    },
+                    "colorPalette": [
+                      "#ef4444",
+                      "#f59e0b",
+                      "#3b82f6",
+                      "#10b981",
+                      "#8b5cf6",
+                      "#14b8a6"
+                    ]
+                  },
+                  "legend": {
+                    "visible": true,
+                    "layout": {
+                      "position": "bottom"
+                    }
                   }
                 }'>
 
@@ -204,17 +248,17 @@
                 vizType="line"
                 uiConfig="{applicationSet:'fiori'}"
                 vizProperties='{
-                  "plotArea":{
-                    "colorPalette":["#2563eb"],
-                    "dataLabel":{"visible":false},
-                    "marker":{"visible":true,"size":7}
+                  "plotArea": {
+                    "colorPalette": ["#2563eb"],
+                    "dataLabel": {"visible": false},
+                    "marker": {"visible": true, "size": 7}
                   },
-                  "tooltip":{"visible":true},
-                  "interaction":{"behaviorType":"default"},
-                  "valueAxis":{"title":{"visible":true,"text":"Risk Events"}},
-                  "categoryAxis":{"title":{"visible":true,"text":"Hour of Day"}},
-                  "legend":{"visible":true},
-                  "title":{"visible":false}
+                  "tooltip": {"visible": true},
+                  "interaction": {"behaviorType": "default"},
+                  "valueAxis": {"title": {"visible": true, "text": "Risk Events"}},
+                  "categoryAxis": {"title": {"visible": true, "text": "Hour of Day"}},
+                  "legend": {"visible": true},
+                  "title": {"visible": false}
                 }'>
 
                 <viz:dataset>

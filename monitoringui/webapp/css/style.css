@@ -3602,3 +3602,32 @@
     min-width: unset !important;
   }
 }
+
+/* ================================
+   SECURITY WIDGET FILTER CLICKS
+================================ */
+
+.securityPage .clickableWidget {
+  cursor: pointer;
+  user-select: none;
+}
+
+.securityPage .clickableWidget:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.14) !important;
+}
+
+.securityPage .filterWidgetActive {
+  outline: 3px solid rgba(37, 99, 235, 0.35) !important;
+  box-shadow:
+    0 0 0 5px rgba(37, 99, 235, 0.10),
+    0 14px 30px rgba(15, 23, 42, 0.16) !important;
+}
+
+/* Active mini widgets */
+.securityPage .miniStatCard.filterWidgetActive {
+  outline: 2px solid rgba(37, 99, 235, 0.45) !important;
+  box-shadow:
+    0 0 0 4px rgba(37, 99, 235, 0.10),
+    0 8px 18px rgba(15, 23, 42, 0.12) !important;
+}

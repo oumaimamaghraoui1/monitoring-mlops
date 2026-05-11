@@ -298,25 +298,21 @@ function repairExistingRow(row) {
 function runSecurityUEBA() {
   const py = path.join(rootPath, "mlops/venv/bin/python");
 
-  spawn(py, ["mlops/security/02_build_security_features.py"], {
+  const cmd = [
+    `"${py}" mlops/security/02_build_security_features.py`,
+    `"${py}" mlops/training/security_train.py`,
+    `"${py}" mlops/inference/security_score.py`
+  ].join(" && ");
+
+  const child = spawn("bash", ["-lc", cmd], {
     cwd: rootPath,
     detached: true,
     stdio: "ignore"
-  }).unref();
+  });
 
-  spawn(py, ["mlops/training/security_train.py"], {
-    cwd: rootPath,
-    detached: true,
-    stdio: "ignore"
-  }).unref();
+  child.unref();
 
-  spawn(py, ["mlops/inference/security_score.py"], {
-    cwd: rootPath,
-    detached: true,
-    stdio: "ignore"
-  }).unref();
-
-  console.log("[SEC-ML] UEBA security pipeline triggered");
+  console.log("[SEC-ML] UEBA security pipeline triggered sequentially");
 }
 
 // ---------------------------------------------------------

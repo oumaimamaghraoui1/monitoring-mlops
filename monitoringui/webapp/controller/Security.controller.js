@@ -89,25 +89,8 @@ sap.ui.define([
     return String(hay).toLowerCase().includes(String(needle).toLowerCase());
   }
 
-  function mapTypeToGroup(t) {
-    t = String(t || "").toLowerCase();
-
-    if (
-      t.indexOf("userauthenticationsuccess") > -1 ||
-      t.indexOf("identityproviderauthenticationsuccess") > -1 ||
-      t.indexOf("login") > -1 ||
-      t.indexOf("authentication") > -1 ||
-      t.indexOf("authsuccess") > -1 ||
-      t.indexOf("logon") > -1
-    ) {
-      if (t.indexOf("client") > -1) {
-        return "CLIENT";
-      }
-      if (t.indexOf("token") > -1) {
-        return "TOKEN";
-      }
-      return "LOGIN";
-    }
+  function mapTypeToGroup(value) {
+    var t = String(value || "").toLowerCase();
 
     if (
       t.indexOf("tokenissuedevent") > -1 ||
@@ -123,12 +106,43 @@ sap.ui.define([
       t.indexOf("clientauthenticationsuccess") > -1 ||
       t.indexOf("clientauthentication") > -1 ||
       t.indexOf("clientauth") > -1 ||
-      t.indexOf("client") > -1
+      t.indexOf("client auth") > -1
     ) {
       return "CLIENT";
     }
 
+    if (
+      t.indexOf("userauthenticationsuccess") > -1 ||
+      t.indexOf("identityproviderauthenticationsuccess") > -1 ||
+      t.indexOf("login") > -1 ||
+      t.indexOf("authentication") > -1 ||
+      t.indexOf("authsuccess") > -1 ||
+      t.indexOf("logon") > -1
+    ) {
+      return "LOGIN";
+    }
+
+    if (t.indexOf("client") > -1) {
+      return "CLIENT";
+    }
+
     return "OTHER";
+  }
+
+  function getRowGroup(row) {
+    if (row && row.eventGroup) {
+      var g = String(row.eventGroup).toUpperCase();
+
+      if (g === "LOGIN" || g === "TOKEN" || g === "CLIENT" || g === "OTHER") {
+        return g;
+      }
+    }
+
+    return mapTypeToGroup(
+      String((row && row.eventType) || "") + " " +
+      String((row && row.message) || "") + " " +
+      String((row && row.client) || "")
+    );
   }
 
   function normalizeValueState(state) {
@@ -179,7 +193,12 @@ sap.ui.define([
     var s = Number(score || 0);
     var a = Number(anomaly || 1);
 
-    if (backendRisk === "High" || backendRisk === "Medium" || backendRisk === "Low" || backendRisk === "Normal") {
+    if (
+      backendRisk === "High" ||
+      backendRisk === "Medium" ||
+      backendRisk === "Low" ||
+      backendRisk === "Normal"
+    ) {
       return backendRisk;
     }
 
@@ -234,6 +253,7 @@ sap.ui.define([
   function extractEmailDeep(ev) {
     if (ev && ev.user && EMAIL_RE.test(String(ev.user))) {
       var m1 = String(ev.user).match(EMAIL_RE);
+
       if (m1) {
         return m1[0].toLowerCase();
       }
@@ -243,6 +263,7 @@ sap.ui.define([
 
     for (var i = 0; i < strings.length; i++) {
       var m2 = String(strings[i]).match(EMAIL_RE);
+
       if (m2) {
         return m2[0].toLowerCase();
       }
@@ -379,6 +400,8 @@ sap.ui.define([
         typeKey: "ALL",
         emailFilter: "",
         ipFilter: "",
+        widgetRiskFilter: "",
+        widgetGroupFilter: "",
         firstAuditDate: "",
         lastAuditDate: "",
         coverageText: "",
@@ -407,6 +430,8 @@ sap.ui.define([
     onAfterRendering: function () {
       this._configureRiskLineChart();
       this._connectLinePopover();
+      this._bindWidgetFilters();
+      this._updateWidgetActiveStyles();
     },
 
     _configureRiskLineChart: function () {
@@ -480,7 +505,13 @@ sap.ui.define([
             var user = extractEmailDeep(ev);
             var client = extractClientDeep(ev);
             var origin = cleanOriginField(ev.origin);
-            var eventGroup = mapTypeToGroup(ev.eventType || "");
+
+            var eventGroup = getRowGroup({
+              eventGroup: ev.eventGroup,
+              eventType: ev.eventType,
+              message: ev.message,
+              client: client
+            });
 
             var msg = summarizeMessage(Object.assign({}, ev, {
               user: user,
@@ -614,22 +645,24 @@ sap.ui.define([
               return x.risk === "Low";
             }).length,
             loginCount: norm.filter(function (x) {
-              return x.eventGroup === "LOGIN";
+              return getRowGroup(x) === "LOGIN";
             }).length,
             tokenCount: norm.filter(function (x) {
-              return x.eventGroup === "TOKEN";
+              return getRowGroup(x) === "TOKEN";
             }).length,
             clientCount: norm.filter(function (x) {
-              return x.eventGroup === "CLIENT";
+              return getRowGroup(x) === "CLIENT";
             }).length,
             otherCount: norm.filter(function (x) {
-              return x.eventGroup === "OTHER";
+              return getRowGroup(x) === "OTHER";
             }).length
           });
 
           m.setProperty("/typeKey", "ALL");
           m.setProperty("/emailFilter", "");
           m.setProperty("/ipFilter", "");
+          m.setProperty("/widgetRiskFilter", "");
+          m.setProperty("/widgetGroupFilter", "");
 
           this._applyFilters();
           this._configureRiskLineChart();
@@ -649,6 +682,8 @@ sap.ui.define([
           m.setProperty("/firstAuditDate", "");
           m.setProperty("/lastAuditDate", "");
           m.setProperty("/coverageText", "");
+          m.setProperty("/widgetRiskFilter", "");
+          m.setProperty("/widgetGroupFilter", "");
           m.setProperty("/kpi", {
             high: 0,
             medium: 0,
@@ -659,6 +694,221 @@ sap.ui.define([
             otherCount: 0
           });
         }.bind(this));
+    },
+
+    _bindWidgetFilters: function () {
+      if (this._widgetFiltersBound) {
+        return;
+      }
+
+      this._widgetFiltersBound = true;
+
+      var mappings = [
+        { id: "secKpiHigh", kind: "risk", value: "High" },
+        { id: "secKpiMedium", kind: "risk", value: "Medium" },
+        { id: "secKpiLow", kind: "risk", value: "Low" },
+        { id: "secKpiAll", kind: "clear", value: "" },
+        { id: "secMiniLogin", kind: "group", value: "LOGIN" },
+        { id: "secMiniToken", kind: "group", value: "TOKEN" },
+        { id: "secMiniClient", kind: "group", value: "CLIENT" },
+        { id: "secMiniOther", kind: "group", value: "OTHER" }
+      ];
+
+      mappings.forEach(function (cfg) {
+        var oControl = this.byId(cfg.id);
+
+        if (!oControl) {
+          return;
+        }
+
+        oControl.addStyleClass("clickableWidget");
+
+        oControl.attachBrowserEvent("click", function () {
+          this._onWidgetFilterPress(cfg.kind, cfg.value);
+        }.bind(this));
+      }.bind(this));
+    },
+
+    _onWidgetFilterPress: function (kind, value) {
+      var m = this.getView().getModel("security");
+
+      var currentRisk = m.getProperty("/widgetRiskFilter") || "";
+      var currentGroup = m.getProperty("/widgetGroupFilter") || "";
+
+      if (kind === "clear") {
+        m.setProperty("/widgetRiskFilter", "");
+        m.setProperty("/widgetGroupFilter", "");
+        m.setProperty("/typeKey", "ALL");
+
+        MessageToast.show("Filters cleared");
+        this._applyFilters();
+        return;
+      }
+
+      if (kind === "risk") {
+        if (currentRisk === value) {
+          m.setProperty("/widgetRiskFilter", "");
+          MessageToast.show(value + " risk filter removed");
+        } else {
+          m.setProperty("/widgetRiskFilter", value);
+          m.setProperty("/widgetGroupFilter", "");
+          m.setProperty("/typeKey", "ALL");
+          MessageToast.show("Filtered by " + value + " risk");
+        }
+
+        this._applyFilters();
+        return;
+      }
+
+      if (kind === "group") {
+        if (currentGroup === value) {
+          m.setProperty("/widgetGroupFilter", "");
+          MessageToast.show(value + " filter removed");
+        } else {
+          m.setProperty("/widgetGroupFilter", value);
+          m.setProperty("/widgetRiskFilter", "");
+          m.setProperty("/typeKey", "ALL");
+          MessageToast.show("Filtered by " + value);
+        }
+
+        this._applyFilters();
+      }
+    },
+
+    _updateWidgetActiveStyles: function () {
+      var m = this.getView().getModel("security");
+
+      if (!m) {
+        return;
+      }
+
+      var activeRisk = m.getProperty("/widgetRiskFilter") || "";
+      var activeGroup = m.getProperty("/widgetGroupFilter") || "";
+
+      var allIds = [
+        "secKpiHigh",
+        "secKpiMedium",
+        "secKpiLow",
+        "secKpiAll",
+        "secMiniLogin",
+        "secMiniToken",
+        "secMiniClient",
+        "secMiniOther"
+      ];
+
+      allIds.forEach(function (id) {
+        var oControl = this.byId(id);
+
+        if (oControl) {
+          oControl.removeStyleClass("filterWidgetActive");
+        }
+      }.bind(this));
+
+      var activeId = "";
+
+      if (activeRisk === "High") {
+        activeId = "secKpiHigh";
+      } else if (activeRisk === "Medium") {
+        activeId = "secKpiMedium";
+      } else if (activeRisk === "Low") {
+        activeId = "secKpiLow";
+      } else if (activeGroup === "LOGIN") {
+        activeId = "secMiniLogin";
+      } else if (activeGroup === "TOKEN") {
+        activeId = "secMiniToken";
+      } else if (activeGroup === "CLIENT") {
+        activeId = "secMiniClient";
+      } else if (activeGroup === "OTHER") {
+        activeId = "secMiniOther";
+      }
+
+      if (activeId) {
+        var oActive = this.byId(activeId);
+
+        if (oActive) {
+          oActive.addStyleClass("filterWidgetActive");
+        }
+      }
+    },
+
+    _applyFilters: function () {
+      var m = this.getView().getModel("security");
+
+      var all = m.getProperty("/all") || [];
+      var typeKey = m.getProperty("/typeKey") || "ALL";
+      var email = m.getProperty("/emailFilter") || "";
+      var ip = m.getProperty("/ipFilter") || "";
+      var widgetRiskFilter = m.getProperty("/widgetRiskFilter") || "";
+      var widgetGroupFilter = m.getProperty("/widgetGroupFilter") || "";
+
+      var rows = all.slice();
+
+      if (widgetRiskFilter) {
+        rows = rows.filter(function (r) {
+          return r.risk === widgetRiskFilter;
+        });
+      }
+
+      if (widgetGroupFilter) {
+        rows = rows.filter(function (r) {
+          return getRowGroup(r) === widgetGroupFilter;
+        });
+      }
+
+      if (typeKey && typeKey !== "ALL") {
+        rows = rows.filter(function (r) {
+          return getRowGroup(r) === typeKey;
+        });
+      }
+
+      if (email) {
+        rows = rows.filter(function (r) {
+          return (
+            includesIC(r.user, email) ||
+            includesIC(r.client, email) ||
+            includesIC(r.origin, email) ||
+            includesIC(r.message, email) ||
+            includesIC(r.eventType, email) ||
+            includesIC(r.risk, email)
+          );
+        });
+      }
+
+      if (ip) {
+        rows = rows.filter(function (r) {
+          return includesIC(r.ip, ip);
+        });
+      }
+
+      m.setProperty("/rows", rows);
+      this._updateWidgetActiveStyles();
+    },
+
+    onTypeChange: function (oEvent) {
+      var item = oEvent.getParameter("item");
+      var key = item ? item.getKey() : "ALL";
+
+      var m = this.getView().getModel("security");
+
+      m.setProperty("/typeKey", key);
+      m.setProperty("/widgetRiskFilter", "");
+      m.setProperty("/widgetGroupFilter", "");
+
+      this._applyFilters();
+    },
+
+    onEmailChange: function (oEvent) {
+      var val = (oEvent.getParameter("newValue") || "").trim();
+
+      this.getView().getModel("security").setProperty("/emailFilter", val);
+      this._applyFilters();
+    },
+
+    onIpChange: function (oEvent) {
+      var val = (oEvent.getParameter("newValue") || "").trim();
+
+      this.getView().getModel("security").setProperty("/ipFilter", val);
+      this._applyFilters();
     },
 
     onUserPieSelect: function (oEvent) {
@@ -678,51 +928,6 @@ sap.ui.define([
           title: "User Event Count"
         }
       );
-    },
-
-    onBack: function () {
-      this.getOwnerComponent().getRouter().navTo("logs", {}, false);
-    },
-
-    onGoDataChanges: function () {
-      this.getOwnerComponent().getRouter().navTo("datachanges", {}, false);
-    },
-
-    onGoLogs: function () {
-      this.getOwnerComponent().getRouter().navTo("logs", {}, false);
-    },
-
-    onGoSystemHealth: function () {
-      this.getOwnerComponent().getRouter().navTo("system", {}, false);
-    },
-
-    goRisk: function () {
-      this.getOwnerComponent().getRouter().navTo("risk", {}, false);
-    },
-
-    goKmeans: function () {
-      this.getOwnerComponent().getRouter().navTo("kmeans", {}, false);
-    },
-
-    onTypeChange: function (oEvent) {
-      var key = oEvent.getParameter("item").getKey();
-
-      this.getView().getModel("security").setProperty("/typeKey", key);
-      this._applyFilters();
-    },
-
-    onEmailChange: function (oEvent) {
-      var val = (oEvent.getParameter("newValue") || "").trim();
-
-      this.getView().getModel("security").setProperty("/emailFilter", val);
-      this._applyFilters();
-    },
-
-    onIpChange: function (oEvent) {
-      var val = (oEvent.getParameter("newValue") || "").trim();
-
-      this.getView().getModel("security").setProperty("/ipFilter", val);
-      this._applyFilters();
     },
 
     onExportSecurityPdf: function () {
@@ -750,42 +955,28 @@ sap.ui.define([
       this.onExportVisibleSecurityExcel();
     },
 
-    _applyFilters: function () {
-      var m = this.getView().getModel("security");
+    onBack: function () {
+      this.getOwnerComponent().getRouter().navTo("logs", {}, false);
+    },
 
-      var all = m.getProperty("/all") || [];
-      var typeKey = m.getProperty("/typeKey");
-      var email = m.getProperty("/emailFilter");
-      var ip = m.getProperty("/ipFilter");
+    onGoDataChanges: function () {
+      this.getOwnerComponent().getRouter().navTo("datachanges", {}, false);
+    },
 
-      var rows = all.slice();
+    onGoLogs: function () {
+      this.getOwnerComponent().getRouter().navTo("logs", {}, false);
+    },
 
-      if (typeKey && typeKey !== "ALL") {
-        rows = rows.filter(function (r) {
-          return r.eventGroup === typeKey;
-        });
-      }
+    onGoSystemHealth: function () {
+      this.getOwnerComponent().getRouter().navTo("system", {}, false);
+    },
 
-      if (email) {
-        rows = rows.filter(function (r) {
-          return (
-            includesIC(r.user, email) ||
-            includesIC(r.client, email) ||
-            includesIC(r.origin, email) ||
-            includesIC(r.message, email) ||
-            includesIC(r.eventType, email) ||
-            includesIC(r.risk, email)
-          );
-        });
-      }
+    goRisk: function () {
+      this.getOwnerComponent().getRouter().navTo("risk", {}, false);
+    },
 
-      if (ip) {
-        rows = rows.filter(function (r) {
-          return includesIC(r.ip, ip);
-        });
-      }
-
-      m.setProperty("/rows", rows);
+    goKmeans: function () {
+      this.getOwnerComponent().getRouter().navTo("kmeans", {}, false);
     },
 
     onExit: function () {
