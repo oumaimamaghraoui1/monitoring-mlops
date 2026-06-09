@@ -13,14 +13,14 @@ BASE_DIR = Path(__file__).resolve().parent
 
 ARTIFACTS_DIR = BASE_DIR / "artifacts"
 DATA_DIR = BASE_DIR / "data"
-OUT_DIR = ARTIFACTS_DIR / "comparison"
+OUT_DIR = Path("/tmp/comparison")
 
 VECTORIZER_PATH = ARTIFACTS_DIR / "vectorizer.joblib"
 MODEL_PATH = ARTIFACTS_DIR / "model.joblib"
 MATRIX_PATH = ARTIFACTS_DIR / "matrix.npz"
 DATA_PATH = ARTIFACTS_DIR / "transactions_model.csv"
 
-EVAL_PATH = DATA_DIR / "val_queries_blind_accgo.csv"
+EVAL_PATH = Path("/tmp/eval_from_real_dataset.csv")
 
 TOP_K = 5
 RERANK_POOL = 15

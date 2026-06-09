@@ -12,8 +12,13 @@ try{
 // CALL SAME API USED BY UI
 // ==============================================
 
-const API =
-"http://localhost:8090/audit/scored";
+const API_BASE =
+  process.env.INTERNAL_API_BASE ||
+  `http://127.0.0.1:${process.env.PORT || 8090}`;
+
+console.log("[RISK EXPORT] API_BASE =", API_BASE);
+
+const AUDIT_SCORED_URL = `${API_BASE}/audit/scored`;
 
 const {data} =
 await axios.get(API);

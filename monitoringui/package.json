@@ -17,7 +17,7 @@
     "ui5-task-zipper": "^3.4.x"
   },
   "scripts": {
-    "start": "npx ui5 serve --open index.html",
+    "start": "node server.js",
     "start:local": "npx ui5 serve --config ui5-local.yaml --open index.html",
     "build": "ui5 build --config=ui5.yaml --clean-dest --dest dist",
     "deploy": "fiori cfDeploy",
@@ -30,5 +30,9 @@
     "build:mta": "rimraf resources mta_archives && mbt build",
     "undeploy": "cf undeploy pwcmonitoringmonitoringui --delete-services --delete-service-keys --delete-service-brokers"
   },
-  "sapuxLayer": "CUSTOMER_BASE"
+  "sapuxLayer": "CUSTOMER_BASE",
+  "dependencies": {
+    "express": "^4.22.1",
+    "http-proxy-middleware": "^3.0.5"
+  }
 }

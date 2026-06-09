@@ -9,7 +9,7 @@ sap.ui.define([
   "use strict";
 
   var EMAIL_RE = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/;
-  var API_BASE = "https://port8090-workspaces-ws-dl8fm.eu10.applicationstudio.cloud.sap";
+  var API_BASE = "/backend";
 
   var API_CANDIDATES = [
     API_BASE + "/security/events",

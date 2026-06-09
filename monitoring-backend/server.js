@@ -39,6 +39,11 @@ const app = express();
 const isCI = process.env.CI === "true";
 const appEnv = cfenv.getAppEnv();
 
+const PYTHON_AI_URL =
+  process.env.PYTHON_AI_URL || "http://127.0.0.1:9090";
+
+console.log("PYTHON_AI_URL =", PYTHON_AI_URL);
+
 app.enable("trust proxy");
 
 app.use(cors({
@@ -141,22 +146,29 @@ app.get("/timer-flood", (req, res) => {
 });
 
 // AI PROXY ROUTE
+// AI PROXY ROUTE
 app.post("/ai/recommend", async (req, res) => {
   console.log("➡ POST /ai/recommend");
   console.log("Payload:", req.body);
+  console.log("Python target:", `${PYTHON_AI_URL}/recommend`);
+
+  const payload = {
+    query: req.body.query || req.body.tcode || "",
+    mode: req.body.mode || "hybrid_engine"
+  };
 
   try {
     const response = await axios.post(
-      "http://127.0.0.1:9090/recommend",
-      req.body,
+      `${PYTHON_AI_URL}/recommend`,
+      payload,
       {
         headers: { "Content-Type": "application/json" },
-        timeout: 10000
+        timeout: 60000
       }
     );
 
     console.log("✅ Python responded with:", response.status);
-    res.status(200).json(response.data);
+    res.status(response.status).json(response.data);
   } catch (err) {
     console.error("❌ Python AI ERROR");
     console.error("message:", err.message);
@@ -168,11 +180,13 @@ app.post("/ai/recommend", async (req, res) => {
 
     res.status(500).json({
       error: "Node failed to reach Python AI",
-      details: err.message
+      pythonUrl: PYTHON_AI_URL,
+      details: err.message,
+      responseStatus: err.response?.status,
+      responseData: err.response?.data
     });
   }
 });
-
 const port = process.env.PORT || 8090;
 const host = "0.0.0.0";
 

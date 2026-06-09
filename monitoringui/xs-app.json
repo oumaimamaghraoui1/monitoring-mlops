@@ -15,6 +15,12 @@
       "destination": "ui5"
     },
     {
+      "source": "^/backend/(.*)$",
+      "target": "/$1",
+      "destination": "monitoring_backend_api",
+      "csrfProtection": false
+    },
+    {
       "source": "^/logout-page.html$",
       "service": "app-front",
       "authenticationType": "none"
@@ -29,12 +35,6 @@
       "target": "$1",
       "service": "app-front",
       "authenticationType": "ias"
-    },
-    {
-  "source": "^/backend/(.*)$",
-  "target": "$1",
-  "destination": "monitoring_backend_api",
-  "csrfProtection": false
     }
   ]
 }

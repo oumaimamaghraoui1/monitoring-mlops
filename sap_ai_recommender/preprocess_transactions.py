@@ -1,63 +1,139 @@
 import argparse
-import pandas as pd
+import os
 import re
+import pandas as pd
+
+
+OUTPUT_DIR = os.environ.get("OUTPUT_DIR", "output")
+os.makedirs(OUTPUT_DIR, exist_ok=True)
+
+OUT_CLEANED = os.path.join(OUTPUT_DIR, "transactions_cleaned.csv.gz")
+OUT_SUMMARY = os.path.join(OUTPUT_DIR, "transactions_summary.csv")
+
 
 def extract_namespace(code):
+    code = "" if pd.isna(code) else str(code).strip()
 
-    if isinstance(code,str) and code.startswith("/"):
-        match = re.match(r'^(/[^/]+/)',code)
+    if code.startswith("/"):
+        match = re.match(r"^(/[^/]+/)", code)
         if match:
             return match.group(1)
-    if str(code).startswith("Z"):
+
+    if code.upper().startswith("Z"):
         return "Z_CUSTOM"
-    if str(code).startswith("Y"):
+
+    if code.upper().startswith("Y"):
         return "Y_CUSTOM"
+
     return "STANDARD"
 
 
-parser = argparse.ArgumentParser()
-parser.add_argument("--input", required=True)
-args = parser.parse_args()
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--input", required=True)
+    args = parser.parse_args()
 
-df = pd.read_csv(
-    args.input,
-    engine="python",
-    quotechar='"',
-    on_bad_lines='skip'
-)
+    df = pd.read_csv(
+        args.input,
+        engine="python",
+        quotechar='"',
+        on_bad_lines="skip",
+        dtype=str
+    )
 
-df['namespace'] = df['Transaction Code'].apply(extract_namespace)
-df['has_description'] = df['Transaction Description'].notnull().astype(int)
-df['contains_badi'] = df['Transaction Description'].astype(str).str.contains("BAdI").astype(int)
+    required_cols = [
+        "Transaction Code",
+        "Transaction Description",
+        "Program"
+    ]
 
-df['prefix'] = df['Transaction Code'].astype(str).str[:2]
+    for col in required_cols:
+        if col not in df.columns:
+            df[col] = ""
 
-df['combined_text'] = (
-    df['Transaction Code'].astype(str)+" "+
-    df['Program'].astype(str)+" "+
-    df['Transaction Description'].astype(str)+" "+
-    df['namespace'].astype(str)+" "+
-    df['prefix']
-)
+    optional_cols = [
+        "Transaction Menu",
+        "Transaction Info",
+        "Transaction Variant Info"
+    ]
 
-df.to_csv("output/transactions_cleaned.csv",index=False)
+    for col in optional_cols:
+        if col not in df.columns:
+            df[col] = ""
 
-summary = pd.DataFrame({
-    "Metric":[
-    "Total Rows",
-    "Unique Transaction Codes",
-    "Has Description",
-    "Contains BAdI"
-    ],
-    "Value":[
-    len(df),
-    df["Transaction Code"].nunique(),
-    df["has_description"].sum(),
-    df["contains_badi"].sum()
-]})
+    df["Transaction Code"] = (
+        df["Transaction Code"]
+        .fillna("")
+        .astype(str)
+        .str.strip()
+        .str.replace('"', "", regex=False)
+        .str.upper()
+    )
 
-with pd.ExcelWriter("output/transactions_profile.xlsx",engine="openpyxl") as writer:
-    df.to_excel(writer,sheet_name="Cleaned_Data",index=False)
-    summary.to_excel(writer,sheet_name="Summary",index=False)
+    for col in [
+        "Transaction Description",
+        "Program",
+        "Transaction Menu",
+        "Transaction Info",
+        "Transaction Variant Info"
+    ]:
+        df[col] = df[col].fillna("").astype(str).str.strip()
 
-print("✅ Preprocessing finished + Excel Profile Created")
+    df["namespace"] = df["Transaction Code"].apply(extract_namespace)
+
+    df["has_description"] = (
+        df["Transaction Description"]
+        .fillna("")
+        .str.strip()
+        .ne("")
+    ).astype(int)
+
+    df["contains_badi"] = (
+        df["Transaction Description"]
+        .fillna("")
+        .astype(str)
+        .str.contains("BAdI", case=False, na=False)
+    ).astype(int)
+
+    df["prefix"] = df["Transaction Code"].astype(str).str[:2]
+
+    df["combined_text"] = (
+        df["Transaction Code"].astype(str) + " " +
+        df["Program"].astype(str) + " " +
+        df["Transaction Description"].astype(str) + " " +
+        df["namespace"].astype(str) + " " +
+        df["prefix"].astype(str)
+    ).str.strip()
+
+    df.to_csv(
+        OUT_CLEANED,
+        index=False,
+        compression="gzip"
+    )
+
+    summary = pd.DataFrame({
+        "Metric": [
+            "Total Rows",
+            "Unique Transaction Codes",
+            "Has Description",
+            "Contains BAdI",
+            "Cleaned File"
+        ],
+        "Value": [
+            len(df),
+            df["Transaction Code"].nunique(),
+            int(df["has_description"].sum()),
+            int(df["contains_badi"].sum()),
+            OUT_CLEANED
+        ]
+    })
+
+    summary.to_csv(OUT_SUMMARY, index=False)
+
+    print("✅ Preprocessing finished")
+    print(f"✅ Cleaned file: {OUT_CLEANED}")
+    print(f"✅ Summary file: {OUT_SUMMARY}")
+
+
+if __name__ == "__main__":
+    main()

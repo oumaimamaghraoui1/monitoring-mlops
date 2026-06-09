@@ -349,7 +349,6 @@ export function getRuntimeSnapshot() {
     uptimeSec: process.uptime()
   };
 }
-
 export function getEnvSnapshot() {
   return {
     NODE_ENV: process.env.NODE_ENV,

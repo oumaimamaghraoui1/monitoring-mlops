@@ -4,7 +4,11 @@ import PDFDocument from "pdfkit";
 import axios from "axios";
 
 const router = Router();
-const API_BASE = "http://localhost:8090";
+const API_BASE =
+  process.env.INTERNAL_API_BASE ||
+  `http://127.0.0.1:${process.env.PORT || 8090}`;
+
+
 
 const EMAIL_RE = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/;
 

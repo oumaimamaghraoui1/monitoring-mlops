@@ -5,25 +5,34 @@
   xmlns:core="sap.ui.core">
 
   <Page title="SAP Basis Intelligence">
-<headerContent>
+
+    <headerContent>
       <Button
-        id="btnGoSecurity"
+        id="kmeansBtnGoAudit"
+        text="Audit Logs"
+        icon="sap-icon://activity-items"
+        press=".onGoAudit"/>
+
+      <Button
+        id="kmeansBtnGoSecurity"
         text="Security Events"
         icon="sap-icon://shield"
         press=".onGoSecurity"/>
 
       <Button
+        id="kmeansBtnGoSystemHealth"
         text="System Health"
         icon="sap-icon://sys-monitor"
         press=".onGoSystemHealth"/>
 
       <Button
+        id="kmeansBtnGoRisk"
         text="AI Risk Monitor"
         icon="sap-icon://ai"
         press=".goRisk"/>
     </headerContent>
+
     <content>
-   
       <VBox class="sapUiContentPadding aiSearchPage" width="100%">
 
         <VBox class="searchHeroSection sapUiMediumMarginBottom" alignItems="Center" width="100%">
@@ -80,17 +89,45 @@
               class="sapUiTinyMarginBottom"/>
           </HBox>
 
-          <VBox id="quickSuggestionsBox" class="sapUiSmallMarginTop" alignItems="Center">
+          <VBox
+            id="quickSuggestionsBox"
+            class="sapUiSmallMarginTop"
+            alignItems="Center">
+
             <Text
               text="Quick suggestions"
               class="subtleText sapUiTinyMarginBottom"/>
 
             <HBox wrap="Wrap" justifyContent="Center">
-              <Button text="SU01" type="Transparent" press=".onQuickSuggestionPress" class="sapUiTinyMarginEnd sapUiTinyMarginBottom"/>
-              <Button text="PFCG" type="Transparent" press=".onQuickSuggestionPress" class="sapUiTinyMarginEnd sapUiTinyMarginBottom"/>
-              <Button text="ST22" type="Transparent" press=".onQuickSuggestionPress" class="sapUiTinyMarginEnd sapUiTinyMarginBottom"/>
-              <Button text="SM37" type="Transparent" press=".onQuickSuggestionPress" class="sapUiTinyMarginEnd sapUiTinyMarginBottom"/>
-              <Button text="SCC4" type="Transparent" press=".onQuickSuggestionPress" class="sapUiTinyMarginBottom"/>
+              <Button
+                text="SU01"
+                type="Transparent"
+                press=".onQuickSuggestionPress"
+                class="sapUiTinyMarginEnd sapUiTinyMarginBottom"/>
+
+              <Button
+                text="PFCG"
+                type="Transparent"
+                press=".onQuickSuggestionPress"
+                class="sapUiTinyMarginEnd sapUiTinyMarginBottom"/>
+
+              <Button
+                text="ST22"
+                type="Transparent"
+                press=".onQuickSuggestionPress"
+                class="sapUiTinyMarginEnd sapUiTinyMarginBottom"/>
+
+              <Button
+                text="SM37"
+                type="Transparent"
+                press=".onQuickSuggestionPress"
+                class="sapUiTinyMarginEnd sapUiTinyMarginBottom"/>
+
+              <Button
+                text="SCC4"
+                type="Transparent"
+                press=".onQuickSuggestionPress"
+                class="sapUiTinyMarginBottom"/>
             </HBox>
           </VBox>
 
@@ -101,7 +138,10 @@
             visible="{= ${searchModel>/recentSearches}.length > 0 }">
 
             <HBox alignItems="Center" class="sapUiTinyMarginBottom">
-              <Text text="Recent searches" class="subtleText sapUiTinyMarginEnd"/>
+              <Text
+                text="Recent searches"
+                class="subtleText sapUiTinyMarginEnd"/>
+
               <Button
                 text="Clear All"
                 type="Transparent"
@@ -120,6 +160,7 @@
                       src="sap-icon://history"
                       size="0.9rem"
                       class="sapUiTinyMarginEnd"/>
+
                     <Text text="{searchModel>text}"/>
                   </HBox>
 
@@ -164,6 +205,7 @@
                   src="sap-icon://favorite"
                   size="1rem"
                   class="cardIconPurple sapUiTinyMarginEnd"/>
+
                 <Title text="Saved T-Codes" level="H5"/>
               </HBox>
 
@@ -179,7 +221,6 @@
                   type="Transparent"
                   press=".onExportFavoritesExcel"/>
               </HBox>
-
             </HBox>
 
             <List items="{favModel>/favorites}">
@@ -190,8 +231,10 @@
                       <core:Icon
                         src="sap-icon://favorite"
                         class="sapUiTinyMarginEnd"/>
+
                       <Title text="{favModel>tcode}" level="H6"/>
                     </HBox>
+
                     <Text text="{favModel>desc}" wrapping="true"/>
                   </VBox>
 
@@ -222,9 +265,9 @@
         </Panel>
 
         <Panel
-  id="resultsPanel"
-  headerText="Recommendation Results"
-  class="styledPanel sapUiMediumMarginBottom">
+          id="resultsPanel"
+          headerText="Recommendation Results"
+          class="styledPanel sapUiMediumMarginBottom">
 
           <VBox class="sapUiMediumMargin">
 
@@ -233,6 +276,7 @@
                 src="sap-icon://search"
                 size="1.1rem"
                 class="cardIconBlue sapUiTinyMarginEnd"/>
+
               <Title text="AI Recommendations" level="H5"/>
             </HBox>
 
@@ -290,9 +334,7 @@
                       type="Transparent"
                       press=".onExportFilteredResultsCsv"/>
                   </HBox>
-
                 </HBox>
-
               </VBox>
             </Panel>
 
@@ -307,6 +349,7 @@
                 <Toolbar id="tbTcodeResults">
                   <Title text="T-Code Recommendations" level="H2"/>
                   <ToolbarSpacer/>
+
                   <ObjectStatus
                     text="{= (${recModel>/rows}.length || 0) + ' items'}"
                     state="Information"/>
@@ -314,65 +357,96 @@
               </headerToolbar>
 
               <columns>
-                <Column width="6rem"><Text text="Rank"/></Column>
-                <Column width="10rem"><Text text="Code"/></Column>
-                <Column width="5rem" hAlign="Center"><Text text="Copy"/></Column>
-                <Column width="5rem" hAlign="Center"><Text text="Fav"/></Column>
-                <Column width="12rem"><Text text="Program"/></Column>
-                <Column width="24rem"><Text text="Description"/></Column>
-                <Column width="8rem"><Text text="Cluster"/></Column>
-                <Column width="10rem" hAlign="End"><Text text="Similarity"/></Column>
-                <Column width="10rem" hAlign="Center"><Text text="Actions"/></Column>
+                <Column width="6rem">
+                  <Text text="Rank"/>
+                </Column>
+
+                <Column width="10rem">
+                  <Text text="Code"/>
+                </Column>
+
+                <Column width="5rem" hAlign="Center">
+                  <Text text="Copy"/>
+                </Column>
+
+                <Column width="5rem" hAlign="Center">
+                  <Text text="Fav"/>
+                </Column>
+
+                <Column width="12rem">
+                  <Text text="Program"/>
+                </Column>
+
+                <Column width="24rem">
+                  <Text text="Description"/>
+                </Column>
+
+                <Column width="8rem">
+                  <Text text="Cluster"/>
+                </Column>
+
+                <Column width="12rem" hAlign="End">
+                  <Text text="Similarity"/>
+                </Column>
+
+                <Column width="10rem" hAlign="Center">
+                  <Text text="Actions"/>
+                </Column>
               </columns>
 
               <items>
                 <ColumnListItem class="tableRowHover">
                   <cells>
-                    <ObjectNumber number="{recModel>rank}"/>
-                    <ObjectIdentifier title="{recModel>tcode}"/>
+  <ObjectNumber number="{recModel>rank}"/>
 
-                    <Button
-                      icon="sap-icon://copy"
-                      type="Transparent"
-                      tooltip="Copy T-Code"
-                      press=".onCopyTcode"/>
+  <ObjectIdentifier title="{recModel>tcode}"/>
 
-                    <Button
-                      icon="{= ${recModel>isFavorite} ? 'sap-icon://favorite' : 'sap-icon://unfavorite' }"
-                      type="Transparent"
-                      tooltip="Toggle favorite"
-                      press=".onToggleFavorite"
-                      class="{= ${recModel>isFavorite} ? 'favoriteHeartBtn favoriteHeartActive' : 'favoriteHeartBtn favoriteHeartInactive' }"/>
+  <Button
+    icon="sap-icon://copy"
+    type="Transparent"
+    tooltip="Copy T-Code"
+    press=".onCopyTcode"/>
 
-                    <Text text="{recModel>program}" wrapping="true"/>
-                    <Text text="{recModel>desc}" wrapping="true"/>
-                    <ObjectStatus text="{recModel>cluster}" state="Information"/>
-                    <ObjectNumber number="{recModel>similarity}"/>
+  <Button
+    icon="{= ${recModel>isFavorite} ? 'sap-icon://favorite' : 'sap-icon://unfavorite' }"
+    type="Transparent"
+    tooltip="Toggle favorite"
+    press=".onToggleFavorite"
+    class="{= ${recModel>isFavorite} ? 'favoriteHeartBtn favoriteHeartActive' : 'favoriteHeartBtn favoriteHeartInactive' }"/>
 
-                    <HBox justifyContent="Center" alignItems="Center" wrap="NoWrap">
-                      <Button
-                        icon="sap-icon://inspect"
-                        type="Transparent"
-                        tooltip="View Details"
-                        press=".onViewDetails"
-                        class="sapUiTinyMarginEnd"/>
+  <Text text="{recModel>program}" wrapping="true"/>
 
-                      <Button
-                        icon="sap-icon://world"
-                        type="Transparent"
-                        tooltip="Search on Google"
-                        press=".onOpenDocumentation"/>
-                    </HBox>
-                  </cells>
+  <Text text="{recModel>desc}" wrapping="true"/>
+
+  <ObjectStatus
+    text="{recModel>cluster}"
+    state="Information"/>
+
+  <ObjectStatus
+    text="{recModel>similarityLabel}"
+    state="{recModel>similarityState}"/>
+
+  <HBox justifyContent="Center" alignItems="Center" wrap="NoWrap">
+    <Button
+      icon="sap-icon://inspect"
+      type="Transparent"
+      tooltip="View Details"
+      press=".onViewDetails"
+      class="sapUiTinyMarginEnd"/>
+
+    <Button
+      icon="sap-icon://world"
+      type="Transparent"
+      tooltip="Search on Google"
+      press=".onOpenDocumentation"/>
+  </HBox>
+</cells>
                 </ColumnListItem>
               </items>
-
             </Table>
           </VBox>
         </Panel>
-
       </VBox>
     </content>
-
   </Page>
 </mvc:View>

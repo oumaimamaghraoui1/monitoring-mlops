@@ -38,9 +38,11 @@ sap.ui.define([
     if (!needle) {
       return true;
     }
+
     if (!hay) {
       return false;
     }
+
     return String(hay).toLowerCase().includes(String(needle).toLowerCase());
   }
 
@@ -53,7 +55,8 @@ sap.ui.define([
       { label: "Domain", property: "domain", width: 18 },
       { label: "Module", property: "module", width: 18 },
       { label: "Cluster", property: "cluster", width: 28 },
-      { label: "Similarity", property: "similarity", width: 18 },
+      { label: "Similarity", property: "similarityLabel", width: 22 },
+      { label: "Similarity Score", property: "similarityScore", width: 18 },
       { label: "Favorite", property: "favoriteText", width: 14 }
     ];
   }
@@ -68,7 +71,11 @@ sap.ui.define([
         domain: row.domain || "",
         module: row.module || "",
         cluster: row.cluster || "",
-        similarity: row.similarity !== undefined && row.similarity !== null ? row.similarity : "",
+        similarityLabel: row.similarityLabel || "",
+        similarityScore:
+          row.similarityScore !== undefined && row.similarityScore !== null
+            ? Number(row.similarityScore).toFixed(6)
+            : "",
         favoriteText: row.isFavorite ? "Yes" : "No"
       };
     });
@@ -99,6 +106,7 @@ sap.ui.define([
     if (value === null || value === undefined) {
       return "";
     }
+
     return '"' + String(value).replace(/"/g, '""') + '"';
   }
 
@@ -110,8 +118,16 @@ sap.ui.define([
       .slice(0, 19);
 
     const headers = [
-      "Rank", "T-Code", "Program", "Description", "Domain",
-      "Module", "Cluster", "Similarity", "Favorite"
+      "Rank",
+      "T-Code",
+      "Program",
+      "Description",
+      "Domain",
+      "Module",
+      "Cluster",
+      "Similarity",
+      "Similarity Score",
+      "Favorite"
     ];
 
     const lines = [headers.join(",")];
@@ -125,7 +141,12 @@ sap.ui.define([
         escapeCsvValue(row.domain || ""),
         escapeCsvValue(row.module || ""),
         escapeCsvValue(row.cluster || ""),
-        escapeCsvValue(row.similarity !== undefined && row.similarity !== null ? row.similarity : ""),
+        escapeCsvValue(row.similarityLabel || ""),
+        escapeCsvValue(
+          row.similarityScore !== undefined && row.similarityScore !== null
+            ? Number(row.similarityScore).toFixed(6)
+            : ""
+        ),
         escapeCsvValue(row.isFavorite ? "Yes" : "No")
       ].join(","));
     });
@@ -203,7 +224,6 @@ sap.ui.define([
     },
 
     onAfterRendering: function () {
-      // Force auto-start for now to validate the feature.
       setTimeout(function () {
         this.startGuidedTour();
       }.bind(this), 1200);
@@ -212,15 +232,20 @@ sap.ui.define([
     onStartTourPress: function () {
       this.startGuidedTour();
     },
-   onGoSecurity: function () {
+
+    onGoAudit: function () {
+      window.location.hash = "";
+    },
+
+    onGoSecurity: function () {
       this.getOwnerComponent().getRouter().navTo("security", {}, false);
     },
 
-onGoSystemHealth: function () {
+    onGoSystemHealth: function () {
       this.getOwnerComponent().getRouter().navTo("system", {}, false);
     },
 
- goRisk: function () {
+    goRisk: function () {
       this.getOwnerComponent().getRouter().navTo("risk", {}, false);
     },
 
@@ -289,14 +314,15 @@ onGoSystemHealth: function () {
         press: this._onTourSkip.bind(this)
       }).addStyleClass("modernTourSkipBtn");
 
+      const oTitleBox = new VBox({
+        items: [this._tourTitle]
+      }).addStyleClass("sapUiTinyMarginBegin");
+
       const oHeaderLeft = new HBox({
         alignItems: "Center",
         items: [
           this._tourIcon,
-          new VBox({
-            class: "sapUiTinyMarginBegin",
-            items: [this._tourTitle]
-          })
+          oTitleBox
         ]
       });
 
@@ -318,14 +344,15 @@ onGoSystemHealth: function () {
         ]
       }).addStyleClass("modernTourFooterRow");
 
+      const oContentBox = new VBox({
+        items: [oHeaderRow, this._tourText, this._tourDotsText, oFooterRow]
+      }).addStyleClass("modernTourContent");
+
       this._tourPopover = new ResponsivePopover({
         showHeader: false,
         placement: "Bottom",
         contentWidth: "25rem",
-        content: new VBox({
-          class: "modernTourContent",
-          items: [oHeaderRow, this._tourText, this._tourDotsText, oFooterRow]
-        })
+        content: oContentBox
       });
 
       this._tourPopover.addStyleClass("modernTourPopover");
@@ -334,12 +361,15 @@ onGoSystemHealth: function () {
 
     _buildDots: function () {
       let s = "";
+
       for (let i = 0; i < this._tourSteps.length; i++) {
         s += (i === this._tourIndex ? "●" : "○");
+
         if (i < this._tourSteps.length - 1) {
           s += " ";
         }
       }
+
       return s;
     },
 
@@ -366,6 +396,7 @@ onGoSystemHealth: function () {
       this._createTourPopover();
 
       const oStep = this._tourSteps[this._tourIndex];
+
       if (!oStep) {
         return;
       }
@@ -387,6 +418,7 @@ onGoSystemHealth: function () {
             } else {
               this._finishGuidedTour();
             }
+
             return;
           }
 
@@ -401,6 +433,7 @@ onGoSystemHealth: function () {
 
     _showTourOnControl: function (oControl, oStep) {
       this._clearTourHighlight();
+
       oControl.addStyleClass("tourTargetHighlight");
       this._highlightedControl = oControl;
 
@@ -483,17 +516,35 @@ onGoSystemHealth: function () {
         const payload = await response.json();
         const results = payload.results || [];
         const favorites = this._loadFavorites();
+        const that = this;
 
-        const enriched = results.map(function (item) {
-          const classified = TCodeClassificationHelper.enrichItem(item);
-          return Object.assign({}, classified, {
-            isFavorite: favorites.some(function (fav) {
-              return fav.tcode === item.tcode;
-            })
-          });
-        });
+       const enriched = results.map(function (item, index) {
+  const classified = TCodeClassificationHelper.enrichItem(item);
+  const similarityScore = that._extractSimilarityScore(classified);
+  const similarityLabel = that._formatSimilarityLabel(similarityScore);
+  const similarityState = that._formatSimilarityState(similarityScore);
+
+  return Object.assign({}, classified, {
+    rank: index + 1,
+
+    // Keep numeric score separately
+    similarityScore: similarityScore,
+
+    // Display text
+    similarityLabel: similarityLabel,
+    similarityState: similarityState,
+
+    // Keep this for old bindings/favorites/export compatibility
+    similarity: similarityLabel,
+
+    isFavorite: favorites.some(function (fav) {
+      return fav.tcode === item.tcode;
+    })
+  });
+});
 
         const recModel = this.getView().getModel("recModel");
+
         recModel.setProperty("/all", enriched);
         recModel.setProperty("/filterText", "");
 
@@ -507,7 +558,6 @@ onGoSystemHealth: function () {
         } else {
           MessageToast.show(results.length + " recommendation results loaded");
         }
-
       } catch (e) {
         console.error("AI request failed", e);
         MessageToast.show("AI request failed");
@@ -516,6 +566,7 @@ onGoSystemHealth: function () {
 
     onQuickSuggestionPress: function (oEvent) {
       const sValue = oEvent.getSource().getText() || "";
+
       if (!sValue) {
         return;
       }
@@ -590,20 +641,81 @@ onGoSystemHealth: function () {
     },
 
     onResultFilterChange: function (oEvent) {
-      const value =
-        oEvent.getParameter("newValue") ||
-        oEvent.getSource().getValue() ||
-        "";
+  const value =
+    oEvent.getParameter("newValue") ||
+    oEvent.getSource().getValue() ||
+    "";
 
-      this.getView().getModel("recModel").setProperty("/filterText", value.trim());
-      this._applyResultFilter();
+  this.getView().getModel("recModel").setProperty("/filterText", value.trim());
+  this._applyResultFilter();
+},
+
+_extractSimilarityScore: function (item) {
+  const raw =
+    item.similarityScore !== undefined && item.similarityScore !== null
+      ? item.similarityScore
+      : item.rawSimilarity !== undefined && item.rawSimilarity !== null
+        ? item.rawSimilarity
+        : item.Similarity !== undefined && item.Similarity !== null
+          ? item.Similarity
+          : item.score !== undefined && item.score !== null
+            ? item.score
+            : item.similarity !== undefined && item.similarity !== null
+              ? item.similarity
+              : 0;
+
+  const n = Number(raw);
+  return isNaN(n) ? 0 : n;
+},
+
+
+    _formatSimilarityLabel: function (score) {
+      const s = Number(score || 0);
+
+      if (s >= 0.999) {
+        return "Exact match";
+      }
+
+      if (s >= 0.80) {
+        return "Very similar";
+      }
+
+      if (s >= 0.65) {
+        return "Similar";
+      }
+
+      if (s >= 0.50) {
+        return "Medium similarity";
+      }
+
+      return "Low similarity";
+    },
+
+    _formatSimilarityState: function (score) {
+      const s = Number(score || 0);
+
+      if (s >= 0.80) {
+        return "Success";
+      }
+
+      if (s >= 0.65) {
+        return "Information";
+      }
+
+      if (s >= 0.50) {
+        return "Warning";
+      }
+
+      return "None";
     },
 
     onClearResultFilter: function () {
       const recModel = this.getView().getModel("recModel");
+
       recModel.setProperty("/filterText", "");
 
       const sf = this.byId("sfTcodeResultFilter");
+
       if (sf) {
         sf.setValue("");
       }
@@ -627,6 +739,7 @@ onGoSystemHealth: function () {
             includesIC(item.domain, filterText) ||
             includesIC(item.module, filterText) ||
             includesIC(item.cluster, filterText) ||
+            includesIC(item.similarityLabel, filterText) ||
             includesIC(item.similarity, filterText) ||
             includesIC(item.rank, filterText)
           );
@@ -639,12 +752,14 @@ onGoSystemHealth: function () {
     onCopyTcode: function (oEvent) {
       const oContext = oEvent.getSource().getBindingContext("recModel");
       const sTcode = oContext.getProperty("tcode");
+
       this._copyText(sTcode);
     },
 
     onCopyFavoriteTcode: function (oEvent) {
       const oContext = oEvent.getSource().getBindingContext("favModel");
       const sTcode = oContext.getProperty("tcode");
+
       this._copyText(sTcode);
     },
 
@@ -664,6 +779,7 @@ onGoSystemHealth: function () {
           });
       } else {
         const el = document.createElement("textarea");
+
         el.value = sText;
         document.body.appendChild(el);
         el.select();
@@ -690,7 +806,8 @@ onGoSystemHealth: function () {
         "Domain: " + (oItem.domain || "") + "\n" +
         "Module: " + (oItem.module || "") + "\n" +
         "Cluster: " + (oItem.cluster || "") + "\n" +
-        "Similarity: " + (oItem.similarity || "") + "\n" +
+        "Similarity: " + (oItem.similarityLabel || "") +
+        " (" + (oItem.similarityScore !== undefined ? Number(oItem.similarityScore).toFixed(3) : "") + ")" + "\n" +
         "Classification Score: " + (oItem.clusterScore || 0);
 
       MessageBox.information(sMessage, {
@@ -727,6 +844,7 @@ onGoSystemHealth: function () {
         aFavorites = aFavorites.filter(function (fav) {
           return fav.tcode !== oItem.tcode;
         });
+
         MessageToast.show("Removed from favorites: " + oItem.tcode);
       } else {
         aFavorites.push({
@@ -738,8 +856,12 @@ onGoSystemHealth: function () {
           module: oItem.module,
           cluster: oItem.cluster,
           similarity: oItem.similarity,
+          similarityScore: oItem.similarityScore,
+          similarityLabel: oItem.similarityLabel,
+          similarityState: oItem.similarityState,
           isFavorite: true
         });
+
         MessageToast.show("Added to favorites: " + oItem.tcode);
       }
 
@@ -768,12 +890,12 @@ onGoSystemHealth: function () {
     onToggleFavoritesPanel: function () {
       const oFavModel = this.getView().getModel("favModel");
       const bCurrent = oFavModel.getProperty("/showFavorites");
+
       oFavModel.setProperty("/showFavorites", !bCurrent);
     },
 
     _refreshResultFavoriteState: function () {
       const aFavorites = this._loadFavorites();
-
       const recModel = this.getView().getModel("recModel");
       const aAll = recModel.getProperty("/all") || [];
 

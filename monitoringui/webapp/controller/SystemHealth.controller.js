@@ -62,7 +62,7 @@ sap.ui.define([
     },
 
     onRefresh: function () {
-      const BACKEND = "https://port8090-workspaces-ws-dl8fm.eu10.applicationstudio.cloud.sap";
+      const BACKEND = "/backend";
 
       fetch(BACKEND + "/metrics/runtime", {
         method: "GET",
@@ -1113,7 +1113,7 @@ onResetAll: function () {
   );
 },
 onDownloadPdfSummary: function () {
-  var API_BASE = "https://port8090-workspaces-ws-dl8fm.eu10.applicationstudio.cloud.sap";
+  var API_BASE = "/backend";
   var modelData = this.getView().getModel("metrics").getData() || {};
 
   console.log("[PDF EXPORT] modelData:", modelData);

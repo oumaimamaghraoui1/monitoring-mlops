@@ -1,0 +1,82 @@
+# ======================
+# Node / Python local environments
+# ======================
+node_modules/
+venv/
+mlops/venv/
+__pycache__/
+*.pyc
+
+# ======================
+# IDE / local workspace files
+# ======================
+.vscode/
+.idea/
+*.code-workspace
+.DS_Store
+
+# ======================
+# Secrets / local env files
+# ======================
+.env
+.env.*
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+
+# ======================
+# Jupyter / experiments / comparisons
+# ======================
+mlops/notebooks/
+mlops/training/
+
+# ======================
+# Python pipeline scripts not required at runtime
+# Keep only if your deployed app explicitly needs them
+# ======================
+mlops/pipelines/04_upgrade_legacy_schema.py
+mlops/pipelines/05_clean_dataset.py
+mlops/pipelines/06_clean_rca_dataset.py
+mlops/pipelines/generate_rca_ci_data.py
+mlops/pipelines/merge_incidents.py
+mlops/security/02_build_security_features.py
+
+# ======================
+# Raw / heavy datasets not needed in deployed runtime
+# ======================
+mlops/data/raw/
+mlops/data/processed/
+mlops/data/features/
+
+# RCA training datasets (exclude if not needed at runtime)
+mlops/data/rca/incidents_log.csv
+mlops/data/rca/rca_dataset.csv
+mlops/data/rca/rca_dataset_clean.csv
+
+# ======================
+# Root data files that may contain sensitive raw logs
+# Exclude the clearly sensitive / historical ones
+# ======================
+
+# ======================
+# Test / debug scripts
+# ======================
+src/services/test-anomaly.js
+src/services/test-send-ans-event.js
+
+# ======================
+# Optional local generated outputs
+# ======================
+*.parquet
+*.feather
+*.xlsx
+*.xls
+
+# ======================
+# OS / temp
+# ======================
+*.log
+tmp/
+temp/

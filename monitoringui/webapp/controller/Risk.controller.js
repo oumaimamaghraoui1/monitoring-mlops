@@ -237,7 +237,7 @@ sap.ui.define([
 
     loadData: function () {
       var API_BASE =
-        "https://port8090-workspaces-ws-dl8fm.eu10.applicationstudio.cloud.sap";
+        "/backend";
 
       fetch(API_BASE + "/audit/scored", {
         credentials: "include"

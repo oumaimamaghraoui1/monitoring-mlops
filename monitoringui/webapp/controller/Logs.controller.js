@@ -776,7 +776,7 @@ sap.ui.define([
     },
 
     onRefresh: function () {
-      var API_BASE = "https://port8090-workspaces-ws-dl8fm.eu10.applicationstudio.cloud.sap";
+      var API_BASE = "/backend";
 
       fetch(API_BASE + "/audit/full", {
         credentials: "include"
@@ -877,12 +877,12 @@ sap.ui.define([
     },
 
     onExportLogsExcel: function () {
-      var API_BASE = "https://port8090-workspaces-ws-dl8fm.eu10.applicationstudio.cloud.sap";
+      var API_BASE = "/backend";
       window.open(API_BASE + "/audit/export/excel", "_blank");
     },
 
     onExportLogsPdf: function () {
-      var API_BASE = "https://port8090-workspaces-ws-dl8fm.eu10.applicationstudio.cloud.sap";
+      var API_BASE = "/backend";
       window.open(API_BASE + "/audit/export/pdf", "_blank");
     },
 

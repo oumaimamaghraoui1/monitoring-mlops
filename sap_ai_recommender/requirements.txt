@@ -1,8 +1,8 @@
-pandas
-scikit-learn
-scipy
-joblib
-streamlit
 flask
-flask_cors
-openpyxl
+flask-cors
+gunicorn
+pandas
+numpy
+scipy
+scikit-learn
+joblib

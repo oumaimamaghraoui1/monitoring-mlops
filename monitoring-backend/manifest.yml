@@ -1,10 +1,10 @@
 applications:
   - name: monitoring-backend
-    memory: 128M
+    memory: 512M
     buildpacks:
       - nodejs_buildpack
-    command: node server.js
+    command: npm start
     path: .
     env:
-      NODE_ENV: production
-      NODE_OPTIONS: "--max-old-space-size=128"
+      NODE_ENV: development
+      NODE_OPTIONS: "--max-old-space-size=384"

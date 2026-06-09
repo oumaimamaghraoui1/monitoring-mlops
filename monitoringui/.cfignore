@@ -1,0 +1,9 @@
+node_modules/
+webapp/
+mta_archives/
+resources/
+.ui5/
+dist.zip
+xs-security.json
+ui5-local.yaml
+README.md

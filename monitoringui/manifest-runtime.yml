@@ -1,0 +1,7 @@
+applications:
+  - name: monitoringui-runtime
+    memory: 128M
+    buildpacks:
+      - nodejs_buildpack
+    command: node server.js
+    path: .

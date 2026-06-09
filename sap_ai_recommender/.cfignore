@@ -1,0 +1,52 @@
+cat > .cfignore <<'EOF'
+# Local envs
+.venv/
+venv/
+env/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# IDE / git
+.vscode/
+.idea/
+.DS_Store
+.git/
+.gitignore
+
+# Cache
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.cache/
+
+# Logs/temp
+*.log
+tmp/
+temp/
+
+# Raw dataset should not be pushed
+data/
+
+# Old/intermediate files
+artifacts/
+output/transactions_cleaned.csv
+output/transactions_cleaned.csv.gz
+output/transactions_summary.csv
+output/transactions_profile.xlsx
+output/model.joblib
+output/transactions_model.csv
+
+# Keep deployment artifacts
+!output/
+!output/vectorizer.joblib
+!output/matrix.npz
+!output/transactions_model.csv.gz
+
+# Keep source/deployment files
+!app.py
+!requirements.txt
+!manifest.yml
+!Procfile
+EOF
