@@ -10,9 +10,6 @@ on:
 jobs:
   refresh-and-deploy:
     runs-on: ubuntu-latest
-
-    # Important if you added the values as GitHub Environment secrets.
-    # Replace "Dev" with the exact GitHub Environment name if different.
     environment: Dev
 
     steps:
@@ -49,6 +46,39 @@ jobs:
           python -m venv mlops/venv
           mlops/venv/bin/pip install --upgrade pip
           mlops/venv/bin/pip install -r mlops/requirements.txt
+
+      - name: Validate ALM and Cloud Foundry secrets are available
+        if: steps.biweekly.outputs.run_job == 'true'
+        env:
+          ALM_USERNAME: ${{ secrets.ALM_USERNAME }}
+          ALM_PASSWORD: ${{ secrets.ALM_PASSWORD }}
+          ALM_OAUTH_URL: ${{ secrets.ALM_OAUTH_URL }}
+          ALM_API_URL: ${{ secrets.ALM_API_URL }}
+          CF_API: ${{ secrets.CF_API }}
+          CF_ORG: ${{ secrets.CF_ORG }}
+          CF_SPACE: ${{ secrets.CF_SPACE }}
+          CF_USERNAME: ${{ secrets.CF_USERNAME }}
+          CF_PASSWORD: ${{ secrets.CF_PASSWORD }}
+        run: |
+          test -n "$ALM_USERNAME" || (echo "ALM_USERNAME is missing" && exit 1)
+          test -n "$ALM_PASSWORD" || (echo "ALM_PASSWORD is missing" && exit 1)
+          test -n "$ALM_OAUTH_URL" || (echo "ALM_OAUTH_URL is missing" && exit 1)
+          test -n "$ALM_API_URL" || (echo "ALM_API_URL is missing" && exit 1)
+
+          test -n "$CF_API" || (echo "CF_API is missing" && exit 1)
+          test -n "$CF_ORG" || (echo "CF_ORG is missing" && exit 1)
+          test -n "$CF_SPACE" || (echo "CF_SPACE is missing" && exit 1)
+          test -n "$CF_USERNAME" || (echo "CF_USERNAME is missing" && exit 1)
+          test -n "$CF_PASSWORD" || (echo "CF_PASSWORD is missing" && exit 1)
+
+          echo "All required secrets are available."
+          echo "ALM_OAUTH_URL prefix:"
+          echo "$ALM_OAUTH_URL" | cut -c1-8
+          echo "ALM_API_URL prefix:"
+          echo "$ALM_API_URL" | cut -c1-8
+          echo "CF_API=$CF_API"
+          echo "CF_SPACE=$CF_SPACE"
+          echo "CF username is set."
 
       - name: Run ALM configuration logs poller
         if: steps.biweekly.outputs.run_job == 'true'
@@ -90,26 +120,6 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y cf8-cli
           cf version
-
-      - name: Validate Cloud Foundry secrets are available
-        if: steps.biweekly.outputs.run_job == 'true'
-        env:
-          CF_API: ${{ secrets.CF_API }}
-          CF_ORG: ${{ secrets.CF_ORG }}
-          CF_SPACE: ${{ secrets.CF_SPACE }}
-          CF_USERNAME: ${{ secrets.CF_USERNAME }}
-          CF_PASSWORD: ${{ secrets.CF_PASSWORD }}
-        run: |
-          test -n "$CF_API" || (echo "CF_API is missing" && exit 1)
-          test -n "$CF_ORG" || (echo "CF_ORG is missing" && exit 1)
-          test -n "$CF_SPACE" || (echo "CF_SPACE is missing" && exit 1)
-          test -n "$CF_USERNAME" || (echo "CF_USERNAME is missing" && exit 1)
-          test -n "$CF_PASSWORD" || (echo "CF_PASSWORD is missing" && exit 1)
-
-          echo "Cloud Foundry secrets are available."
-          echo "Target API: $CF_API"
-          echo "Target space: $CF_SPACE"
-          echo "Username is set."
 
       - name: Login to Cloud Foundry
         if: steps.biweekly.outputs.run_job == 'true'
