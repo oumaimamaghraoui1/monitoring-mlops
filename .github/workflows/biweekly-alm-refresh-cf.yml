@@ -10,7 +10,7 @@ on:
 jobs:
   refresh-and-deploy:
     runs-on: ubuntu-latest
-    environment: Dev
+    environment: biweekly-alm-refresh-cf
 
     steps:
       - name: Checkout repository
