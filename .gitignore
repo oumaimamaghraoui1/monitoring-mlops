@@ -135,3 +135,24 @@ sap_ai_recommender/.DS_Store
 sap_ai_recommender/.idea/
 sap_ai_recommender/.vscode/
 
+cat >> .gitignore <<'EOF'
+
+# Local environments
+**/venv/
+**/.venv/
+**/__pycache__/
+**/*.pyc
+
+# MLOps/raw runtime data
+monitoring-backend/mlops/venv/
+monitoring-backend/mlops/data/raw/
+monitoring-backend/mlops/data/**/*.json
+monitoring-backend/mlops/data/**/*.csv
+monitoring-backend/mlops/data/**/*.parquet
+
+# Secrets/env/local files
+.env
+**/.env
+*.log
+node_modules/
+EOF
