@@ -299,7 +299,21 @@ async function pollOnce() {
 
 async function main() {
   await pollOnce();
+
+  const runOnce =
+    process.env.POLLER_MODE === "once" ||
+    process.argv.includes("--once");
+
+  if (runOnce) {
+    console.log("[POLL] One-shot mode completed.");
+    return;
+  }
+
+  console.log("[POLL] Daemon mode enabled.");
   setInterval(pollOnce, POLL_INTERVAL_MS);
 }
 
-main().catch(console.error);
+main().catch(function (err) {
+  console.error(err);
+  process.exit(1);
+});

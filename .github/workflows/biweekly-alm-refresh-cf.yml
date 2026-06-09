@@ -1,0 +1,137 @@
+name: Biweekly ALM Logs Refresh and Cloud Foundry Push
+
+on:
+  workflow_dispatch:
+  schedule:
+    # TEST MODE: runs every 5 minutes.
+    # GitHub Actions scheduled workflows use UTC cron.
+    - cron: "*/5 * * * *"
+
+jobs:
+  refresh-and-deploy:
+    runs-on: ubuntu-latest
+
+    # Important if you added the values as GitHub Environment secrets.
+    # Replace "Dev" with the exact GitHub Environment name if different.
+    environment: Dev
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Test mode - always run
+        id: biweekly
+        run: |
+          echo "run_job=true" >> "$GITHUB_OUTPUT"
+          echo "TEST MODE: running job now."
+
+      - name: Setup Node.js
+        if: steps.biweekly.outputs.run_job == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install backend dependencies
+        if: steps.biweekly.outputs.run_job == 'true'
+        working-directory: monitoring-backend
+        run: npm ci --ignore-scripts
+
+      - name: Setup Python
+        if: steps.biweekly.outputs.run_job == 'true'
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Prepare ML virtual environment expected by pollers
+        if: steps.biweekly.outputs.run_job == 'true'
+        working-directory: monitoring-backend
+        run: |
+          python -m venv mlops/venv
+          mlops/venv/bin/pip install --upgrade pip
+          mlops/venv/bin/pip install -r mlops/requirements.txt
+
+      - name: Run ALM configuration logs poller
+        if: steps.biweekly.outputs.run_job == 'true'
+        working-directory: monitoring-backend
+        env:
+          POLLER_MODE: once
+          ALM_USERNAME: ${{ secrets.ALM_USERNAME }}
+          ALM_PASSWORD: ${{ secrets.ALM_PASSWORD }}
+          ALM_OAUTH_URL: ${{ secrets.ALM_OAUTH_URL }}
+          ALM_API_URL: ${{ secrets.ALM_API_URL }}
+        run: |
+          node src/services/full-log-poller.js --once
+
+      - name: Run ALM security events poller
+        if: steps.biweekly.outputs.run_job == 'true'
+        working-directory: monitoring-backend
+        env:
+          POLLER_MODE: once
+          ALM_USERNAME: ${{ secrets.ALM_USERNAME }}
+          ALM_PASSWORD: ${{ secrets.ALM_PASSWORD }}
+          ALM_OAUTH_URL: ${{ secrets.ALM_OAUTH_URL }}
+          ALM_API_URL: ${{ secrets.ALM_API_URL }}
+        run: |
+          node src/services/security-events-poller.js --once
+
+      - name: Check generated log files
+        if: steps.biweekly.outputs.run_job == 'true'
+        working-directory: monitoring-backend
+        run: |
+          echo "Generated files:"
+          ls -lh data/all_config_logs.json || true
+          ls -lh data/security_events.json || true
+
+      - name: Install Cloud Foundry CLI
+        if: steps.biweekly.outputs.run_job == 'true'
+        run: |
+          wget -q -O - https://packages.cloudfoundry.org/debian/cli.cloudfoundry.org.key | sudo apt-key add -
+          echo "deb https://packages.cloudfoundry.org/debian stable main" | sudo tee /etc/apt/sources.list.d/cloudfoundry-cli.list
+          sudo apt-get update
+          sudo apt-get install -y cf8-cli
+          cf version
+
+      - name: Validate Cloud Foundry secrets are available
+        if: steps.biweekly.outputs.run_job == 'true'
+        env:
+          CF_API: ${{ secrets.CF_API }}
+          CF_ORG: ${{ secrets.CF_ORG }}
+          CF_SPACE: ${{ secrets.CF_SPACE }}
+          CF_USERNAME: ${{ secrets.CF_USERNAME }}
+          CF_PASSWORD: ${{ secrets.CF_PASSWORD }}
+        run: |
+          test -n "$CF_API" || (echo "CF_API is missing" && exit 1)
+          test -n "$CF_ORG" || (echo "CF_ORG is missing" && exit 1)
+          test -n "$CF_SPACE" || (echo "CF_SPACE is missing" && exit 1)
+          test -n "$CF_USERNAME" || (echo "CF_USERNAME is missing" && exit 1)
+          test -n "$CF_PASSWORD" || (echo "CF_PASSWORD is missing" && exit 1)
+
+          echo "Cloud Foundry secrets are available."
+          echo "Target API: $CF_API"
+          echo "Target space: $CF_SPACE"
+          echo "Username is set."
+
+      - name: Login to Cloud Foundry
+        if: steps.biweekly.outputs.run_job == 'true'
+        env:
+          CF_API: ${{ secrets.CF_API }}
+          CF_ORG: ${{ secrets.CF_ORG }}
+          CF_SPACE: ${{ secrets.CF_SPACE }}
+          CF_USERNAME: ${{ secrets.CF_USERNAME }}
+          CF_PASSWORD: ${{ secrets.CF_PASSWORD }}
+        run: |
+          cf api "$CF_API"
+          cf auth "$CF_USERNAME" "$CF_PASSWORD"
+          cf target -o "$CF_ORG" -s "$CF_SPACE"
+
+      - name: Push updated backend with refreshed logs
+        if: steps.biweekly.outputs.run_job == 'true'
+        working-directory: monitoring-backend
+        run: |
+          cf push monitoring-backend -f manifest.yml
+          cf app monitoring-backend
+
+      - name: Smoke test backend
+        if: steps.biweekly.outputs.run_job == 'true'
+        run: |
+          curl -f https://monitoring-backend.cfapps.eu10-004.hana.ondemand.com/health || true
