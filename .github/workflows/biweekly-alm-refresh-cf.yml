@@ -168,6 +168,21 @@ jobs:
           echo "full-log-poller.js failed after 3 attempts"
           exit 1
 
+      - name: Run Risk scoring pipeline synchronously
+        if: steps.biweekly.outputs.run_job == 'true'
+        working-directory: monitoring-backend
+        run: |
+          echo "Running Risk scoring pipeline synchronously..."
+
+          mlops/venv/bin/python mlops/pipelines/01_normalize_logs.py
+          mlops/venv/bin/python mlops/pipelines/02_build_features.py
+          mlops/venv/bin/python mlops/inference/score_event.py
+
+          echo "Risk scoring pipeline completed."
+
+          echo "Searching generated scored/risk files..."
+          find . -maxdepth 6 -type f \( -iname "*score*" -o -iname "*scored*" -o -iname "*risk*" \) -print -exec ls -lh {} \; || true
+
       - name: Run ALM security events poller
         if: steps.biweekly.outputs.run_job == 'true'
         working-directory: monitoring-backend
@@ -197,7 +212,22 @@ jobs:
           echo "security-events-poller.js failed after 3 attempts"
           exit 1
 
-      - name: Check generated log files after pollers
+      - name: Run Security UEBA pipeline synchronously
+        if: steps.biweekly.outputs.run_job == 'true'
+        working-directory: monitoring-backend
+        run: |
+          echo "Running Security UEBA pipeline synchronously..."
+
+          mlops/venv/bin/python mlops/security/02_build_security_features.py
+          mlops/venv/bin/python mlops/training/security_train.py
+          mlops/venv/bin/python mlops/inference/security_score.py
+
+          echo "Security UEBA pipeline completed."
+
+          echo "Searching generated security score files..."
+          find . -maxdepth 6 -type f \( -iname "*security*" -o -iname "*ueba*" -o -iname "*score*" \) -print -exec ls -lh {} \; || true
+
+      - name: Check generated log files after pollers and ML pipelines
         if: steps.biweekly.outputs.run_job == 'true'
         working-directory: monitoring-backend
         run: |
@@ -208,6 +238,9 @@ jobs:
           echo "Generated record counts:"
           node -e "const fs=require('fs'); const a=JSON.parse(fs.readFileSync('data/security_events.json','utf8')); console.log('security_events:', Array.isArray(a) ? a.length : 'not array')"
           node -e "const fs=require('fs'); const a=JSON.parse(fs.readFileSync('data/all_config_logs.json','utf8')); console.log('all_config_logs:', Array.isArray(a) ? a.length : 'not array')"
+
+          echo "Checking audit scored endpoint source files if present..."
+          find . -maxdepth 6 -type f \( -iname "*scored*" -o -iname "*score*" -o -iname "*risk*" \) -print -exec ls -lh {} \; || true
 
       - name: Install Cloud Foundry CLI
         if: steps.biweekly.outputs.run_job == 'true'
@@ -242,3 +275,10 @@ jobs:
         if: steps.biweekly.outputs.run_job == 'true'
         run: |
           curl -f "https://monitoring-backend.cfapps.eu10-004.hana.ondemand.com/health" || true
+
+      - name: Smoke test risk scored endpoint
+        if: steps.biweekly.outputs.run_job == 'true'
+        run: |
+          echo "Checking /audit/scored after deployment..."
+          curl -sS "https://monitoring-backend.cfapps.eu10-004.hana.ondemand.com/audit/scored" \
+            | node -e "let s='';process.stdin.on('data',d=>s+=d);process.stdin.on('end',()=>{const j=JSON.parse(s); console.log('audit scored logs:', Array.isArray(j.logs) ? j.logs.length : 'not array');})"
