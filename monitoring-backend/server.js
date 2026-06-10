@@ -2,7 +2,6 @@ import dotenv from "dotenv";
 import path from "path";
 import { fileURLToPath } from "url";
 import cfenv from "cfenv";
-
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -28,6 +27,7 @@ import riskExportRoutes from "./src/api/risk.export.routes.js";
 import securityExportRoutes from "./src/api/security.export.routes.js";
 import logsExportRoutes from "./src/api/logs.export.routes.js";
 import systemHealthExportRoutes from "./src/api/systemHealth.export.routes.js";
+import stateExportRoutes from "./src/api/state.export.routes.js";
 
 import {
   startSampling,
@@ -92,7 +92,8 @@ app.use(logsExportRoutes);
 app.get("/", (_req, res) => {
   res.send("Monitoring Backend is running");
 });
-
+//this is for ci weekly
+app.use("/internal/state", stateExportRoutes);
 // MOCK FAILURE ROUTES
 app.get("/burn", (req, res) => {
   res.send("CPU saturation ✅");

@@ -1,16 +1,20 @@
 name: Biweekly ALM Logs Refresh and Cloud Foundry Push
 
-on:
+"on":
   workflow_dispatch:
   schedule:
     # TEST MODE: runs every 5 minutes.
     # GitHub Actions scheduled workflows use UTC cron.
     - cron: "*/5 * * * *"
 
+concurrency:
+  group: biweekly-alm-refresh-cf
+  cancel-in-progress: false
+
 jobs:
   refresh-and-deploy:
     runs-on: ubuntu-latest
-    environment: biweekly-alm-refresh-cf secrets
+    environment: "biweekly-alm-refresh-cf secrets"
 
     steps:
       - name: Checkout repository
@@ -47,7 +51,7 @@ jobs:
           mlops/venv/bin/pip install --upgrade pip
           mlops/venv/bin/pip install -r mlops/requirements.txt
 
-      - name: Validate ALM and Cloud Foundry secrets are available
+      - name: Validate ALM, Cloud Foundry and state secrets are available
         if: steps.biweekly.outputs.run_job == 'true'
         env:
           ALM_USERNAME: ${{ secrets.ALM_USERNAME }}
@@ -59,6 +63,7 @@ jobs:
           CF_SPACE: ${{ secrets.CF_SPACE }}
           CF_USERNAME: ${{ secrets.CF_USERNAME }}
           CF_PASSWORD: ${{ secrets.CF_PASSWORD }}
+          STATE_EXPORT_TOKEN: ${{ secrets.STATE_EXPORT_TOKEN }}
         run: |
           test -n "$ALM_USERNAME" || (echo "ALM_USERNAME is missing" && exit 1)
           test -n "$ALM_PASSWORD" || (echo "ALM_PASSWORD is missing" && exit 1)
@@ -71,6 +76,8 @@ jobs:
           test -n "$CF_USERNAME" || (echo "CF_USERNAME is missing" && exit 1)
           test -n "$CF_PASSWORD" || (echo "CF_PASSWORD is missing" && exit 1)
 
+          test -n "$STATE_EXPORT_TOKEN" || (echo "STATE_EXPORT_TOKEN is missing" && exit 1)
+
           echo "All required secrets are available."
           echo "ALM_OAUTH_URL prefix:"
           echo "$ALM_OAUTH_URL" | cut -c1-8
@@ -79,6 +86,37 @@ jobs:
           echo "CF_API=$CF_API"
           echo "CF_SPACE=$CF_SPACE"
           echo "CF username is set."
+          echo "State export token is set."
+
+      - name: Seed full existing log state from deployed backend
+        if: steps.biweekly.outputs.run_job == 'true'
+        working-directory: monitoring-backend
+        env:
+          STATE_EXPORT_TOKEN: ${{ secrets.STATE_EXPORT_TOKEN }}
+        run: |
+          mkdir -p data
+
+          BACKEND_URL="https://monitoring-backend.cfapps.eu10-004.hana.ondemand.com"
+
+          echo "Downloading full existing security events state..."
+          curl -f -sS \
+            -H "X-State-Token: $STATE_EXPORT_TOKEN" \
+            "$BACKEND_URL/internal/state/security-events" \
+            -o data/security_events.json
+
+          echo "Downloading full existing config logs state..."
+          curl -f -sS \
+            -H "X-State-Token: $STATE_EXPORT_TOKEN" \
+            "$BACKEND_URL/internal/state/config-logs" \
+            -o data/all_config_logs.json
+
+          echo "Seeded files:"
+          ls -lh data/security_events.json || true
+          ls -lh data/all_config_logs.json || true
+
+          echo "Seeded record counts:"
+          node -e "const fs=require('fs'); const a=JSON.parse(fs.readFileSync('data/security_events.json','utf8')); console.log('security_events:', Array.isArray(a) ? a.length : 'not array')"
+          node -e "const fs=require('fs'); const a=JSON.parse(fs.readFileSync('data/all_config_logs.json','utf8')); console.log('all_config_logs:', Array.isArray(a) ? a.length : 'not array')"
 
       - name: Run ALM configuration logs poller
         if: steps.biweekly.outputs.run_job == 'true'
@@ -90,7 +128,24 @@ jobs:
           ALM_OAUTH_URL: ${{ secrets.ALM_OAUTH_URL }}
           ALM_API_URL: ${{ secrets.ALM_API_URL }}
         run: |
-          node src/services/full-log-poller.js --once
+          for attempt in 1 2 3; do
+            echo "Running full-log-poller.js attempt $attempt/3"
+
+            if node src/services/full-log-poller.js --once; then
+              echo "full-log-poller.js succeeded"
+              exit 0
+            fi
+
+            echo "full-log-poller.js failed on attempt $attempt"
+
+            if [ "$attempt" -lt 3 ]; then
+              echo "Waiting before retry..."
+              sleep 30
+            fi
+          done
+
+          echo "full-log-poller.js failed after 3 attempts"
+          exit 1
 
       - name: Run ALM security events poller
         if: steps.biweekly.outputs.run_job == 'true'
@@ -102,15 +157,36 @@ jobs:
           ALM_OAUTH_URL: ${{ secrets.ALM_OAUTH_URL }}
           ALM_API_URL: ${{ secrets.ALM_API_URL }}
         run: |
-          node src/services/security-events-poller.js --once
+          for attempt in 1 2 3; do
+            echo "Running security-events-poller.js attempt $attempt/3"
 
-      - name: Check generated log files
+            if node src/services/security-events-poller.js --once; then
+              echo "security-events-poller.js succeeded"
+              exit 0
+            fi
+
+            echo "security-events-poller.js failed on attempt $attempt"
+
+            if [ "$attempt" -lt 3 ]; then
+              echo "Waiting before retry..."
+              sleep 30
+            fi
+          done
+
+          echo "security-events-poller.js failed after 3 attempts"
+          exit 1
+
+      - name: Check generated log files after pollers
         if: steps.biweekly.outputs.run_job == 'true'
         working-directory: monitoring-backend
         run: |
           echo "Generated files:"
           ls -lh data/all_config_logs.json || true
           ls -lh data/security_events.json || true
+
+          echo "Generated record counts:"
+          node -e "const fs=require('fs'); const a=JSON.parse(fs.readFileSync('data/security_events.json','utf8')); console.log('security_events:', a.length)"
+          node -e "const fs=require('fs'); const a=JSON.parse(fs.readFileSync('data/all_config_logs.json','utf8')); console.log('all_config_logs:', a.length)"
 
       - name: Install Cloud Foundry CLI
         if: steps.biweekly.outputs.run_job == 'true'
@@ -144,4 +220,4 @@ jobs:
       - name: Smoke test backend
         if: steps.biweekly.outputs.run_job == 'true'
         run: |
-          curl -f https://monitoring-backend.cfapps.eu10-004.hana.ondemand.com/health || true
+          curl -f "https://monitoring-backend.cfapps.eu10-004.hana.ondemand.com/health" || true
