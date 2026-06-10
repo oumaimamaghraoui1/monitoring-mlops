@@ -174,8 +174,26 @@ jobs:
         run: |
           echo "Running Risk scoring pipeline synchronously..."
 
+          echo "Step 1 - Normalize logs"
           mlops/venv/bin/python mlops/pipelines/01_normalize_logs.py
+
+          echo "Step 2 - Build ML features"
           mlops/venv/bin/python mlops/pipelines/02_build_features.py
+
+          echo "Step 3 - Train Isolation Forest model"
+          mlops/venv/bin/python mlops/training/train_isolation_forest.py
+
+          echo "Step 4 - Verify Isolation Forest model exists"
+          if [ ! -f "mlops/models/anomaly/isolation_forest.joblib" ]; then
+            echo "ERROR: Missing mlops/models/anomaly/isolation_forest.joblib after training."
+            echo "Available model files:"
+            find mlops -maxdepth 6 -type f \( -iname "*.joblib" -o -iname "*.pkl" -o -iname "*model*" \) -print -exec ls -lh {} \; || true
+            exit 1
+          fi
+
+          ls -lh mlops/models/anomaly/isolation_forest.joblib
+
+          echo "Step 5 - Score audit/config events"
           mlops/venv/bin/python mlops/inference/score_event.py
 
           echo "Risk scoring pipeline completed."
@@ -280,5 +298,7 @@ jobs:
         if: steps.biweekly.outputs.run_job == 'true'
         run: |
           echo "Checking /audit/scored after deployment..."
-          curl -sS "https://monitoring-backend.cfapps.eu10-004.hana.ondemand.com/audit/scored" \
-            | node -e "let s='';process.stdin.on('data',d=>s+=d);process.stdin.on('end',()=>{const j=JSON.parse(s); console.log('audit scored logs:', Array.isArray(j.logs) ? j.logs.length : 'not array');})"
+          curl -f -sS "https://monitoring-backend.cfapps.eu10-004.hana.ondemand.com/audit/scored" \
+            -o /tmp/audit-scored.json
+
+          node -e "const fs=require('fs'); const j=JSON.parse(fs.readFileSync('/tmp/audit-scored.json','utf8')); console.log('audit scored logs:', Array.isArray(j.logs) ? j.logs.length : 'not array');"
