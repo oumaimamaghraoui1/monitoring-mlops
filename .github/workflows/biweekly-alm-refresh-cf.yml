@@ -3,9 +3,11 @@ name: Biweekly ALM Logs Refresh and Cloud Foundry Push
 "on":
   workflow_dispatch:
   schedule:
-    # TEST MODE: runs every 5 minutes.
-    # GitHub Actions scheduled workflows use UTC cron.
-    - cron: "*/5 * * * *"
+    # PRODUCTION MODE:
+    # Runs every Monday at 02:15 UTC.
+    # The script below keeps only even ISO weeks,
+    # so the effective execution is once every two weeks.
+    - cron: "15 2 * * 1"
 
 concurrency:
   group: biweekly-alm-refresh-cf
@@ -20,11 +22,30 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Test mode - always run
+      - name: Run only every second ISO week
         id: biweekly
+        env:
+          EVENT_NAME: ${{ github.event_name }}
         run: |
-          echo "run_job=true" >> "$GITHUB_OUTPUT"
-          echo "TEST MODE: running job now."
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            echo "run_job=true" >> "$GITHUB_OUTPUT"
+            echo "Manual run detected. Running job now."
+            exit 0
+          fi
+
+          WEEK=$(date -u +%V)
+          MOD=$((10#$WEEK % 2))
+
+          echo "Current ISO week: $WEEK"
+          echo "Modulo: $MOD"
+
+          if [ "$MOD" -eq 0 ]; then
+            echo "run_job=true" >> "$GITHUB_OUTPUT"
+            echo "Execution week."
+          else
+            echo "run_job=false" >> "$GITHUB_OUTPUT"
+            echo "Skipping this week because this is not the configured biweekly cycle."
+          fi
 
       - name: Setup Node.js
         if: steps.biweekly.outputs.run_job == 'true'
@@ -185,8 +206,8 @@ jobs:
           ls -lh data/security_events.json || true
 
           echo "Generated record counts:"
-          node -e "const fs=require('fs'); const a=JSON.parse(fs.readFileSync('data/security_events.json','utf8')); console.log('security_events:', a.length)"
-          node -e "const fs=require('fs'); const a=JSON.parse(fs.readFileSync('data/all_config_logs.json','utf8')); console.log('all_config_logs:', a.length)"
+          node -e "const fs=require('fs'); const a=JSON.parse(fs.readFileSync('data/security_events.json','utf8')); console.log('security_events:', Array.isArray(a) ? a.length : 'not array')"
+          node -e "const fs=require('fs'); const a=JSON.parse(fs.readFileSync('data/all_config_logs.json','utf8')); console.log('all_config_logs:', Array.isArray(a) ? a.length : 'not array')"
 
       - name: Install Cloud Foundry CLI
         if: steps.biweekly.outputs.run_job == 'true'
