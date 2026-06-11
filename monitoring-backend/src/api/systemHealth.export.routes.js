@@ -235,13 +235,35 @@ router.post("/export/pdf", function (req, res) {
   try {
     let payload = req.body || {};
 
+    console.log("[SYSTEM HEALTH PDF EXPORT] content-type:", req.headers["content-type"]);
+    console.log("[SYSTEM HEALTH PDF EXPORT] body keys:", Object.keys(payload || {}));
+
     if (payload && typeof payload.payload === "string") {
-      payload = JSON.parse(payload.payload);
+      try {
+        payload = JSON.parse(payload.payload);
+      } catch (parseErr) {
+        console.error("[SYSTEM HEALTH PDF EXPORT] Failed to parse form payload:", parseErr);
+        return res.status(400).send("Invalid PDF payload");
+      }
+    }
+
+    if (!payload || typeof payload !== "object") {
+      console.error("[SYSTEM HEALTH PDF EXPORT] Missing payload:", payload);
+      return res.status(400).send("Missing PDF payload");
+    }
+
+    if (!payload.runtime || Object.keys(payload.runtime || {}).length === 0) {
+      console.error("[SYSTEM HEALTH PDF EXPORT] Empty runtime payload received:", payload);
+      return res.status(400).send("Empty runtime payload received by PDF export");
     }
 
     const runtime = payload.runtime || {};
     const operations = payload.operations || {};
     const events = Array.isArray(payload.events) ? payload.events : [];
+
+    console.log("[SYSTEM HEALTH PDF EXPORT] runtime received:", runtime);
+    console.log("[SYSTEM HEALTH PDF EXPORT] operations received:", operations);
+    console.log("[SYSTEM HEALTH PDF EXPORT] events count:", events.length);
 
     const cpu = Number(runtime.cpu || 0);
     const rss = Number(runtime.rss || 0);

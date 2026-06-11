@@ -1113,16 +1113,17 @@ onResetAll: function () {
   );
 },
 onDownloadPdfSummary: function () {
-  var API_BASE = "/backend";
-  var modelData = this.getView().getModel("metrics").getData() || {};
+  const API_BASE = "/backend";
+  const modelData = this.getView().getModel("metrics").getData() || {};
 
   console.log("[PDF EXPORT] modelData:", modelData);
 
-  var payload = {
+  const payload = {
+    exportedAt: new Date().toISOString(),
     runtime: {
       cpu: Number(modelData.cpu || 0),
       rss: Number(modelData.rss || 0),
-      responseTimeMs: Number(modelData.responseTimeMs || 0),
+      responseTimeMs: Number(modelData.responseTimeMs || modelData.lastRequestLatency || 0),
       gcTimeMs: Number(modelData.gcTimeMs || 0),
       heapGrowthRate: Number(modelData.heapGrowthRate || 0),
       healthScore: Number(modelData.healthScore || 0),
@@ -1137,27 +1138,41 @@ onDownloadPdfSummary: function () {
 
   console.log("[PDF EXPORT] payload:", payload);
 
-  var form = document.createElement("form");
-  form.method = "POST";
-  form.action = API_BASE + "/metrics/export/pdf";
-  form.target = "_blank";
-  form.enctype = "application/x-www-form-urlencoded";
-  form.style.display = "none";
+  fetch(API_BASE + "/metrics/export/pdf", {
+    method: "POST",
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(payload)
+  })
+    .then(function (response) {
+      if (!response.ok) {
+        return response.text().then(function (text) {
+          throw new Error("PDF export failed with HTTP " + response.status + ": " + text);
+        });
+      }
 
-  var textarea = document.createElement("textarea");
-  textarea.name = "payload";
-  textarea.value = JSON.stringify(payload);
+      return response.blob();
+    })
+    .then(function (blob) {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
 
-  form.appendChild(textarea);
-  document.body.appendChild(form);
+      a.href = url;
+      a.download = "backend-health-ai-summary.pdf";
+      document.body.appendChild(a);
+      a.click();
 
-  form.submit();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
 
-  setTimeout(function () {
-    document.body.removeChild(form);
-  }, 1000);
-
-  MessageToast.show("PDF generation started");
+      MessageToast.show("PDF summary downloaded");
+    })
+    .catch(function (err) {
+      console.error("[PDF EXPORT] failed:", err);
+      MessageBox.error("PDF export failed: " + err.message);
+    });
 },
 
     _buildPdfRecommendation: function (modelData) {

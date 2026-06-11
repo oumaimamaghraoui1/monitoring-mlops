@@ -1,0 +1,70 @@
+{
+  "xsappname": "monitoring-backend",
+  "tenant-mode": "dedicated",
+  "scopes": [
+    {
+      "name": "$XSAPPNAME.Admin",
+      "description": "Full administration access to the Monitoring Intelligence Suite"
+    },
+    {
+      "name": "$XSAPPNAME.Viewer",
+      "description": "Read-only access to dashboards and monitoring data"
+    },
+    {
+      "name": "$XSAPPNAME.SecurityAnalyst",
+      "description": "Access to security events and UEBA monitoring"
+    },
+    {
+      "name": "$XSAPPNAME.RiskAnalyst",
+      "description": "Access to AI risk monitoring and anomaly scoring"
+    },
+    {
+      "name": "$XSAPPNAME.OperationsAnalyst",
+      "description": "Access to system health, logs and operational monitoring"
+    }
+  ],
+  "role-templates": [
+    {
+      "name": "MonitoringAdmin",
+      "description": "Full administration role for the Monitoring Intelligence Suite",
+      "scope-references": [
+        "$XSAPPNAME.Admin",
+        "$XSAPPNAME.Viewer",
+        "$XSAPPNAME.SecurityAnalyst",
+        "$XSAPPNAME.RiskAnalyst",
+        "$XSAPPNAME.OperationsAnalyst"
+      ]
+    },
+    {
+      "name": "MonitoringViewer",
+      "description": "Read-only role for dashboards and monitoring data",
+      "scope-references": [
+        "$XSAPPNAME.Viewer"
+      ]
+    },
+    {
+      "name": "SecurityAnalyst",
+      "description": "Role for security events and UEBA monitoring",
+      "scope-references": [
+        "$XSAPPNAME.Viewer",
+        "$XSAPPNAME.SecurityAnalyst"
+      ]
+    },
+    {
+      "name": "RiskAnalyst",
+      "description": "Role for AI risk monitoring and anomaly scoring",
+      "scope-references": [
+        "$XSAPPNAME.Viewer",
+        "$XSAPPNAME.RiskAnalyst"
+      ]
+    },
+    {
+      "name": "OperationsAnalyst",
+      "description": "Role for system health, logs and operational monitoring",
+      "scope-references": [
+        "$XSAPPNAME.Viewer",
+        "$XSAPPNAME.OperationsAnalyst"
+      ]
+    }
+  ]
+}

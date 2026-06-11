@@ -42,11 +42,12 @@
             <VBox class="sapUiContentPadding riskContent">
 
                 <!-- Intro -->
-                <MessageStrip
-                    text="Monitor AI-related operational risk levels, weekly trends, anomaly distribution, and affected role/activity patterns."
-                    type="Information"
-                    showIcon="true"
-                    class="sapUiSmallMarginBottom riskIntroStrip" />
+                <VBox class="sapUiSmallMarginBottom">
+    <MessageStrip
+        text="Monitor AI-related operational risk levels, weekly trends, anomaly distribution, and affected role/activity patterns."
+        type="Information"
+        showIcon="true" />
+</VBox>
 
                 <!-- ================= KPI ================= -->
                 <HBox
