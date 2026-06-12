@@ -12,6 +12,13 @@
 
     <headerContent>
       <Button text="Refresh" icon="sap-icon://refresh" type="Emphasized" press=".onRefresh"/>
+      
+<Button
+        id="HealthBtnGoAudit"
+        text="Audit Logs"
+        icon="sap-icon://activity-items"
+        press=".onGoAudit" />
+
       <Button text="Security Events" icon="sap-icon://shield" press=".onGoSecurity"/>
       <Button text="AI Risk Monitor" icon="sap-icon://ai" press=".goRisk"/>
       <Button text="Basis Intelligence" icon="sap-icon://lightbulb" type="Accept" press=".goKmeans"/>

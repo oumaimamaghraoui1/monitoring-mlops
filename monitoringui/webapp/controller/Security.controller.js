@@ -958,7 +958,11 @@ sap.ui.define([
     onBack: function () {
       this.getOwnerComponent().getRouter().navTo("logs", {}, false);
     },
-
+onGoAudit: function () {
+  this.getOwnerComponent()
+    .getRouter()
+    .navTo("logs", {}, false);
+},
     onGoDataChanges: function () {
       this.getOwnerComponent().getRouter().navTo("datachanges", {}, false);
     },

@@ -21,6 +21,13 @@
                 type="Emphasized"
                 press=".onRefresh" />
 
+<Button
+        id="riskBtnGoAudit"
+        text="Audit Logs"
+        icon="sap-icon://activity-items"
+        press=".onGoAudit" />
+
+
             <Button
                 text="Security Events"
                 icon="sap-icon://shield"

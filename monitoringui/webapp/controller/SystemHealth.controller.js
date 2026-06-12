@@ -1372,7 +1372,11 @@ onResetAll: function () {
     goKmeans: function () {
       this.getOwnerComponent().getRouter().navTo("kmeans", {}, false);
     },
-    
+    onGoAudit: function () {
+  this.getOwnerComponent()
+    .getRouter()
+    .navTo("logs", {}, false);
+},
 
     onExit: function () {
       if (this._interval) {

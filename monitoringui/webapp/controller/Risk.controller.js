@@ -597,6 +597,11 @@ sap.ui.define([
         .getRouter()
         .navTo("datachanges");
     },
+    onGoAudit: function () {
+  this.getOwnerComponent()
+    .getRouter()
+    .navTo("logs", {}, false);
+},
 
     onGoSystemHealth: function () {
       this.getOwnerComponent()
