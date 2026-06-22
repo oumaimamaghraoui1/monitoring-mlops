@@ -51,7 +51,9 @@ jobs:
         if: steps.biweekly.outputs.run_job == 'true'
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
+          cache: npm
+          cache-dependency-path: monitoring-backend/package-lock.json
 
       - name: Install backend dependencies
         if: steps.biweekly.outputs.run_job == 'true'
@@ -183,15 +185,12 @@ jobs:
           echo "Step 3 - Train Isolation Forest model"
           mlops/venv/bin/python mlops/training/train_isolation_forest.py
 
-          echo "Step 4 - Verify Isolation Forest model exists"
-          if [ ! -f "mlops/models/anomaly/isolation_forest.joblib" ]; then
-            echo "ERROR: Missing mlops/models/anomaly/isolation_forest.joblib after training."
-            echo "Available model files:"
-            find mlops -maxdepth 6 -type f \( -iname "*.joblib" -o -iname "*.pkl" -o -iname "*model*" \) -print -exec ls -lh {} \; || true
-            exit 1
-          fi
+          echo "Step 4 - Verify Isolation Forest and scaler exist"
+          test -f "mlops/models/anomaly/isolation_forest.joblib" || (echo "Missing isolation_forest.joblib" && exit 1)
+          test -f "mlops/models/anomaly/scaler.joblib" || (echo "Missing scaler.joblib" && exit 1)
 
           ls -lh mlops/models/anomaly/isolation_forest.joblib
+          ls -lh mlops/models/anomaly/scaler.joblib
 
           echo "Step 5 - Score audit/config events"
           mlops/venv/bin/python mlops/inference/score_event.py
@@ -238,6 +237,14 @@ jobs:
 
           mlops/venv/bin/python mlops/security/02_build_security_features.py
           mlops/venv/bin/python mlops/training/security_train.py
+
+          echo "Verify security model files exist"
+          test -f "mlops/models/anomaly/security_if.joblib" || (echo "Missing security_if.joblib" && exit 1)
+          test -f "mlops/models/anomaly/security_scaler.joblib" || (echo "Missing security_scaler.joblib" && exit 1)
+
+          ls -lh mlops/models/anomaly/security_if.joblib
+          ls -lh mlops/models/anomaly/security_scaler.joblib
+
           mlops/venv/bin/python mlops/inference/security_score.py
 
           echo "Security UEBA pipeline completed."
@@ -252,6 +259,8 @@ jobs:
           echo "Generated files:"
           ls -lh data/all_config_logs.json || true
           ls -lh data/security_events.json || true
+          ls -lh data/scored_snapshot.json || true
+          ls -lh data/security_scored_snapshot.json || true
 
           echo "Generated record counts:"
           node -e "const fs=require('fs'); const a=JSON.parse(fs.readFileSync('data/security_events.json','utf8')); console.log('security_events:', Array.isArray(a) ? a.length : 'not array')"
@@ -288,6 +297,12 @@ jobs:
             "record_counts": {
               "security_events": ${SECURITY_COUNT},
               "config_logs": ${CONFIG_COUNT}
+            },
+            "models": {
+              "risk_model": "mlops/models/anomaly/isolation_forest.joblib",
+              "risk_scaler": "mlops/models/anomaly/scaler.joblib",
+              "security_model": "mlops/models/anomaly/security_if.joblib",
+              "security_scaler": "mlops/models/anomaly/security_scaler.joblib"
             }
           }
           EOF
@@ -310,8 +325,22 @@ jobs:
               "artifacts/models/isolation_forest_run${GITHUB_RUN_NUMBER}_${SHORT_SHA}.joblib"
           fi
 
-          find mlops -type f \( -iname "*.joblib" -o -iname "*.pkl" \) -print || true
-          ls -R artifacts/models || true
+          if [ -f "mlops/models/anomaly/scaler.joblib" ]; then
+            cp mlops/models/anomaly/scaler.joblib \
+              "artifacts/models/scaler_run${GITHUB_RUN_NUMBER}_${SHORT_SHA}.joblib"
+          fi
+
+          if [ -f "mlops/models/anomaly/security_if.joblib" ]; then
+            cp mlops/models/anomaly/security_if.joblib \
+              "artifacts/models/security_if_run${GITHUB_RUN_NUMBER}_${SHORT_SHA}.joblib"
+          fi
+
+          if [ -f "mlops/models/anomaly/security_scaler.joblib" ]; then
+            cp mlops/models/anomaly/security_scaler.joblib \
+              "artifacts/models/security_scaler_run${GITHUB_RUN_NUMBER}_${SHORT_SHA}.joblib"
+          fi
+
+          find artifacts/models -type f -print -exec ls -lh {} \; || true
 
       - name: Collect pipeline outputs for artifact publishing
         if: steps.biweekly.outputs.run_job == 'true'
@@ -323,6 +352,11 @@ jobs:
 
           cp -f data/all_config_logs.json artifacts/data/ 2>/dev/null || true
           cp -f data/security_events.json artifacts/data/ 2>/dev/null || true
+          cp -f data/scored_snapshot.json artifacts/data/ 2>/dev/null || true
+          cp -f data/security_scored_snapshot.json artifacts/data/ 2>/dev/null || true
+          cp -f data/behaviour_baseline.json artifacts/data/ 2>/dev/null || true
+          cp -f data/role_alert_state.json artifacts/data/ 2>/dev/null || true
+
           cp -f manifest.yml artifacts/deployment/ 2>/dev/null || true
           cp -f package.json artifacts/deployment/ 2>/dev/null || true
           cp -f package-lock.json artifacts/deployment/ 2>/dev/null || true
@@ -392,3 +426,12 @@ jobs:
             -o /tmp/audit-scored.json
 
           node -e "const fs=require('fs'); const j=JSON.parse(fs.readFileSync('/tmp/audit-scored.json','utf8')); console.log('audit scored logs:', Array.isArray(j.logs) ? j.logs.length : 'not array');"
+
+      - name: Smoke test security endpoint
+        if: steps.biweekly.outputs.run_job == 'true'
+        run: |
+          echo "Checking /security/events after deployment..."
+          curl -f -sS "https://monitoring-backend.cfapps.eu10-004.hana.ondemand.com/security/events" \
+            -o /tmp/security-events.json || true
+
+          node -e "const fs=require('fs'); try { const j=JSON.parse(fs.readFileSync('/tmp/security-events.json','utf8')); console.log('security endpoint payload keys:', Object.keys(j)); } catch(e) { console.log('security endpoint payload unreadable or endpoint unavailable'); }"
