@@ -260,6 +260,96 @@ jobs:
           echo "Checking audit scored endpoint source files if present..."
           find . -maxdepth 6 -type f \( -iname "*scored*" -o -iname "*score*" -o -iname "*risk*" \) -print -exec ls -lh {} \; || true
 
+      - name: Build run manifest for versioning
+        if: steps.biweekly.outputs.run_job == 'true'
+        working-directory: monitoring-backend
+        env:
+          GITHUB_SHA: ${{ github.sha }}
+          GITHUB_REF_NAME: ${{ github.ref_name }}
+          GITHUB_RUN_ID: ${{ github.run_id }}
+          GITHUB_RUN_NUMBER: ${{ github.run_number }}
+        run: |
+          mkdir -p artifacts
+
+          ISO_WEEK=$(date -u +%V)
+          RUN_DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+
+          SECURITY_COUNT=$(node -e "const fs=require('fs'); try { const a=JSON.parse(fs.readFileSync('data/security_events.json','utf8')); process.stdout.write(String(Array.isArray(a)?a.length:0)); } catch(e){ process.stdout.write('0'); }")
+          CONFIG_COUNT=$(node -e "const fs=require('fs'); try { const a=JSON.parse(fs.readFileSync('data/all_config_logs.json','utf8')); process.stdout.write(String(Array.isArray(a)?a.length:0)); } catch(e){ process.stdout.write('0'); }")
+
+          cat > artifacts/run-manifest.json <<EOF
+          {
+            "run_id": "${GITHUB_RUN_ID}",
+            "run_number": "${GITHUB_RUN_NUMBER}",
+            "commit_sha": "${GITHUB_SHA}",
+            "branch": "${GITHUB_REF_NAME}",
+            "run_date_utc": "${RUN_DATE}",
+            "iso_week": "${ISO_WEEK}",
+            "record_counts": {
+              "security_events": ${SECURITY_COUNT},
+              "config_logs": ${CONFIG_COUNT}
+            }
+          }
+          EOF
+
+          echo "Generated manifest:"
+          cat artifacts/run-manifest.json
+
+      - name: Create versioned model copies
+        if: steps.biweekly.outputs.run_job == 'true'
+        working-directory: monitoring-backend
+        env:
+          GITHUB_SHA: ${{ github.sha }}
+          GITHUB_RUN_NUMBER: ${{ github.run_number }}
+        run: |
+          mkdir -p artifacts/models
+          SHORT_SHA=$(echo "$GITHUB_SHA" | cut -c1-7)
+
+          if [ -f "mlops/models/anomaly/isolation_forest.joblib" ]; then
+            cp mlops/models/anomaly/isolation_forest.joblib \
+              "artifacts/models/isolation_forest_run${GITHUB_RUN_NUMBER}_${SHORT_SHA}.joblib"
+          fi
+
+          find mlops -type f \( -iname "*.joblib" -o -iname "*.pkl" \) -print || true
+          ls -R artifacts/models || true
+
+      - name: Collect pipeline outputs for artifact publishing
+        if: steps.biweekly.outputs.run_job == 'true'
+        working-directory: monitoring-backend
+        run: |
+          mkdir -p artifacts/data
+          mkdir -p artifacts/outputs
+          mkdir -p artifacts/deployment
+
+          cp -f data/all_config_logs.json artifacts/data/ 2>/dev/null || true
+          cp -f data/security_events.json artifacts/data/ 2>/dev/null || true
+          cp -f manifest.yml artifacts/deployment/ 2>/dev/null || true
+          cp -f package.json artifacts/deployment/ 2>/dev/null || true
+          cp -f package-lock.json artifacts/deployment/ 2>/dev/null || true
+          cp -f mlops/requirements.txt artifacts/deployment/ 2>/dev/null || true
+
+          find . -maxdepth 6 -type f \( -iname "*score*" -o -iname "*scored*" -o -iname "*risk*" -o -iname "*ueba*" \) \
+            -exec cp --parents {} artifacts/outputs/ \; 2>/dev/null || true
+
+          echo "Artifact contents:"
+          find artifacts -type f | sort
+
+      - name: Generate checksums for artifacts
+        if: steps.biweekly.outputs.run_job == 'true'
+        working-directory: monitoring-backend
+        run: |
+          find artifacts -type f -exec sha256sum {} \; | sort > artifacts/SHA256SUMS.txt
+          cat artifacts/SHA256SUMS.txt
+
+      - name: Upload versioned ML and data artifacts
+        if: always() && steps.biweekly.outputs.run_job == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: mlops-artifacts-run-${{ github.run_number }}
+          path: monitoring-backend/artifacts
+          retention-days: 30
+          if-no-files-found: warn
+
       - name: Install Cloud Foundry CLI
         if: steps.biweekly.outputs.run_job == 'true'
         run: |
