@@ -1,4 +1,4 @@
-name: CI - Test and Train ML Baseline + RCA
+name: CI - Test and Validate
 
 on:
   push:
@@ -10,7 +10,6 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-
       # 1. Checkout repo
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -19,7 +18,9 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
+          cache: npm
+          cache-dependency-path: package-lock.json
 
       # 3. Install backend deps
       - name: Install dependencies
@@ -29,7 +30,7 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.10'
+          python-version: "3.10"
 
       - name: Install ML dependencies
         run: pip install -r monitoring-backend/mlops/requirements.txt
@@ -57,16 +58,16 @@ jobs:
         run: npm audit --audit-level=high
 
       # -------------------------------
-      # ANOMALY BASELINE PIPELINE
+      # ANOMALY BASELINE VALIDATION
       # -------------------------------
 
       - name: Create ML data folder
         run: mkdir -p monitoring-backend/data
 
-      - name: Train Behaviour Baseline
+      - name: Build behaviour baseline
         run: node monitoring-backend/src/services/build-baseline.js
 
-      - name: Validate baseline
+      - name: Validate behaviour baseline
         run: node monitoring-backend/src/services/validate-baseline.js
 
       - name: Test anomaly scoring
@@ -80,21 +81,14 @@ jobs:
           if-no-files-found: error
 
       # -------------------------------
-      # RCA ML PIPELINE
+      # RCA PIPELINE SMOKE TEST
       # -------------------------------
 
       - name: Generate RCA synthetic dataset
         run: python monitoring-backend/mlops/pipelines/generate_rca_ci_data.py
 
-      - name: Train RCA model
+      - name: Run RCA training smoke test on synthetic dataset
         run: python monitoring-backend/mlops/training/rca_train.py
 
       - name: Test RCA inference
         run: python monitoring-backend/mlops/inference/rca_predict.py
-
-      - name: Upload RCA model artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: rca-model
-          path: monitoring-backend/mlops/models/
-          if-no-files-found: error
