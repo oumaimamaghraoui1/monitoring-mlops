@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       source_run_number:
-        description: "Run number of the artifact to restore, for example 17"
+        description: "Run number of the artifact to restore, for example 18"
         required: true
       redeploy:
         description: "Redeploy backend to Cloud Foundry after restoring artifacts (true/false)"
@@ -28,6 +28,8 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 24
+          cache: npm
+          cache-dependency-path: monitoring-backend/package-lock.json
 
       - name: Validate rollback inputs
         run: |
@@ -59,53 +61,73 @@ jobs:
           find rollback-download -type f | sort || true
 
       - name: Restore data snapshots
+        working-directory: monitoring-backend
         run: |
-          mkdir -p monitoring-backend/data
+          mkdir -p data
 
-          cp -f rollback-download/data/all_config_logs.json monitoring-backend/data/ 2>/dev/null || true
-          cp -f rollback-download/data/security_events.json monitoring-backend/data/ 2>/dev/null || true
+          cp -f ../rollback-download/data/all_config_logs.json data/ 2>/dev/null || true
+          cp -f ../rollback-download/data/security_events.json data/ 2>/dev/null || true
+          cp -f ../rollback-download/data/scored_snapshot.json data/ 2>/dev/null || true
+          cp -f ../rollback-download/data/security_scored_snapshot.json data/ 2>/dev/null || true
+          cp -f ../rollback-download/data/behaviour_baseline.json data/ 2>/dev/null || true
+          cp -f ../rollback-download/data/role_alert_state.json data/ 2>/dev/null || true
 
           echo "Restored data files:"
-          ls -lh monitoring-backend/data || true
+          find data -maxdepth 1 -type f -print -exec ls -lh {} \; || true
 
           echo "Record counts after restore:"
-          node -e "const fs=require('fs'); try { const a=JSON.parse(fs.readFileSync('monitoring-backend/data/all_config_logs.json','utf8')); console.log('all_config_logs:', Array.isArray(a)?a.length:'not array'); } catch(e){ console.log('all_config_logs: missing/unreadable'); }"
-          node -e "const fs=require('fs'); try { const a=JSON.parse(fs.readFileSync('monitoring-backend/data/security_events.json','utf8')); console.log('security_events:', Array.isArray(a)?a.length:'not array'); } catch(e){ console.log('security_events: missing/unreadable'); }"
+          node -e "const fs=require('fs'); try { const a=JSON.parse(fs.readFileSync('data/all_config_logs.json','utf8')); console.log('all_config_logs:', Array.isArray(a)?a.length:'not array'); } catch(e){ console.log('all_config_logs: missing/unreadable'); }"
+          node -e "const fs=require('fs'); try { const a=JSON.parse(fs.readFileSync('data/security_events.json','utf8')); console.log('security_events:', Array.isArray(a)?a.length:'not array'); } catch(e){ console.log('security_events: missing/unreadable'); }"
 
-      - name: Restore Isolation Forest model
+      - name: Restore risk model artifacts
+        working-directory: monitoring-backend
         run: |
-          mkdir -p monitoring-backend/mlops/models/anomaly
+          mkdir -p mlops/models/anomaly
 
-          MODEL_FILE=$(find rollback-download/models -type f -name "isolation_forest_run*.joblib" | head -n 1)
+          RISK_MODEL=$(find ../rollback-download/models -type f -name "isolation_forest_run*.joblib" | head -n 1)
+          RISK_SCALER=$(find ../rollback-download/models -type f -name "scaler_run*.joblib" | head -n 1)
 
-          if [ -z "$MODEL_FILE" ]; then
+          if [ -z "$RISK_MODEL" ]; then
             echo "No versioned isolation forest model found in rollback artifact."
             exit 1
           fi
 
-          cp "$MODEL_FILE" monitoring-backend/mlops/models/anomaly/isolation_forest.joblib
-
-          echo "Restored Isolation Forest model:"
-          ls -lh monitoring-backend/mlops/models/anomaly/isolation_forest.joblib
-
-      - name: Restore security model if present
-        run: |
-          echo "Looking for security model files in rollback artifact..."
-
-          mkdir -p monitoring-backend/mlops/models/security || true
-
-          find rollback-download/models -type f \( -iname "*security*.joblib" -o -iname "*security*.pkl" -o -iname "*ueba*.joblib" -o -iname "*ueba*.pkl" \) -print || true
-
-          SECURITY_MODEL=$(find rollback-download/models -type f \( -iname "*security*.joblib" -o -iname "*security*.pkl" -o -iname "*ueba*.joblib" -o -iname "*ueba*.pkl" \) | head -n 1)
-
-          if [ -n "$SECURITY_MODEL" ]; then
-            BASENAME=$(basename "$SECURITY_MODEL")
-            cp "$SECURITY_MODEL" "monitoring-backend/mlops/models/security/$BASENAME"
-            echo "Restored security model:"
-            ls -lh "monitoring-backend/mlops/models/security/$BASENAME"
-          else
-            echo "No explicit security model found in artifact. Continuing."
+          if [ -z "$RISK_SCALER" ]; then
+            echo "No versioned scaler model found in rollback artifact."
+            exit 1
           fi
+
+          cp "$RISK_MODEL" mlops/models/anomaly/isolation_forest.joblib
+          cp "$RISK_SCALER" mlops/models/anomaly/scaler.joblib
+
+          echo "Restored risk model artifacts:"
+          ls -lh mlops/models/anomaly/isolation_forest.joblib
+          ls -lh mlops/models/anomaly/scaler.joblib
+
+      - name: Restore security model artifacts
+        working-directory: monitoring-backend
+        run: |
+          mkdir -p mlops/models/anomaly
+
+          SECURITY_MODEL=$(find ../rollback-download/models -type f -name "security_if_run*.joblib" | head -n 1)
+          SECURITY_SCALER=$(find ../rollback-download/models -type f -name "security_scaler_run*.joblib" | head -n 1)
+
+          if [ -z "$SECURITY_MODEL" ]; then
+            echo "No versioned security_if model found in rollback artifact."
+            exit 1
+          fi
+
+          if [ -z "$SECURITY_SCALER" ]; then
+            echo "No versioned security_scaler model found in rollback artifact."
+            exit 1
+          fi
+
+          cp "$SECURITY_MODEL" mlops/models/anomaly/security_if.joblib
+          cp "$SECURITY_SCALER" mlops/models/anomaly/security_scaler.joblib
+
+          echo "Restored security model artifacts:"
+          ls -lh mlops/models/anomaly/security_if.joblib
+          ls -lh mlops/models/anomaly/security_scaler.joblib
 
       - name: Show rollback source manifest if available
         run: |
@@ -131,6 +153,19 @@ jobs:
           python -m venv mlops/venv
           mlops/venv/bin/pip install --upgrade pip
           mlops/venv/bin/pip install -r mlops/requirements.txt
+
+      - name: Verify restored model files before rebuild
+        working-directory: monitoring-backend
+        run: |
+          test -f mlops/models/anomaly/isolation_forest.joblib || (echo "Missing restored isolation_forest.joblib" && exit 1)
+          test -f mlops/models/anomaly/scaler.joblib || (echo "Missing restored scaler.joblib" && exit 1)
+          test -f mlops/models/anomaly/security_if.joblib || (echo "Missing restored security_if.joblib" && exit 1)
+          test -f mlops/models/anomaly/security_scaler.joblib || (echo "Missing restored security_scaler.joblib" && exit 1)
+
+          ls -lh mlops/models/anomaly/isolation_forest.joblib
+          ls -lh mlops/models/anomaly/scaler.joblib
+          ls -lh mlops/models/anomaly/security_if.joblib
+          ls -lh mlops/models/anomaly/security_scaler.joblib
 
       - name: Rebuild risk scored outputs from restored model and data
         working-directory: monitoring-backend
