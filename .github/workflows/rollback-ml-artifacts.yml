@@ -24,6 +24,11 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
       - name: Validate rollback inputs
         run: |
           echo "Requested source run number: ${{ github.event.inputs.source_run_number }}"
@@ -63,6 +68,10 @@ jobs:
           echo "Restored data files:"
           ls -lh monitoring-backend/data || true
 
+          echo "Record counts after restore:"
+          node -e "const fs=require('fs'); try { const a=JSON.parse(fs.readFileSync('monitoring-backend/data/all_config_logs.json','utf8')); console.log('all_config_logs:', Array.isArray(a)?a.length:'not array'); } catch(e){ console.log('all_config_logs: missing/unreadable'); }"
+          node -e "const fs=require('fs'); try { const a=JSON.parse(fs.readFileSync('monitoring-backend/data/security_events.json','utf8')); console.log('security_events:', Array.isArray(a)?a.length:'not array'); } catch(e){ console.log('security_events: missing/unreadable'); }"
+
       - name: Restore Isolation Forest model
         run: |
           mkdir -p monitoring-backend/mlops/models/anomaly
@@ -79,16 +88,24 @@ jobs:
           echo "Restored Isolation Forest model:"
           ls -lh monitoring-backend/mlops/models/anomaly/isolation_forest.joblib
 
-      - name: Restore outputs snapshot
+      - name: Restore security model if present
         run: |
-          mkdir -p monitoring-backend/rollback-restored-outputs
+          echo "Looking for security model files in rollback artifact..."
 
-          if [ -d rollback-download/outputs ]; then
-            cp -R rollback-download/outputs/. monitoring-backend/rollback-restored-outputs/ || true
+          mkdir -p monitoring-backend/mlops/models/security || true
+
+          find rollback-download/models -type f \( -iname "*security*.joblib" -o -iname "*security*.pkl" -o -iname "*ueba*.joblib" -o -iname "*ueba*.pkl" \) -print || true
+
+          SECURITY_MODEL=$(find rollback-download/models -type f \( -iname "*security*.joblib" -o -iname "*security*.pkl" -o -iname "*ueba*.joblib" -o -iname "*ueba*.pkl" \) | head -n 1)
+
+          if [ -n "$SECURITY_MODEL" ]; then
+            BASENAME=$(basename "$SECURITY_MODEL")
+            cp "$SECURITY_MODEL" "monitoring-backend/mlops/models/security/$BASENAME"
+            echo "Restored security model:"
+            ls -lh "monitoring-backend/mlops/models/security/$BASENAME"
+          else
+            echo "No explicit security model found in artifact. Continuing."
           fi
-
-          echo "Restored outputs snapshot:"
-          find monitoring-backend/rollback-restored-outputs -type f | sort || true
 
       - name: Show rollback source manifest if available
         run: |
@@ -99,16 +116,46 @@ jobs:
             echo "No run-manifest.json found."
           fi
 
-      - name: Setup Node.js
-        if: github.event.inputs.redeploy == 'true'
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-
       - name: Install backend dependencies
-        if: github.event.inputs.redeploy == 'true'
         working-directory: monitoring-backend
         run: npm ci --ignore-scripts
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Prepare ML virtual environment
+        working-directory: monitoring-backend
+        run: |
+          python -m venv mlops/venv
+          mlops/venv/bin/pip install --upgrade pip
+          mlops/venv/bin/pip install -r mlops/requirements.txt
+
+      - name: Rebuild risk scored outputs from restored model and data
+        working-directory: monitoring-backend
+        run: |
+          echo "Rebuilding risk-scored outputs..."
+          mlops/venv/bin/python mlops/inference/score_event.py
+
+          echo "Searching risk-related generated files after rollback rebuild..."
+          find . -maxdepth 6 -type f \( -iname "*score*" -o -iname "*scored*" -o -iname "*risk*" \) -print -exec ls -lh {} \; || true
+
+      - name: Rebuild security scored outputs from restored data
+        working-directory: monitoring-backend
+        run: |
+          echo "Rebuilding security-scored outputs..."
+          mlops/venv/bin/python mlops/inference/security_score.py
+
+          echo "Searching security-related generated files after rollback rebuild..."
+          find . -maxdepth 6 -type f \( -iname "*security*" -o -iname "*ueba*" -o -iname "*score*" \) -print -exec ls -lh {} \; || true
+
+      - name: Inspect rebuilt runtime files
+        working-directory: monitoring-backend
+        run: |
+          echo "Inspecting important data/runtime files after rebuild..."
+          find data -maxdepth 3 -type f -print -exec ls -lh {} \; || true
+          find mlops -maxdepth 6 -type f \( -iname "*score*" -o -iname "*scored*" -o -iname "*risk*" -o -iname "*security*" -o -iname "*ueba*" \) -print -exec ls -lh {} \; || true
 
       - name: Install Cloud Foundry CLI
         if: github.event.inputs.redeploy == 'true'
@@ -152,3 +199,12 @@ jobs:
             -o /tmp/audit-scored-rollback.json
 
           node -e "const fs=require('fs'); const j=JSON.parse(fs.readFileSync('/tmp/audit-scored-rollback.json','utf8')); console.log('audit scored logs after rollback:', Array.isArray(j.logs) ? j.logs.length : 'not array');"
+
+      - name: Smoke test security endpoint after rollback
+        if: github.event.inputs.redeploy == 'true'
+        run: |
+          echo "Checking security endpoint after rollback deployment..."
+          curl -f -sS "https://monitoring-backend.cfapps.eu10-004.hana.ondemand.com/security/events" \
+            -o /tmp/security-events-rollback.json || true
+
+          node -e "const fs=require('fs'); try { const j=JSON.parse(fs.readFileSync('/tmp/security-events-rollback.json','utf8')); console.log('security endpoint payload keys:', Object.keys(j)); } catch(e) { console.log('security endpoint payload unreadable or endpoint unavailable'); }"
