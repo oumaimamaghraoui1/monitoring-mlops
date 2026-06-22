@@ -79,6 +79,19 @@ jobs:
           node -e "const fs=require('fs'); try { const a=JSON.parse(fs.readFileSync('data/all_config_logs.json','utf8')); console.log('all_config_logs:', Array.isArray(a)?a.length:'not array'); } catch(e){ console.log('all_config_logs: missing/unreadable'); }"
           node -e "const fs=require('fs'); try { const a=JSON.parse(fs.readFileSync('data/security_events.json','utf8')); console.log('security_events:', Array.isArray(a)?a.length:'not array'); } catch(e){ console.log('security_events: missing/unreadable'); }"
 
+      - name: Restore ML feature and processed datasets
+        working-directory: monitoring-backend
+        run: |
+          mkdir -p mlops/data/features
+          mkdir -p mlops/data/processed
+
+          cp -f ../rollback-download/mlops-data/features/ml_features.parquet mlops/data/features/ 2>/dev/null || true
+          cp -f ../rollback-download/mlops-data/features/security_features.parquet mlops/data/features/ 2>/dev/null || true
+          cp -f ../rollback-download/mlops-data/processed/ml_events.parquet mlops/data/processed/ 2>/dev/null || true
+
+          echo "Restored ML feature/processed files:"
+          find mlops/data -maxdepth 3 -type f -print -exec ls -lh {} \; || true
+
       - name: Restore risk model artifacts
         working-directory: monitoring-backend
         run: |
@@ -166,6 +179,17 @@ jobs:
           ls -lh mlops/models/anomaly/scaler.joblib
           ls -lh mlops/models/anomaly/security_if.joblib
           ls -lh mlops/models/anomaly/security_scaler.joblib
+
+      - name: Rebuild normalized and feature datasets
+        working-directory: monitoring-backend
+        run: |
+          echo "Rebuilding normalized and feature datasets..."
+          mlops/venv/bin/python mlops/pipelines/01_normalize_logs.py
+          mlops/venv/bin/python mlops/pipelines/02_build_features.py
+          mlops/venv/bin/python mlops/security/02_build_security_features.py
+
+          echo "Generated feature datasets:"
+          find mlops/data -maxdepth 3 -type f -print -exec ls -lh {} \; || true
 
       - name: Rebuild risk scored outputs from restored model and data
         working-directory: monitoring-backend

@@ -261,6 +261,9 @@ jobs:
           ls -lh data/security_events.json || true
           ls -lh data/scored_snapshot.json || true
           ls -lh data/security_scored_snapshot.json || true
+          ls -lh mlops/data/features/ml_features.parquet || true
+          ls -lh mlops/data/features/security_features.parquet || true
+          ls -lh mlops/data/processed/ml_events.parquet || true
 
           echo "Generated record counts:"
           node -e "const fs=require('fs'); const a=JSON.parse(fs.readFileSync('data/security_events.json','utf8')); console.log('security_events:', Array.isArray(a) ? a.length : 'not array')"
@@ -303,6 +306,11 @@ jobs:
               "risk_scaler": "mlops/models/anomaly/scaler.joblib",
               "security_model": "mlops/models/anomaly/security_if.joblib",
               "security_scaler": "mlops/models/anomaly/security_scaler.joblib"
+            },
+            "feature_files": {
+              "risk_features": "mlops/data/features/ml_features.parquet",
+              "security_features": "mlops/data/features/security_features.parquet",
+              "processed_events": "mlops/data/processed/ml_events.parquet"
             }
           }
           EOF
@@ -349,6 +357,8 @@ jobs:
           mkdir -p artifacts/data
           mkdir -p artifacts/outputs
           mkdir -p artifacts/deployment
+          mkdir -p artifacts/mlops-data/features
+          mkdir -p artifacts/mlops-data/processed
 
           cp -f data/all_config_logs.json artifacts/data/ 2>/dev/null || true
           cp -f data/security_events.json artifacts/data/ 2>/dev/null || true
@@ -356,6 +366,10 @@ jobs:
           cp -f data/security_scored_snapshot.json artifacts/data/ 2>/dev/null || true
           cp -f data/behaviour_baseline.json artifacts/data/ 2>/dev/null || true
           cp -f data/role_alert_state.json artifacts/data/ 2>/dev/null || true
+
+          cp -f mlops/data/features/ml_features.parquet artifacts/mlops-data/features/ 2>/dev/null || true
+          cp -f mlops/data/features/security_features.parquet artifacts/mlops-data/features/ 2>/dev/null || true
+          cp -f mlops/data/processed/ml_events.parquet artifacts/mlops-data/processed/ 2>/dev/null || true
 
           cp -f manifest.yml artifacts/deployment/ 2>/dev/null || true
           cp -f package.json artifacts/deployment/ 2>/dev/null || true
