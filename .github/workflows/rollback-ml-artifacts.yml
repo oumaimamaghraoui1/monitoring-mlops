@@ -1,0 +1,154 @@
+name: Rollback ML Artifacts Only
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_run_number:
+        description: "Run number of the artifact to restore, for example 17"
+        required: true
+      redeploy:
+        description: "Redeploy backend to Cloud Foundry after restoring artifacts (true/false)"
+        required: true
+        default: "false"
+
+concurrency:
+  group: rollback-ml-artifacts
+  cancel-in-progress: false
+
+jobs:
+  rollback-ml-artifacts:
+    runs-on: ubuntu-latest
+    environment: "biweekly-alm-refresh-cf secrets"
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Validate rollback inputs
+        run: |
+          echo "Requested source run number: ${{ github.event.inputs.source_run_number }}"
+          echo "Redeploy option: ${{ github.event.inputs.redeploy }}"
+
+          case "${{ github.event.inputs.redeploy }}" in
+            true|false)
+              echo "Redeploy input is valid."
+              ;;
+            *)
+              echo "Invalid redeploy input. Use true or false."
+              exit 1
+              ;;
+          esac
+
+      - name: Download artifact from selected run
+        uses: dawidd6/action-download-artifact@v6
+        with:
+          workflow: biweekly-alm-refresh-cf.yml
+          run_number: ${{ github.event.inputs.source_run_number }}
+          name: mlops-artifacts-run-${{ github.event.inputs.source_run_number }}
+          path: rollback-download
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Inspect downloaded rollback artifact
+        run: |
+          echo "Downloaded rollback contents:"
+          find rollback-download -type f | sort || true
+
+      - name: Restore data snapshots
+        run: |
+          mkdir -p monitoring-backend/data
+
+          cp -f rollback-download/data/all_config_logs.json monitoring-backend/data/ 2>/dev/null || true
+          cp -f rollback-download/data/security_events.json monitoring-backend/data/ 2>/dev/null || true
+
+          echo "Restored data files:"
+          ls -lh monitoring-backend/data || true
+
+      - name: Restore Isolation Forest model
+        run: |
+          mkdir -p monitoring-backend/mlops/models/anomaly
+
+          MODEL_FILE=$(find rollback-download/models -type f -name "isolation_forest_run*.joblib" | head -n 1)
+
+          if [ -z "$MODEL_FILE" ]; then
+            echo "No versioned isolation forest model found in rollback artifact."
+            exit 1
+          fi
+
+          cp "$MODEL_FILE" monitoring-backend/mlops/models/anomaly/isolation_forest.joblib
+
+          echo "Restored Isolation Forest model:"
+          ls -lh monitoring-backend/mlops/models/anomaly/isolation_forest.joblib
+
+      - name: Restore outputs snapshot
+        run: |
+          mkdir -p monitoring-backend/rollback-restored-outputs
+
+          if [ -d rollback-download/outputs ]; then
+            cp -R rollback-download/outputs/. monitoring-backend/rollback-restored-outputs/ || true
+          fi
+
+          echo "Restored outputs snapshot:"
+          find monitoring-backend/rollback-restored-outputs -type f | sort || true
+
+      - name: Show rollback source manifest if available
+        run: |
+          if [ -f rollback-download/run-manifest.json ]; then
+            echo "Rollback source manifest:"
+            cat rollback-download/run-manifest.json
+          else
+            echo "No run-manifest.json found."
+          fi
+
+      - name: Setup Node.js
+        if: github.event.inputs.redeploy == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install backend dependencies
+        if: github.event.inputs.redeploy == 'true'
+        working-directory: monitoring-backend
+        run: npm ci --ignore-scripts
+
+      - name: Install Cloud Foundry CLI
+        if: github.event.inputs.redeploy == 'true'
+        run: |
+          wget -q -O - https://packages.cloudfoundry.org/debian/cli.cloudfoundry.org.key | sudo apt-key add -
+          echo "deb https://packages.cloudfoundry.org/debian stable main" | sudo tee /etc/apt/sources.list.d/cloudfoundry-cli.list
+          sudo apt-get update
+          sudo apt-get install -y cf8-cli
+          cf version
+
+      - name: Login to Cloud Foundry
+        if: github.event.inputs.redeploy == 'true'
+        env:
+          CF_API: ${{ secrets.CF_API }}
+          CF_ORG: ${{ secrets.CF_ORG }}
+          CF_SPACE: ${{ secrets.CF_SPACE }}
+          CF_USERNAME: ${{ secrets.CF_USERNAME }}
+          CF_PASSWORD: ${{ secrets.CF_PASSWORD }}
+        run: |
+          cf api "$CF_API"
+          cf auth "$CF_USERNAME" "$CF_PASSWORD"
+          cf target -o "$CF_ORG" -s "$CF_SPACE"
+
+      - name: Redeploy backend with restored ML artifacts
+        if: github.event.inputs.redeploy == 'true'
+        working-directory: monitoring-backend
+        run: |
+          cf push monitoring-backend -f manifest.yml
+          cf app monitoring-backend
+
+      - name: Smoke test backend after rollback
+        if: github.event.inputs.redeploy == 'true'
+        run: |
+          curl -f "https://monitoring-backend.cfapps.eu10-004.hana.ondemand.com/health" || true
+
+      - name: Smoke test risk scored endpoint after rollback
+        if: github.event.inputs.redeploy == 'true'
+        run: |
+          echo "Checking /audit/scored after rollback deployment..."
+          curl -f -sS "https://monitoring-backend.cfapps.eu10-004.hana.ondemand.com/audit/scored" \
+            -o /tmp/audit-scored-rollback.json
+
+          node -e "const fs=require('fs'); const j=JSON.parse(fs.readFileSync('/tmp/audit-scored-rollback.json','utf8')); console.log('audit scored logs after rollback:', Array.isArray(j.logs) ? j.logs.length : 'not array');"
