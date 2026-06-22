@@ -20,7 +20,7 @@ jobs:
         with:
           node-version: 24
           cache: npm
-          cache-dependency-path: package-lock.json
+          cache-dependency-path: monitoring-backend/package-lock.json
 
       # 3. Install backend deps
       - name: Install dependencies
