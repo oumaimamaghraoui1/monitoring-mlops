@@ -6,7 +6,8 @@ import joblib
 import pandas as pd
 
 from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import LabelEncoder
+from sklearn.preprocessing import LabelEncoder, StandardScaler
+from sklearn.pipeline import Pipeline
 from sklearn.metrics import (
     classification_report,
     confusion_matrix,
@@ -14,13 +15,19 @@ from sklearn.metrics import (
     precision_recall_fscore_support
 )
 
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.tree import DecisionTreeClassifier
+from sklearn.ensemble import (
+    RandomForestClassifier,
+    ExtraTreesClassifier
+)
 from sklearn.linear_model import LogisticRegression
 
 BASE_DIR = Path(__file__).resolve().parents[2]
-
-OUT_DIR = BASE_DIR / "mlops" / "models" / "rca_comparison"
+OUT_DIR = Path(
+    os.getenv(
+        "RCA_OUTPUT_DIR",
+        str(BASE_DIR / "mlops" / "models" / "rca_comparison")
+    )
+)
 
 
 def resolve_rca_dataset_path():
@@ -69,6 +76,7 @@ def main():
 
     data_path = resolve_rca_dataset_path()
     print("📂 Loading RCA dataset from:", data_path)
+    print("📁 Output directory:", OUT_DIR)
 
     df = pd.read_csv(data_path)
     print("Dataset shape:", df.shape)
@@ -96,13 +104,20 @@ def main():
     if target_column not in df.columns:
         raise RuntimeError(f"Missing target column: {target_column}")
 
+    required_columns = feature_columns + [target_column]
+    if df[required_columns].isnull().any().any():
+        raise RuntimeError("Dataset contains missing values in required columns")
+
     X = df[feature_columns]
     y = df[target_column]
+
+    print("\nClass distribution:")
+    print(y.value_counts())
 
     label_encoder = LabelEncoder()
     y_encoded = label_encoder.fit_transform(y)
 
-    print("Encoded classes:", label_encoder.classes_)
+    print("\nEncoded classes:", list(label_encoder.classes_))
 
     X_train, X_test, y_train, y_test = train_test_split(
         X,
@@ -113,18 +128,31 @@ def main():
     )
 
     models = {
+        "LogisticRegression": Pipeline([
+            ("scaler", StandardScaler()),
+            ("clf", LogisticRegression(
+                max_iter=2000,
+                random_state=42,
+                class_weight="balanced"
+            ))
+        ]),
         "RandomForest": RandomForestClassifier(
-            n_estimators=100,
-            max_depth=5,
-            random_state=42
+            n_estimators=300,
+            max_depth=None,
+            min_samples_split=5,
+            min_samples_leaf=2,
+            random_state=42,
+            class_weight="balanced",
+            n_jobs=-1
         ),
-        "DecisionTree": DecisionTreeClassifier(
-            max_depth=5,
-            random_state=42
-        ),
-        "LogisticRegression": LogisticRegression(
-            max_iter=2000,
-            random_state=42
+        "ExtraTrees": ExtraTreesClassifier(
+            n_estimators=300,
+            max_depth=None,
+            min_samples_split=5,
+            min_samples_leaf=2,
+            random_state=42,
+            class_weight="balanced",
+            n_jobs=-1
         )
     }
 
@@ -168,6 +196,13 @@ def main():
         })
         pred_df.to_csv(OUT_DIR / f"{model_name}_predictions.csv", index=False)
 
+        if hasattr(model, "feature_importances_"):
+            fi_df = pd.DataFrame({
+                "feature": feature_columns,
+                "importance": model.feature_importances_
+            }).sort_values("importance", ascending=False)
+            fi_df.to_csv(OUT_DIR / f"{model_name}_feature_importance.csv", index=False)
+
         summary_rows.append({
             "model": model_name,
             "accuracy": round(accuracy, 4),
@@ -180,6 +215,8 @@ def main():
         })
 
         print(f"Accuracy: {accuracy:.4f}")
+        print(f"Precision macro: {precision_macro:.4f}")
+        print(f"Recall macro: {recall_macro:.4f}")
         print(f"F1 macro: {f1_macro:.4f}")
         print(f"F1 weighted: {f1_weighted:.4f}")
 
@@ -190,15 +227,27 @@ def main():
 
     summary_df.to_csv(OUT_DIR / "model_comparison_summary.csv", index=False)
 
-    # Save best model = RandomForest if you still want operational model
     best_model_name = summary_df.iloc[0]["model"]
     best_model = models[best_model_name]
+
     joblib.dump(best_model, OUT_DIR / f"{best_model_name}_model.pkl")
     joblib.dump(label_encoder, OUT_DIR / "label_encoder.pkl")
+
+    metadata = {
+        "dataset_path": str(data_path),
+        "features": feature_columns,
+        "target": target_column,
+        "classes": list(label_encoder.classes_),
+        "test_size": 0.2,
+        "random_state": 42,
+        "best_model": best_model_name
+    }
+    joblib.dump(metadata, OUT_DIR / "metadata.pkl")
 
     print("\n=== Final comparison summary ===")
     print(summary_df.to_string(index=False))
     print(f"\n✅ RCA comparison files saved in: {OUT_DIR}")
+    print(f"✅ Best model saved as: {best_model_name}_model.pkl")
 
 
 if __name__ == "__main__":
